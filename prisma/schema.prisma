@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id            String   @id @default(cuid())
+  nip           String   @unique
+  name          String
+  email         String   @unique
+  phone         String
+  position      String
+  department    String
+  joinDate      DateTime
+  salary        Float
+  photo         String?
+  status        String   @default("active") // active, inactive
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  leaves        Leave[]
+  payrolls      Payroll[]
+  performances  Performance[]
+  attendances   Attendance[]
+}
+
+model Leave {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type        String   // cuti, sakit, izin
+  startDate   DateTime
+  endDate     DateTime
+  reason      String
+  status      String   @default("pending") // pending, approved, rejected
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date        DateTime
+  checkIn     DateTime?
+  checkOut    DateTime?
+  status      String   // hadir, terlambat, alpha, izin
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Payroll {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month           Int
+  year            Int
+  basicSalary     Float
+  allowances      Float    @default(0)
+  deductions      Float    @default(0)
+  totalSalary     Float
+  status          String   @default("pending") // pending, paid
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Performance {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  period          String   // Q1 2024, Q2 2024, etc
+  productivity    Int      // 1-5
+  quality         Int      // 1-5
+  teamwork        Int      // 1-5
+  discipline      Int      // 1-5
+  totalScore      Float
+  notes           String?
+  evaluatedBy     String
+  evaluatedAt     DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
