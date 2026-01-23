@@ -1,7 +1,24 @@
 'use client';
 
-import { Plus, Edit } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -11,17 +28,197 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-const performances = [
+interface Performance {
+  id: string;
+  employeeName: string;
+  period: string;
+  productivity: number;
+  quality: number;
+  teamwork: number;
+  discipline: number;
+  totalScore: number;
+  notes: string;
+}
+
+const initialPerformances: Performance[] = [
   { id: '1', employeeName: 'Budi Santoso', period: 'Q1 2024', productivity: 5, quality: 5, teamwork: 4, discipline: 5, totalScore: 4.75, notes: 'Excellent performance' },
   { id: '2', employeeName: 'Siti Nurhaliza', period: 'Q1 2024', productivity: 4, quality: 5, teamwork: 5, discipline: 5, totalScore: 4.75, notes: 'Great team player' },
 ];
 
 export default function PerformancePage() {
+  const [performances, setPerformances] = useState<Performance[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editingPerformance, setEditingPerformance] = useState<Performance | null>(null);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [formData, setFormData] = useState({
+    employeeName: '',
+    period: '',
+    productivity: 3,
+    quality: 3,
+    teamwork: 3,
+    discipline: 3,
+    notes: ''
+  });
+
+  // Load data from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Load employees
+      const savedEmployees = localStorage.getItem('hr_employees');
+      if (savedEmployees) {
+        setEmployees(JSON.parse(savedEmployees));
+      }
+
+      // Load performances
+      const savedPerformances = localStorage.getItem('hr_performances');
+      if (savedPerformances) {
+        setPerformances(JSON.parse(savedPerformances));
+      } else {
+        setPerformances(initialPerformances);
+        localStorage.setItem('hr_performances', JSON.stringify(initialPerformances));
+      }
+    }
+  }, []);
+
+  // Save to localStorage whenever performances change
+  useEffect(() => {
+    if (typeof window !== 'undefined' && performances.length > 0) {
+      localStorage.setItem('hr_performances', JSON.stringify(performances));
+      // Dispatch custom event to notify dashboard
+      window.dispatchEvent(new Event('performanceUpdated'));
+    }
+  }, [performances]);
+
+  const calculateTotalScore = (prod: number, qual: number, team: number, disc: number) => {
+    return ((prod + qual + team + disc) / 4).toFixed(2);
+  };
+
+  const handleOpenModal = (performance?: Performance) => {
+    if (performance) {
+      setEditingPerformance(performance);
+      setFormData({
+        employeeName: performance.employeeName,
+        period: performance.period,
+        productivity: performance.productivity,
+        quality: performance.quality,
+        teamwork: performance.teamwork,
+        discipline: performance.discipline,
+        notes: performance.notes
+      });
+    } else {
+      setEditingPerformance(null);
+      setFormData({
+        employeeName: '',
+        period: '',
+        productivity: 3,
+        quality: 3,
+        teamwork: 3,
+        discipline: 3,
+        notes: ''
+      });
+    }
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingPerformance(null);
+    setFormData({
+      employeeName: '',
+      period: '',
+      productivity: 3,
+      quality: 3,
+      teamwork: 3,
+      discipline: 3,
+      notes: ''
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const totalScore = parseFloat(
+        calculateTotalScore(
+          formData.productivity,
+          formData.quality,
+          formData.teamwork,
+          formData.discipline
+        )
+      );
+
+      if (editingPerformance) {
+        const updatedPerformances = performances.map(perf =>
+          perf.id === editingPerformance.id
+            ? {
+                ...perf,
+                employeeName: formData.employeeName,
+                period: formData.period,
+                productivity: formData.productivity,
+                quality: formData.quality,
+                teamwork: formData.teamwork,
+                discipline: formData.discipline,
+                totalScore,
+                notes: formData.notes
+              }
+            : perf
+        );
+        setPerformances(updatedPerformances);
+        alert('Penilaian berhasil diupdate!');
+      } else {
+        const newPerformance: Performance = {
+          id: Date.now().toString(),
+          employeeName: formData.employeeName,
+          period: formData.period,
+          productivity: formData.productivity,
+          quality: formData.quality,
+          teamwork: formData.teamwork,
+          discipline: formData.discipline,
+          totalScore,
+          notes: formData.notes
+        };
+        setPerformances([...performances, newPerformance]);
+        alert('Penilaian berhasil ditambahkan!');
+      }
+
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error saving performance:', error);
+      alert('Gagal menyimpan penilaian');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (!confirm('Yakin ingin menghapus penilaian ini?')) return;
+
+    try {
+      const updatedPerformances = performances.filter(perf => perf.id !== id);
+      setPerformances(updatedPerformances);
+      alert('Penilaian berhasil dihapus!');
+    } catch (error) {
+      console.error('Error deleting performance:', error);
+      alert('Gagal menghapus penilaian');
+    }
+  };
+
+  const StarRating = ({ rating }: { rating: number }) => (
+    <div className="flex items-center gap-1">
+      {[...Array(5)].map((_, i) => (
+        <span key={i} className={i < rating ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold text-gray-900">Penilaian Kinerja</h2>
-        <Button className="gap-2">
+        <Button onClick={() => handleOpenModal()} className="gap-2">
           <Plus className="w-4 h-4" /> Tambah Penilaian
         </Button>
       </div>
@@ -46,46 +243,207 @@ export default function PerformancePage() {
                 <TableCell className="font-medium">{perf.employeeName}</TableCell>
                 <TableCell>{perf.period}</TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className={i < perf.productivity ? 'text-yellow-400' : 'text-gray-300'}>★</span>
-                    ))}
-                  </div>
+                  <StarRating rating={perf.productivity} />
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className={i < perf.quality ? 'text-yellow-400' : 'text-gray-300'}>★</span>
-                    ))}
-                  </div>
+                  <StarRating rating={perf.quality} />
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className={i < perf.teamwork ? 'text-yellow-400' : 'text-gray-300'}>★</span>
-                    ))}
-                  </div>
+                  <StarRating rating={perf.teamwork} />
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className={i < perf.discipline ? 'text-yellow-400' : 'text-gray-300'}>★</span>
-                    ))}
-                  </div>
+                  <StarRating rating={perf.discipline} />
                 </TableCell>
                 <TableCell>
                   <span className="font-bold text-blue-600">{perf.totalScore}</span>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    <Edit className="w-4 h-4" />
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenModal(perf)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(perf.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">
+              {editingPerformance ? 'Edit Penilaian Kinerja' : 'Tambah Penilaian Kinerja'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nama Karyawan</Label>
+              <Select
+                value={formData.employeeName}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, employeeName: value })
+                }
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Karyawan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map(emp => (
+                    <SelectItem key={emp.id} value={emp.name}>
+                      {emp.name} - {emp.position}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="period">Periode</Label>
+              <Input
+                id="period"
+                placeholder="e.g. Q1 2024, Januari 2024"
+                value={formData.period}
+                onChange={(e) => setFormData({ ...formData, period: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="productivity">Produktivitas (1-5)</Label>
+                <Select
+                  value={formData.productivity.toString()}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, productivity: parseInt(value) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map(num => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num} {'★'.repeat(num)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="quality">Kualitas (1-5)</Label>
+                <Select
+                  value={formData.quality.toString()}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, quality: parseInt(value) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map(num => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num} {'★'.repeat(num)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="teamwork">Kerjasama (1-5)</Label>
+                <Select
+                  value={formData.teamwork.toString()}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, teamwork: parseInt(value) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map(num => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num} {'★'.repeat(num)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="discipline">Disiplin (1-5)</Label>
+                <Select
+                  value={formData.discipline.toString()}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, discipline: parseInt(value) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5].map(num => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num} {'★'.repeat(num)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Catatan</Label>
+              <Input
+                id="notes"
+                placeholder="Catatan tambahan tentang kinerja"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              />
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-sm font-medium text-gray-700">
+                Total Score Preview: <span className="text-blue-600 font-bold text-lg">
+                  {calculateTotalScore(
+                    formData.productivity,
+                    formData.quality,
+                    formData.teamwork,
+                    formData.discipline
+                  )}
+                </span>
+              </p>
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={handleCloseModal}>
+                Batal
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Menyimpan...' : editingPerformance ? 'Update' : 'Simpan'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

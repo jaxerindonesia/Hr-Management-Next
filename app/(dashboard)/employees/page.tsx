@@ -44,7 +44,7 @@ const initialEmployees: Employee[] = [
 ];
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -61,6 +61,27 @@ export default function EmployeesPage() {
     salary: "",
     status: "active",
   });
+
+  // Load data dari localStorage saat pertama kali
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedEmployees = localStorage.getItem("hr_employees");
+      if (savedEmployees) {
+        setEmployees(JSON.parse(savedEmployees));
+      } else {
+        // Jika belum ada data, pakai data initial
+        setEmployees(initialEmployees);
+        localStorage.setItem("hr_employees", JSON.stringify(initialEmployees));
+      }
+    }
+  }, []);
+
+  // Simpan ke localStorage setiap kali data berubah
+  useEffect(() => {
+    if (typeof window !== "undefined" && employees.length > 0) {
+      localStorage.setItem("hr_employees", JSON.stringify(employees));
+    }
+  }, [employees]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -106,6 +127,17 @@ export default function EmployeesPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingEmployee(null);
+    setFormData({
+      nip: "",
+      name: "",
+      email: "",
+      phone: "",
+      position: "",
+      department: "",
+      joinDate: "",
+      salary: "",
+      status: "active",
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -114,6 +146,7 @@ export default function EmployeesPage() {
 
     try {
       if (editingEmployee) {
+        // Update karyawan yang ada
         const updatedEmployees = employees.map((emp) =>
           emp.id === editingEmployee.id
             ? {
@@ -131,8 +164,9 @@ export default function EmployeesPage() {
             : emp,
         );
         setEmployees(updatedEmployees);
-        alert("Karyawan berhasil diupdate!");
+        alert("✅ Karyawan berhasil diupdate!");
       } else {
+        // Tambah karyawan baru
         const newEmployee: Employee = {
           id: Date.now().toString(),
           nip: formData.nip,
@@ -146,23 +180,23 @@ export default function EmployeesPage() {
           status: formData.status,
         };
         setEmployees([...employees, newEmployee]);
-        alert("Karyawan berhasil ditambahkan!");
+        alert("✅ Karyawan berhasil ditambahkan!");
       }
 
       handleCloseModal();
     } catch (error) {
       console.error("Error saving employee:", error);
-      alert("Gagal menyimpan data karyawan");
+      alert("❌ Gagal menyimpan data karyawan");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = (id: string) => {
-    if (!confirm("Yakin ingin menghapus karyawan ini?")) return;
+    if (!confirm("⚠️ Yakin ingin menghapus karyawan ini?")) return;
     const updatedEmployees = employees.filter((emp) => emp.id !== id);
     setEmployees(updatedEmployees);
-    alert("Karyawan berhasil dihapus!");
+    alert("✅ Karyawan berhasil dihapus!");
   };
 
   const filteredEmployees = employees.filter(
@@ -176,7 +210,12 @@ export default function EmployeesPage() {
     <>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-bold text-gray-900">Data Karyawan</h2>
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">Data Karyawan</h2>
+            <p className="text-gray-600 mt-1">
+              Total: {employees.length} karyawan
+            </p>
+          </div>
           <button
             onClick={() => handleOpenModal()}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -211,42 +250,50 @@ export default function EmployeesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredEmployees.map((emp) => (
-                  <tr key={emp.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3 font-medium">{emp.nip}</td>
-                    <td className="p-3">{emp.name}</td>
-                    <td className="p-3">{emp.position}</td>
-                    <td className="p-3">{emp.department}</td>
-                    <td className="p-3">{formatCurrency(emp.salary)}</td>
-                    <td className="p-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          emp.status === "active"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {emp.status}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenModal(emp)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                {filteredEmployees.length > 0 ? (
+                  filteredEmployees.map((emp) => (
+                    <tr key={emp.id} className="border-b hover:bg-gray-50">
+                      <td className="p-3 font-medium">{emp.nip}</td>
+                      <td className="p-3">{emp.name}</td>
+                      <td className="p-3">{emp.position}</td>
+                      <td className="p-3">{emp.department}</td>
+                      <td className="p-3">{formatCurrency(emp.salary)}</td>
+                      <td className="p-3">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            emp.status === "active"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
                         >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(emp.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                          {emp.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenModal(emp)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(emp.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                      Tidak ada data karyawan yang ditemukan
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -263,7 +310,7 @@ export default function EmployeesPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">NIP</label>
+                  <label className="block text-sm font-medium">NIP *</label>
                   <input
                     type="text"
                     value={formData.nip}
@@ -272,12 +319,13 @@ export default function EmployeesPage() {
                     }
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    placeholder="Contoh: NIP003"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium">
-                    Nama Lengkap
+                    Nama Lengkap *
                   </label>
                   <input
                     type="text"
@@ -287,13 +335,14 @@ export default function EmployeesPage() {
                     }
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    placeholder="Contoh: Ahmad Rizki"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">Email</label>
+                  <label className="block text-sm font-medium">Email *</label>
                   <input
                     type="email"
                     value={formData.email}
@@ -302,12 +351,13 @@ export default function EmployeesPage() {
                     }
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    placeholder="ahmad@example.com"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium">
-                    No. Telepon
+                    No. Telepon *
                   </label>
                   <input
                     type="tel"
@@ -317,13 +367,14 @@ export default function EmployeesPage() {
                     }
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    placeholder="081234567890"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">Posisi</label>
+                  <label className="block text-sm font-medium">Posisi *</label>
                   <input
                     type="text"
                     value={formData.position}
@@ -332,12 +383,13 @@ export default function EmployeesPage() {
                     }
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    placeholder="Contoh: Developer"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium">
-                    Departemen
+                    Departemen *
                   </label>
                   <select
                     value={formData.department}
@@ -360,7 +412,7 @@ export default function EmployeesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium">
-                    Tanggal Bergabung
+                    Tanggal Bergabung *
                   </label>
                   <input
                     type="date"
@@ -374,7 +426,7 @@ export default function EmployeesPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">Gaji</label>
+                  <label className="block text-sm font-medium">Gaji *</label>
                   <input
                     type="number"
                     value={formData.salary}
@@ -383,6 +435,7 @@ export default function EmployeesPage() {
                     }
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    placeholder="10000000"
                   />
                 </div>
               </div>
@@ -401,7 +454,7 @@ export default function EmployeesPage() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
                 <button
                   type="button"
                   onClick={handleCloseModal}

@@ -6,13 +6,12 @@ import {
   Clock,
   Award,
   Calendar,
-  Gift,
   TrendingUp,
   AlertCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const initialLeaves = [
+const defaultLeaves = [
   {
     id: "1",
     employeeName: "Budi Santoso",
@@ -34,9 +33,9 @@ const initialPayrolls = [
   { id: "2", totalSalary: 12400000 },
 ];
 
-const initialPerformances = [
-  { id: "1", employeeName: "Surya", period: "Q1 2024", totalScore: 4.75 },
-  { id: "2", employeeName: "Antoni", period: "Q1 2024", totalScore: 4.75 },
+const defaultPerformances = [
+  { id: "1", employeeName: "Budi Santoso", period: "Q1 2024", totalScore: 4.75 },
+  { id: "2", employeeName: "Siti Nurhaliza", period: "Q1 2024", totalScore: 4.75 },
 ];
 
 // Function untuk generate hari libur berdasarkan tahun berjalan
@@ -80,43 +79,89 @@ const generateHolidays = (year: number) => [
   { date: `${year}-12-31`, name: "Malam Tahun Baru", type: "event" },
 ];
 
-// Data Ulang Tahun Karyawan
-const upcomingBirthdays = [
-  { id: "1", name: "Budi Santoso", date: "1990-01-25", department: "IT" },
-  { id: "2", name: "Siti Nurhaliza", date: "1992-02-10", department: "HR" },
-  { id: "3", name: "Ahmad Rizki", date: "1988-02-15", department: "Finance" },
-  {
-    id: "4",
-    name: "Dewi Lestari",
-    date: "1995-03-05",
-    department: "Marketing",
-  },
-  {
-    id: "5",
-    name: "Andi Wijaya",
-    date: "1991-03-18",
-    department: "Operations",
-  },
-];
 
 export default function DashboardPage() {
-  const [employees, setEmployees] = useState([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [leaves, setLeaves] = useState<typeof defaultLeaves>([]);
+  const [payrolls, setPayrolls] = useState<any[]>([]);
+  const [performances, setPerformances] = useState<typeof defaultPerformances>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  useEffect(() => {
+  // Function to load data from localStorage
+  const loadData = () => {
     if (typeof window !== "undefined") {
       const savedEmployees = localStorage.getItem("hr_employees");
       if (savedEmployees) {
         setEmployees(JSON.parse(savedEmployees));
       }
+
+      // Load leaves dari localStorage
+      const savedLeaves = localStorage.getItem("hr_leaves");
+      if (savedLeaves) {
+        setLeaves(JSON.parse(savedLeaves));
+      } else {
+        setLeaves(defaultLeaves);
+      }
+
+      // Load payrolls dari localStorage
+      const savedPayrolls = localStorage.getItem("hr_payrolls");
+      if (savedPayrolls) {
+        setPayrolls(JSON.parse(savedPayrolls));
+      }
+
+      // Load performances dari localStorage
+      const savedPerformances = localStorage.getItem("hr_performances");
+      if (savedPerformances) {
+        setPerformances(JSON.parse(savedPerformances));
+      } else {
+        setPerformances(defaultPerformances);
+      }
     }
+  };
+
+  useEffect(() => {
+    loadData();
+
+    // Listen for storage events (when localStorage changes in other tabs/windows)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key === "hr_payrolls" ||
+        e.key === "hr_employees" ||
+        e.key === "hr_leaves" ||
+        e.key === "hr_performances"
+      ) {
+        loadData();
+      }
+    };
+
+    // Listen for custom update events
+    const handleDataUpdate = () => {
+      loadData();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("payrollUpdated", handleDataUpdate);
+    window.addEventListener("performanceUpdated", handleDataUpdate);
+
+    // Also check for updates when window gains focus
+    const handleFocus = () => {
+      loadData();
+    };
+
+    window.addEventListener("focus", handleFocus);
 
     // Update waktu setiap detik
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("payrollUpdated", handleDataUpdate);
+      window.removeEventListener("performanceUpdated", handleDataUpdate);
+    };
   }, []);
 
   const formatCurrency = (amount: number) => {
@@ -137,41 +182,6 @@ export default function DashboardPage() {
     return diffDays;
   };
 
-  const getUpcomingBirthdays = () => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
-
-    return upcomingBirthdays
-      .map((person) => {
-        const birthDate = new Date(person.date);
-        const thisYearBirthday = new Date(
-          today.getFullYear(),
-          birthDate.getMonth(),
-          birthDate.getDate(),
-        );
-
-        if (thisYearBirthday < today) {
-          thisYearBirthday.setFullYear(today.getFullYear() + 1);
-        }
-
-        const daysUntil = Math.ceil(
-          (thisYearBirthday.getTime() - today.getTime()) /
-            (1000 * 60 * 60 * 24),
-        );
-
-        return {
-          ...person,
-          daysUntil,
-          date: birthDate.toLocaleDateString("id-ID", {
-            day: "numeric",
-            month: "long",
-          }),
-        };
-      })
-      .filter((person) => person.daysUntil <= 30)
-      .sort((a, b) => a.daysUntil - b.daysUntil);
-  };
 
   const getNextHolidays = () => {
     const today = new Date();
@@ -197,8 +207,8 @@ export default function DashboardPage() {
       {/* Header dengan Waktu Real-time */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
             {currentTime.toLocaleDateString("id-ID", {
               weekday: "long",
               year: "numeric",
@@ -245,7 +255,7 @@ export default function DashboardPage() {
                 Pengajuan Cuti
               </p>
               <p className="text-4xl font-bold mt-2">
-                {initialLeaves.filter((l) => l.status === "pending").length}
+                {leaves.filter((l: any) => l.status === "pending").length}
               </p>
             </div>
             <Clock className="w-12 h-12 text-yellow-200" />
@@ -260,7 +270,31 @@ export default function DashboardPage() {
               </p>
               <p className="text-xl font-bold mt-2">
                 {formatCurrency(
-                  initialPayrolls.reduce((sum, p) => sum + p.totalSalary, 0),
+                  payrolls
+                    .filter((p) => {
+                      const currentMonth = new Date().getMonth();
+                      const currentYear = new Date().getFullYear();
+                      const monthNames = [
+                        "Januari",
+                        "Februari",
+                        "Maret",
+                        "April",
+                        "Mei",
+                        "Juni",
+                        "Juli",
+                        "Agustus",
+                        "September",
+                        "Oktober",
+                        "November",
+                        "Desember",
+                      ];
+                      return (
+                        p.month === monthNames[currentMonth] &&
+                        p.year === currentYear &&
+                        p.status === "paid"
+                      );
+                    })
+                    .reduce((sum, p) => sum + p.totalSalary, 0),
                 )}
               </p>
             </div>
@@ -271,166 +305,134 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Baris 1: Tanggal Merah & Ulang Tahun */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Tanggal Merah & Event */}
-        <div className="bg-white p-6 rounded-xl border">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-6 h-6 text-red-500" />
-            <h3 className="text-lg font-semibold">
-              Hari Libur & Event Mendatang
-            </h3>
-          </div>
-          <div className="space-y-3">
-            {getNextHolidays().map((holiday, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-pink-50 rounded-lg border border-red-100"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      holiday.type === "holiday" ? "bg-red-500" : "bg-pink-500"
-                    } text-white font-bold`}
-                  >
-                    {holiday.daysLeft}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      {holiday.name}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {holiday.daysLeft === 0
-                        ? "Hari ini!"
-                        : holiday.daysLeft === 1
-                          ? "Besok"
-                          : `${holiday.daysLeft} hari lagi`}
-                    </p>
-                  </div>
-                </div>
-                {holiday.type === "holiday" ? (
-                  <div className="px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
-                    Libur
-                  </div>
-                ) : (
-                  <div className="px-3 py-1 bg-pink-500 text-white text-xs font-medium rounded-full">
-                    Event
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+      {/* Hari Libur & Event Mendatang */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-4">
+          <Calendar className="w-6 h-6 text-red-500" />
+          <h3 className="text-lg font-semibold dark:text-white">
+            Hari Libur & Event Mendatang
+          </h3>
         </div>
-
-        {/* Ulang Tahun Karyawan */}
-        <div className="bg-white p-6 rounded-xl border">
-          <div className="flex items-center gap-2 mb-4">
-            <Gift className="w-6 h-6 text-purple-500" />
-            <h3 className="text-lg font-semibold">Ulang Tahun Karyawan</h3>
-          </div>
-          <div className="space-y-3">
-            {getUpcomingBirthdays().length > 0 ? (
-              getUpcomingBirthdays().map((person) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {getNextHolidays().map((holiday, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-lg border border-red-100 dark:border-red-800"
+            >
+              <div className="flex items-center gap-3">
                 <div
-                  key={person.id}
-                  className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-100"
+                  className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    holiday.type === "holiday" ? "bg-red-500" : "bg-pink-500"
+                  } text-white font-bold`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
-                      🎂
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {person.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {person.department} • {person.date}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-purple-600">
-                      {person.daysUntil === 0
-                        ? "🎉 Hari ini!"
-                        : person.daysUntil === 1
-                          ? "Besok"
-                          : `${person.daysUntil} hari lagi`}
-                    </p>
-                  </div>
+                  {holiday.daysLeft}
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Gift className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Tidak ada ulang tahun dalam 30 hari ke depan</p>
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {holiday.name}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {holiday.daysLeft === 0
+                      ? "Hari ini!"
+                      : holiday.daysLeft === 1
+                        ? "Besok"
+                        : `${holiday.daysLeft} hari lagi`}
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
+              {holiday.type === "holiday" ? (
+                <div className="px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
+                  Libur
+                </div>
+              ) : (
+                <div className="px-3 py-1 bg-pink-500 text-white text-xs font-medium rounded-full">
+                  Event
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Baris 2: Pengajuan Cuti & Karyawan Terbaik */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl border">
-          <h3 className="text-lg font-semibold mb-4">Pengajuan Cuti Terbaru</h3>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
+          <h3 className="text-lg font-semibold mb-4 dark:text-white">Pengajuan Cuti Terbaru</h3>
           <div className="space-y-3">
-            {initialLeaves.slice(0, 5).map((leave) => (
-              <div
-                key={leave.id}
-                className="flex items-center justify-between border-b pb-3 last:border-0"
-              >
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {leave.employeeName}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {leave.type} - {leave.startDate}
-                  </p>
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    leave.status === "approved"
-                      ? "bg-green-100 text-green-700"
-                      : leave.status === "rejected"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-yellow-100 text-yellow-700"
-                  }`}
+            {leaves.length > 0 ? (
+              leaves.slice(0, 5).map((leave: any) => (
+                <div
+                  key={leave.id}
+                  className="flex items-center justify-between border-b dark:border-gray-700 pb-3 last:border-0"
                 >
-                  {leave.status}
-                </span>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {leave.employeeName}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {leave.type} - {leave.startDate}
+                    </p>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      leave.status === "approved"
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : leave.status === "rejected"
+                          ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                    }`}
+                  >
+                    {leave.status === "pending"
+                      ? "Menunggu"
+                      : leave.status === "approved"
+                        ? "Disetujui"
+                        : "Ditolak"}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>Tidak ada pengajuan cuti</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border">
-          <h3 className="text-lg font-semibold mb-4">Karyawan Terbaik</h3>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
+          <h3 className="text-lg font-semibold mb-4 dark:text-white">Karyawan Terbaik</h3>
           <div className="space-y-3">
-            {initialPerformances
-              .sort((a, b) => b.totalScore - a.totalScore)
-              .slice(0, 5)
-              .map((perf) => (
-                <div
-                  key={perf.id}
-                  className="flex items-center justify-between border-b pb-3 last:border-0"
-                >
-                  <div className="flex items-center">
-                    <Award className="w-8 h-8 text-yellow-500 mr-3" />
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {perf.employeeName}
+            {performances.length > 0 ? (
+              performances
+                .sort((a, b) => b.totalScore - a.totalScore)
+                .slice(0, 5)
+                .map((perf) => (
+                  <div
+                    key={perf.id}
+                    className="flex items-center justify-between border-b dark:border-gray-700 pb-3 last:border-0"
+                  >
+                    <div className="flex items-center">
+                      <Award className="w-8 h-8 text-yellow-500 mr-3" />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {perf.employeeName}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{perf.period}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        {perf.totalScore}
                       </p>
-                      <p className="text-sm text-gray-600">{perf.period}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Score</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-blue-600">
-                      {perf.totalScore}
-                    </p>
-                    <p className="text-xs text-gray-500">Score</p>
-                  </div>
-                </div>
-              ))}
+                ))
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Award className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>Belum ada data penilaian kinerja</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   LayoutDashboard,
   Users,
@@ -12,11 +13,14 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 export default function Sidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const pathname = usePathname();
+  const { theme, toggleTheme } = useTheme();
 
   const menuItems = [
     {
@@ -43,12 +47,12 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ${
+      className={`flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
         sidebarOpen ? "w-80" : "w-20"
       }`}
     >
       {/* ===== HEADER ===== */}
-      <div className="h-16 flex items-center justify-between border-b px-4">
+      <div className="h-16 flex items-center justify-between border-b dark:border-gray-700 px-4">
         <div className="flex items-center gap-3">
           {sidebarOpen === true && (
             <Image
@@ -64,7 +68,7 @@ export default function Sidebar() {
 
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="flex items-center justify-center rounded-lg p-2 transition hover:bg-gray-100"
+          className="flex items-center justify-center rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
         >
           {sidebarOpen ? (
             <ChevronLeft className="w-5 h-5" />
@@ -86,8 +90,8 @@ export default function Sidebar() {
               href={item.path}
               className={`flex items-center gap-3 rounded-lg px-4 py-3 transition ${
                 isActive
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               }`}
             >
               <Icon className="w-5 h-5 shrink-0" />
@@ -100,9 +104,26 @@ export default function Sidebar() {
       </nav>
 
       {/* ===== FOOTER ===== */}
-      <div className="border-t p-4">
+      <div className="border-t dark:border-gray-700 p-4 space-y-2">
         <button
-          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-red-600 transition hover:bg-red-50 ${
+          onClick={toggleTheme}
+          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-gray-700 dark:text-gray-300 transition hover:bg-gray-100 dark:hover:bg-gray-700 ${
+            sidebarOpen ? "justify-start" : "justify-center"
+          }`}
+        >
+          {theme === "light" ? (
+            <Moon className="w-5 h-5" />
+          ) : (
+            <Sun className="w-5 h-5" />
+          )}
+          {sidebarOpen && (
+            <span className="font-medium">
+              {theme === "light" ? "Mode Gelap" : "Mode Terang"}
+            </span>
+          )}
+        </button>
+        <button
+          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-red-600 dark:text-red-400 transition hover:bg-red-50 dark:hover:bg-red-900/20 ${
             sidebarOpen ? "justify-start" : "justify-center"
           }`}
         >
