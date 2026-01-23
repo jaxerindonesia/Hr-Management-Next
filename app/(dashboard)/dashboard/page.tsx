@@ -28,14 +28,19 @@ const defaultLeaves = [
   },
 ];
 
-const initialPayrolls = [
-  { id: "1", totalSalary: 15500000 },
-  { id: "2", totalSalary: 12400000 },
-];
-
 const defaultPerformances = [
-  { id: "1", employeeName: "Budi Santoso", period: "Q1 2024", totalScore: 4.75 },
-  { id: "2", employeeName: "Siti Nurhaliza", period: "Q1 2024", totalScore: 4.75 },
+  {
+    id: "1",
+    employeeName: "Budi Santoso",
+    period: "Q1 2024",
+    totalScore: 4.75,
+  },
+  {
+    id: "2",
+    employeeName: "Siti Nurhaliza",
+    period: "Q1 2024",
+    totalScore: 4.75,
+  },
 ];
 
 // Function untuk generate hari libur berdasarkan tahun berjalan
@@ -43,35 +48,35 @@ const generateHolidays = (year: number) => [
   { date: `${year}-01-01`, name: `Tahun Baru ${year}`, type: "holiday" },
   {
     date: `${year}-01-29`,
-    name: "Tahun Baru Imlek (perkiraan)",
+    name: "Tahun Baru Imlek",
     type: "holiday",
   },
   { date: `${year}-02-14`, name: "Hari Valentine", type: "event" },
   {
     date: `${year}-03-22`,
-    name: "Hari Raya Nyepi (perkiraan)",
+    name: "Hari Raya Nyepi",
     type: "holiday",
   },
-  { date: `${year}-03-31`, name: "Idul Fitri (perkiraan)", type: "holiday" },
+  { date: `${year}-03-31`, name: "Idul Fitri", type: "holiday" },
   {
     date: `${year}-04-01`,
-    name: "Idul Fitri Hari Ke-2 (perkiraan)",
+    name: "Idul Fitri Hari Ke-2",
     type: "holiday",
   },
   { date: `${year}-04-18`, name: "Wafat Isa Al-Masih", type: "holiday" },
   { date: `${year}-05-01`, name: "Hari Buruh Internasional", type: "holiday" },
   { date: `${year}-05-29`, name: "Kenaikan Isa Al-Masih", type: "holiday" },
   { date: `${year}-06-01`, name: "Hari Lahir Pancasila", type: "holiday" },
-  { date: `${year}-06-06`, name: "Idul Adha (perkiraan)", type: "holiday" },
+  { date: `${year}-06-06`, name: "Idul Adha", type: "holiday" },
   {
     date: `${year}-06-27`,
-    name: "Tahun Baru Islam (perkiraan)",
+    name: "Tahun Baru Islam",
     type: "holiday",
   },
   { date: `${year}-08-17`, name: "Hari Kemerdekaan RI", type: "holiday" },
   {
     date: `${year}-09-05`,
-    name: "Maulid Nabi Muhammad SAW (perkiraan)",
+    name: "Maulid Nabi Muhammad SAW",
     type: "holiday",
   },
   { date: `${year}-12-24`, name: "Malam Natal", type: "event" },
@@ -79,12 +84,13 @@ const generateHolidays = (year: number) => [
   { date: `${year}-12-31`, name: "Malam Tahun Baru", type: "event" },
 ];
 
-
 export default function DashboardPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<typeof defaultLeaves>([]);
   const [payrolls, setPayrolls] = useState<any[]>([]);
-  const [performances, setPerformances] = useState<typeof defaultPerformances>([]);
+  const [performances, setPerformances] = useState<typeof defaultPerformances>(
+    [],
+  );
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Function to load data from localStorage
@@ -122,7 +128,7 @@ export default function DashboardPage() {
   useEffect(() => {
     loadData();
 
-    // Listen for storage events (when localStorage changes in other tabs/windows)
+    // Listen for storage events
     const handleStorageChange = (e: StorageEvent) => {
       if (
         e.key === "hr_payrolls" ||
@@ -143,7 +149,7 @@ export default function DashboardPage() {
     window.addEventListener("payrollUpdated", handleDataUpdate);
     window.addEventListener("performanceUpdated", handleDataUpdate);
 
-    // Also check for updates when window gains focus
+    // Check for updates when window gains focus
     const handleFocus = () => {
       loadData();
     };
@@ -176,12 +182,13 @@ export default function DashboardPage() {
 
   const calculateDaysLeft = (dateStr: string) => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const targetDate = new Date(dateStr);
+    targetDate.setHours(0, 0, 0, 0);
     const diffTime = targetDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
-
 
   const getNextHolidays = () => {
     const today = new Date();
@@ -207,7 +214,9 @@ export default function DashboardPage() {
       {/* Header dengan Waktu Real-time */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Dashboard
+          </h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             {currentTime.toLocaleDateString("id-ID", {
               weekday: "long",
@@ -222,7 +231,7 @@ export default function DashboardPage() {
 
       {/* Cards Statistik */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">
@@ -234,7 +243,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-100 text-sm font-medium">
@@ -248,7 +257,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-xl">
+        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-xl shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-yellow-100 text-sm font-medium">
@@ -262,7 +271,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-sm font-medium">
@@ -306,7 +315,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Hari Libur & Event Mendatang */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <Calendar className="w-6 h-6 text-red-500" />
           <h3 className="text-lg font-semibold dark:text-white">
@@ -356,8 +365,10 @@ export default function DashboardPage() {
 
       {/* Baris 2: Pengajuan Cuti & Karyawan Terbaik */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <h3 className="text-lg font-semibold mb-4 dark:text-white">Pengajuan Cuti Terbaru</h3>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4 dark:text-white">
+            Pengajuan Cuti Terbaru
+          </h3>
           <div className="space-y-3">
             {leaves.length > 0 ? (
               leaves.slice(0, 5).map((leave: any) => (
@@ -398,8 +409,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <h3 className="text-lg font-semibold mb-4 dark:text-white">Karyawan Terbaik</h3>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4 dark:text-white">
+            Karyawan Terbaik
+          </h3>
           <div className="space-y-3">
             {performances.length > 0 ? (
               performances
@@ -416,14 +429,18 @@ export default function DashboardPage() {
                         <p className="font-medium text-gray-900 dark:text-white">
                           {perf.employeeName}
                         </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{perf.period}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {perf.period}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
                         {perf.totalScore}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Score</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Score
+                      </p>
                     </div>
                   </div>
                 ))
@@ -438,7 +455,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Stats Bar */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl p-6 text-white">
+      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl p-6 text-white shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
