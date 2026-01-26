@@ -211,8 +211,8 @@ export default function EmployeesPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900">Data Karyawan</h2>
-            <p className="text-gray-600 mt-1">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Data Karyawan</h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
               Total: {employees.length} karyawan
             </p>
           </div>
@@ -224,7 +224,7 @@ export default function EmployeesPage() {
           </button>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <div className="flex items-center gap-2 mb-6">
             <Search className="w-5 h-5 text-gray-400" />
             <input
@@ -232,38 +232,38 @@ export default function EmployeesPage() {
               placeholder="Cari karyawan..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left p-3 font-semibold">NIP</th>
-                  <th className="text-left p-3 font-semibold">Nama</th>
-                  <th className="text-left p-3 font-semibold">Posisi</th>
-                  <th className="text-left p-3 font-semibold">Departemen</th>
-                  <th className="text-left p-3 font-semibold">Gaji</th>
-                  <th className="text-left p-3 font-semibold">Status</th>
-                  <th className="text-right p-3 font-semibold">Aksi</th>
+                <tr className="border-b dark:border-gray-700">
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">NIP</th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">Nama</th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">Posisi</th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">Departemen</th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">Gaji</th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">Status</th>
+                  <th className="text-right p-3 font-semibold dark:text-gray-300">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredEmployees.length > 0 ? (
                   filteredEmployees.map((emp) => (
-                    <tr key={emp.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">{emp.nip}</td>
-                      <td className="p-3">{emp.name}</td>
-                      <td className="p-3">{emp.position}</td>
-                      <td className="p-3">{emp.department}</td>
-                      <td className="p-3">{formatCurrency(emp.salary)}</td>
+                    <tr key={emp.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="p-3 font-medium dark:text-white">{emp.nip}</td>
+                      <td className="p-3 dark:text-gray-300">{emp.name}</td>
+                      <td className="p-3 dark:text-gray-300">{emp.position}</td>
+                      <td className="p-3 dark:text-gray-300">{emp.department}</td>
+                      <td className="p-3 dark:text-gray-300">{formatCurrency(emp.salary)}</td>
                       <td className="p-3">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
                             emp.status === "active"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-gray-100 text-gray-700"
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400"
                           }`}
                         >
                           {emp.status}
@@ -289,7 +289,7 @@ export default function EmployeesPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                    <td colSpan={7} className="p-8 text-center text-gray-500 dark:text-gray-400">
                       Tidak ada data karyawan yang ditemukan
                     </td>
                   </tr>
@@ -302,22 +302,22 @@ export default function EmployeesPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-6 dark:text-white">
               {editingEmployee ? "Edit Karyawan" : "Tambah Karyawan"}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">NIP *</label>
+                  <label className="block text-sm font-medium dark:text-gray-300">NIP *</label>
                   <input
                     type="text"
                     value={formData.nip}
                     onChange={(e) =>
                       setFormData({ ...formData, nip: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     placeholder="Contoh: NIP003"
                   />

@@ -48,7 +48,7 @@ export default function Sidebar() {
   return (
     <aside
       className={`flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
-        sidebarOpen ? "w-80" : "w-20"
+        sidebarOpen ? "w-70" : "w-20"
       }`}
     >
       {/* ===== HEADER ===== */}

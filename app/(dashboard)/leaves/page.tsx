@@ -157,8 +157,12 @@ export default function LeavesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Cuti/Izin</h2>
-          <p className="text-gray-600 mt-1">Total: {leaves.length} pengajuan</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            Cuti/Izin
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Total: {leaves.length} pengajuan
+          </p>
         </div>
         <button
           onClick={handleOpenModal}
@@ -168,38 +172,57 @@ export default function LeavesPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg border">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Nama Karyawan</TableHead>
-              <TableHead>Jenis</TableHead>
-              <TableHead>Tanggal Mulai</TableHead>
-              <TableHead>Tanggal Selesai</TableHead>
-              <TableHead>Alasan</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+            <TableRow className="dark:border-gray-700">
+              <TableHead className="dark:text-gray-100">
+                Nama Karyawan
+              </TableHead>
+              <TableHead className="dark:text-gray-100">Jenis</TableHead>
+              <TableHead className="dark:text-gray-100">
+                Tanggal Mulai
+              </TableHead>
+              <TableHead className="dark:text-gray-100">
+                Tanggal Selesai
+              </TableHead>
+              <TableHead className="dark:text-gray-100">Alasan</TableHead>
+              <TableHead className="dark:text-gray-100">Status</TableHead>
+              <TableHead className="text-right dark:text-gray-100">
+                Aksi
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {leaves.length > 0 ? (
               leaves.map((leave) => (
-                <TableRow key={leave.id}>
-                  <TableCell className="font-medium">
+                <TableRow
+                  key={leave.id}
+                  className="dark:border-gray-700 dark:hover:bg-gray-700"
+                >
+                  <TableCell className="font-medium dark:text-gray-100">
                     {leave.employeeName}
                   </TableCell>
-                  <TableCell>{leave.type}</TableCell>
-                  <TableCell>{leave.startDate}</TableCell>
-                  <TableCell>{leave.endDate}</TableCell>
-                  <TableCell>{leave.reason}</TableCell>
+                  <TableCell className="dark:text-gray-300">
+                    {leave.type}
+                  </TableCell>
+                  <TableCell className="dark:text-gray-300">
+                    {leave.startDate}
+                  </TableCell>
+                  <TableCell className="dark:text-gray-300">
+                    {leave.endDate}
+                  </TableCell>
+                  <TableCell className="dark:text-gray-300">
+                    {leave.reason}
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
                         leave.status === "approved"
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                           : leave.status === "rejected"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-yellow-100 text-yellow-700"
+                            ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
                       }`}
                     >
                       {leave.status === "pending"
@@ -215,13 +238,13 @@ export default function LeavesPage() {
                         <>
                           <button
                             onClick={() => handleApprove(leave.id)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            className="p-2 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/30 rounded-lg transition-colors"
                           >
                             <CheckCircle className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handleReject(leave.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                           >
                             <XCircle className="w-5 h-5" />
                           </button>
@@ -229,7 +252,7 @@ export default function LeavesPage() {
                       )}
                       <button
                         onClick={() => handleDelete(leave.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -241,7 +264,7 @@ export default function LeavesPage() {
               <TableRow>
                 <TableCell
                   colSpan={7}
-                  className="text-center py-8 text-gray-500"
+                  className="text-center py-8 text-gray-500 dark:text-gray-400"
                 >
                   Tidak ada data pengajuan cuti
                 </TableCell>
@@ -254,15 +277,15 @@ export default function LeavesPage() {
       {/* Modal Form */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
                 Ajukan Cuti/Izin
               </h3>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Nama Karyawan <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -272,12 +295,12 @@ export default function LeavesPage() {
                       setFormData({ ...formData, employeeName: e.target.value })
                     }
                     placeholder="Masukkan nama karyawan"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Jenis Cuti <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -285,7 +308,7 @@ export default function LeavesPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, type: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="Cuti">Cuti</option>
                     <option value="Sakit">Sakit</option>
@@ -295,7 +318,7 @@ export default function LeavesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Tanggal Mulai <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -304,12 +327,12 @@ export default function LeavesPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, startDate: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Tanggal Selesai <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -318,12 +341,12 @@ export default function LeavesPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, endDate: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Alasan
                   </label>
                   <textarea
@@ -333,7 +356,7 @@ export default function LeavesPage() {
                     }
                     placeholder="Masukkan alasan cuti"
                     rows={3}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
@@ -341,14 +364,14 @@ export default function LeavesPage() {
                   <button
                     type="button"
                     onClick={handleCloseModal}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? "Menyimpan..." : "Ajukan"}
                   </button>

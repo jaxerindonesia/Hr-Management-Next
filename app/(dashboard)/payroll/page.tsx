@@ -91,6 +91,8 @@ export default function PayrollPage() {
   useEffect(() => {
     if (typeof window !== "undefined" && payrolls.length > 0) {
       localStorage.setItem("hr_payrolls", JSON.stringify(payrolls));
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new Event("payrollUpdated"));
     }
   }, [payrolls]);
 
@@ -197,11 +199,11 @@ export default function PayrollPage() {
   const currentMonth = months[new Date().getMonth()];
   const currentYear = new Date().getFullYear();
   const currentMonthPayrolls = payrolls.filter(
-    (p) => p.month === currentMonth && p.year === currentYear
+    (p) => p.month === currentMonth && p.year === currentYear,
   );
   const currentMonthTotal = currentMonthPayrolls.reduce(
     (sum, p) => sum + p.totalSalary,
-    0
+    0,
   );
   const currentMonthPaid = currentMonthPayrolls
     .filter((p) => p.status === "paid")
@@ -213,7 +215,9 @@ export default function PayrollPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-gray-900">Payroll</h2>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Payroll
+        </h2>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -399,7 +403,7 @@ export default function PayrollPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Total Paid */}
-        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-100 text-sm font-medium">
@@ -419,7 +423,7 @@ export default function PayrollPage() {
         </div>
 
         {/* Total Pending */}
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-xl shadow-lg">
+        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-yellow-100 text-sm font-medium">
@@ -439,7 +443,7 @@ export default function PayrollPage() {
         </div>
 
         {/* Total All */}
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-sm font-medium">
@@ -460,46 +464,55 @@ export default function PayrollPage() {
       </div>
 
       {/* Payroll Table */}
-      <div className="bg-white rounded-xl shadow-lg border">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Nama Karyawan</TableHead>
-              <TableHead>Periode</TableHead>
-              <TableHead>Gaji Pokok</TableHead>
-              <TableHead>Tunjangan</TableHead>
-              <TableHead>Potongan</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+            <TableRow className="dark:border-gray-700">
+              <TableHead className="dark:text-gray-100">
+                Nama Karyawan
+              </TableHead>
+              <TableHead className="dark:text-gray-100">Periode</TableHead>
+              <TableHead className="dark:text-gray-100">Gaji Pokok</TableHead>
+              <TableHead className="dark:text-gray-100">Tunjangan</TableHead>
+              <TableHead className="dark:text-gray-100">Potongan</TableHead>
+              <TableHead className="dark:text-gray-100">Total</TableHead>
+              <TableHead className="dark:text-gray-100">Status</TableHead>
+              <TableHead className="text-right dark:text-gray-100">
+                Aksi
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {payrolls.length > 0 ? (
               payrolls.map((payroll) => (
-                <TableRow key={payroll.id}>
-                  <TableCell className="font-medium">
+                <TableRow
+                  key={payroll.id}
+                  className="dark:border-gray-700 dark:hover:bg-gray-700"
+                >
+                  <TableCell className="font-medium dark:text-gray-100">
                     {payroll.employeeName}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="dark:text-gray-300">
                     {payroll.month} {payroll.year}
                   </TableCell>
-                  <TableCell>{formatCurrency(payroll.basicSalary)}</TableCell>
-                  <TableCell className="text-green-600">
+                  <TableCell className="dark:text-gray-300">
+                    {formatCurrency(payroll.basicSalary)}
+                  </TableCell>
+                  <TableCell className="text-green-600 dark:text-green-400">
                     {formatCurrency(payroll.allowances)}
                   </TableCell>
-                  <TableCell className="text-red-600">
+                  <TableCell className="text-red-600 dark:text-red-400">
                     {formatCurrency(payroll.deductions)}
                   </TableCell>
-                  <TableCell className="font-bold">
+                  <TableCell className="font-bold dark:text-gray-100">
                     {formatCurrency(payroll.totalSalary)}
                   </TableCell>
                   <TableCell>
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
                         payroll.status === "paid"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                       }`}
                     >
                       {payroll.status === "paid" ? "Dibayar" : "Pending"}
@@ -511,6 +524,7 @@ export default function PayrollPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEdit(payroll)}
+                        className="dark:text-blue-400 dark:hover:bg-blue-900/30"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -518,8 +532,9 @@ export default function PayrollPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(payroll.id)}
+                        className="text-red-500 dark:text-red-400 dark:hover:bg-red-900/30"
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </TableCell>
@@ -529,7 +544,7 @@ export default function PayrollPage() {
               <TableRow>
                 <TableCell
                   colSpan={8}
-                  className="text-center py-8 text-gray-500"
+                  className="text-center py-8 text-gray-500 dark:text-gray-400"
                 >
                   Belum ada data payroll. Klik "Proses Gaji" untuk menambahkan.
                 </TableCell>
