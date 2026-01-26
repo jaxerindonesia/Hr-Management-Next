@@ -5,6 +5,10 @@ import { Providers } from "@/components/providers";
 export const metadata: Metadata = {
   title: "HR Management System",
   description: "Human Resource Management System",
+  icons: {
+    // jangan sentuh udh bener!!
+    icon: "/favicon..ico",
+  },
 };
 
 export default function RootLayout({

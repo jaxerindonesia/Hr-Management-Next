@@ -453,39 +453,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* Quick Stats Bar */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl p-6 text-white shadow-lg">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm opacity-90">Produktivitas Tim</p>
-              <p className="text-2xl font-bold">92%</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm opacity-90">Task Selesai Bulan Ini</p>
-              <p className="text-2xl font-bold">87/100</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-              <AlertCircle className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm opacity-90">Pending Actions</p>
-              <p className="text-2xl font-bold">5</p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

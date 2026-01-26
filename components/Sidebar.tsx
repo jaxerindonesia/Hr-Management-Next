@@ -47,23 +47,21 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
-        sidebarOpen ? "w-70" : "w-20"
-      }`}
+      className={`flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+      transition-all duration-300 ease-in-out
+      ${sidebarOpen ? "w-72" : "w-20"}`}
     >
       {/* ===== HEADER ===== */}
-      <div className="h-16 flex items-center justify-between border-b dark:border-gray-700 px-4">
-        <div className="flex items-center gap-3">
-          {sidebarOpen === true && (
-            <Image
-              src="/jaxer.png"
-              alt="HR System Logo"
-              width={36}
-              height={36}
-              priority
-              className="rounded-lg"
-            />
-          )}
+      <div className="h-16 flex items-center border-b dark:border-gray-700 px-4">
+        <div className="flex-1 flex justify-center items-center">
+          <Image
+            src={sidebarOpen ? "/logo21.png" : "/jaxer.png"}
+            alt="HR System Logo"
+            width={sidebarOpen ? 120 : 48}
+            height={40}
+            priority
+            className="transition-all duration-300 ease-in-out object-contain"
+          />
         </div>
 
         <button
@@ -88,16 +86,21 @@ export default function Sidebar() {
             <Link
               key={item.id}
               href={item.path}
-              className={`flex items-center gap-3 rounded-lg px-4 py-3 transition ${
+              className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-all duration-200
+              ${
                 isActive
                   ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                   : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               }`}
             >
               <Icon className="w-5 h-5 shrink-0" />
-              {sidebarOpen && (
-                <span className="font-medium truncate">{item.name}</span>
-              )}
+              <span
+                className={`font-medium truncate transition-all duration-200 ${
+                  sidebarOpen ? "opacity-100" : "opacity-0 w-0"
+                }`}
+              >
+                {item.name}
+              </span>
             </Link>
           );
         })}
@@ -107,28 +110,35 @@ export default function Sidebar() {
       <div className="border-t dark:border-gray-700 p-4 space-y-2">
         <button
           onClick={toggleTheme}
-          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-gray-700 dark:text-gray-300 transition hover:bg-gray-100 dark:hover:bg-gray-700 ${
-            sidebarOpen ? "justify-start" : "justify-center"
-          }`}
+          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 transition hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
+          ${sidebarOpen ? "justify-start" : "justify-center"}`}
         >
           {theme === "light" ? (
             <Moon className="w-5 h-5" />
           ) : (
             <Sun className="w-5 h-5" />
           )}
-          {sidebarOpen && (
-            <span className="font-medium">
-              {theme === "light" ? "Mode Gelap" : "Mode Terang"}
-            </span>
-          )}
+          <span
+            className={`font-medium transition-all duration-200 ${
+              sidebarOpen ? "opacity-100" : "opacity-0 w-0"
+            }`}
+          >
+            {theme === "light" ? "Mode Gelap" : "Mode Terang"}
+          </span>
         </button>
+
         <button
-          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-red-600 dark:text-red-400 transition hover:bg-red-50 dark:hover:bg-red-900/20 ${
-            sidebarOpen ? "justify-start" : "justify-center"
-          }`}
+          className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 transition hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400
+          ${sidebarOpen ? "justify-start" : "justify-center"}`}
         >
           <LogOut className="w-5 h-5" />
-          {sidebarOpen && <span className="font-medium">Logout</span>}
+          <span
+            className={`font-medium transition-all duration-200 ${
+              sidebarOpen ? "opacity-100" : "opacity-0 w-0"
+            }`}
+          >
+            Logout
+          </span>
         </button>
       </div>
     </aside>
