@@ -210,7 +210,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6 p-5 w-full">
+    <div className="space-y-6  w-full">
       {/* Header dengan Waktu Real-time */}
       <div className="flex justify-between items-center">
         <div>
@@ -231,7 +231,7 @@ export default function DashboardPage() {
 
       {/* Cards Statistik */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">
@@ -243,7 +243,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-100 text-sm font-medium">
@@ -257,7 +257,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-xl shadow-lg">
+        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-yellow-100 text-sm font-medium">
@@ -271,7 +271,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-sm font-medium">
@@ -315,7 +315,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Hari Libur & Event Mendatang */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
         <div className="flex items-center gap-2 mb-4">
           <Calendar className="w-6 h-6 text-red-500" />
           <h3 className="text-lg font-semibold dark:text-white">
@@ -365,7 +365,7 @@ export default function DashboardPage() {
 
       {/* Baris 2: Pengajuan Cuti & Karyawan Terbaik */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <h3 className="text-lg font-semibold mb-4 dark:text-white">
             Pengajuan Cuti Terbaru
           </h3>
@@ -409,7 +409,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <h3 className="text-lg font-semibold mb-4 dark:text-white">
             Karyawan Terbaik
           </h3>

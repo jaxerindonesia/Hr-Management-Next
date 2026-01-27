@@ -54,12 +54,12 @@ export default function Sidebar() {
       {/* ===== HEADER ===== */}
       <div className="h-16 flex items-center border-b dark:border-gray-700 px-4">
         {sidebarOpen && (
-          <div className="flex-1 flex justify-center items-center">
+          <div className="flex-1  flex justify-start items-center">
             <Image
               src="/logo21.png"
               alt="HR System Logo"
-              width={120}
-              height={40}
+              width={100}
+              height={20}
               priority
               className="transition-all duration-300 ease-in-out object-contain"
             />
@@ -72,15 +72,15 @@ export default function Sidebar() {
           title={sidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
         >
           {sidebarOpen ? (
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-8 h-8 p-[6px]" />
           ) : (
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-8 h-8 p-[6px]" />
           )}
         </button>
       </div>
 
       {/* ===== MENU ===== */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-2 space-y-1">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.path;
@@ -90,13 +90,13 @@ export default function Sidebar() {
               key={item.id}
               href={item.path}
               title={!sidebarOpen ? item.name : ""}
-              className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-all duration-200 relative group
+              className={`flex items-center rounded-lg transition-all duration-200 relative group
               ${
                 isActive
                   ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                   : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               }
-              ${!sidebarOpen ? "justify-center" : ""}`}
+              ${!sidebarOpen ? "justify-center w-12 h-12 mx-auto" : "gap-3 px-4 py-3"}`}
             >
               <Icon className="w-5 h-5 shrink-0" />
               <span
@@ -120,7 +120,7 @@ export default function Sidebar() {
       </nav>
 
       {/* ===== FOOTER ===== */}
-      <div className="border-t dark:border-gray-700 p-4 space-y-2">
+      <div className="border-t dark:border-gray-700 p-2 space-y-2">
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
