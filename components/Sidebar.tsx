@@ -53,16 +53,18 @@ export default function Sidebar() {
     >
       {/* ===== HEADER ===== */}
       <div className="h-16 flex items-center border-b dark:border-gray-700 px-4">
-        <div className="flex-1 flex justify-center items-center">
-          <Image
-            src={sidebarOpen ? "/logo21.png" : "/jaxer.png"}
-            alt="HR System Logo"
-            width={sidebarOpen ? 120 : 48}
-            height={40}
-            priority
-            className="transition-all duration-300 ease-in-out object-contain"
-          />
-        </div>
+        {sidebarOpen && (
+          <div className="flex-1 flex justify-center items-center">
+            <Image
+              src="/logo21.png"
+              alt="HR System Logo"
+              width={120}
+              height={40}
+              priority
+              className="transition-all duration-300 ease-in-out object-contain"
+            />
+          </div>
+        )}
 
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}

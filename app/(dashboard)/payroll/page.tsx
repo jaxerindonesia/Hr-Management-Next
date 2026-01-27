@@ -629,9 +629,9 @@ export default function PayrollPage() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+   <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Menampilkan {startIndex + 1} -{" "}
+            Menampilkan {" "}
             {Math.min(startIndex + itemsPerPage, filtered.length)} dari{" "}
             {filtered.length} data
           </p>

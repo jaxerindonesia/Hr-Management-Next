@@ -407,11 +407,11 @@ export default function PerformancePage() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Menampilkan {startIndex + 1} -{" "}
+            Menampilkan {" "}
             {Math.min(startIndex + itemsPerPage, filteredPerformances.length)}{" "}
-            dari {filteredPerformances.length} data
+            dari   {filteredPerformances.length} data
           </p>
           <div className="flex items-center gap-2">
             <Button
