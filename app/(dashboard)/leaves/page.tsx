@@ -252,15 +252,35 @@ export default function LeavesPage() {
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-2">
+                        {emp.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() => handleApprove(emp.id)}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                              title="Setujui"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleReject(emp.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                              title="Tolak"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                         <button
                           onClick={() => handleOpenModal()}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(emp.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          title="Hapus"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
