@@ -46,31 +46,31 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* LEFT SIDE - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white dark:bg-gray-900">
+      <div className="flex-1 flex items-center justify-center p-8 bg-black">
         <div className="w-full max-w-md space-y-8">
           {/* Logo & Title */}
           <div className="text-center">
-            <div className="flex justify-center">
+            <div className="flex justify-center mb-6">
               <Image
-                src="/logo22.png"
+                src="/logo21.png"
                 alt="HR System Logo"
-                width={250}
-                height={100}
+                width={160}
+                height={60}
                 priority
                 className="object-contain"
               />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <h2 className="text-3xl font-bold text-white mb-2">
               Selamat Datang
             </h2>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-400">
               Silakan login untuk melanjutkan
             </p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-400">
+            <div className="flex items-center gap-2 p-4 bg-red-900/20 border border-red-800 rounded-lg text-red-400">
               <AlertCircle className="w-5 h-5 shrink-0" />
               <span className="text-sm">{error}</span>
             </div>
@@ -82,7 +82,7 @@ export default function LoginPage() {
             <div className="space-y-2">
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                className="block text-sm font-medium text-gray-300"
               >
                 Email
               </label>
@@ -98,9 +98,9 @@ export default function LoginPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                  placeholder-gray-400 dark:placeholder-gray-500
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-600 rounded-lg 
+                  bg-gray-800 text-white
+                  placeholder-gray-500
                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                   transition duration-150"
                   placeholder="nama@perusahaan.com"
@@ -112,7 +112,7 @@ export default function LoginPage() {
             <div className="space-y-2">
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                className="block text-sm font-medium text-gray-300"
               >
                 Password
               </label>
@@ -128,9 +128,9 @@ export default function LoginPage() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
-                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                  placeholder-gray-400 dark:placeholder-gray-500
+                  className="block w-full pl-10 pr-12 py-3 border border-gray-600 rounded-lg 
+                  bg-gray-800 text-white
+                  placeholder-gray-500
                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                   transition duration-150"
                   placeholder="••••••••"
@@ -138,7 +138,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -158,11 +158,11 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded cursor-pointer"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded cursor-pointer"
                 />
                 <label
                   htmlFor="remember-me"
-                  className="ml-2 block text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+                  className="ml-2 block text-sm text-gray-300 cursor-pointer"
                 >
                   Ingat saya
                 </label>
@@ -170,7 +170,7 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
+                className="text-sm font-medium text-blue-400 hover:text-blue-300 transition"
               >
                 Lupa password?
               </button>
@@ -200,10 +200,10 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+              <div className="w-full border-t border-gray-600" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+              <span className="px-4 bg-black text-gray-400">
                 Atau
               </span>
             </div>
@@ -213,9 +213,9 @@ export default function LoginPage() {
           <div className="space-y-3">
             <button
               type="button"
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg
-              bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-              hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150"
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-600 rounded-lg
+              bg-gray-800 text-gray-300
+              hover:bg-gray-700 transition duration-150"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
@@ -240,9 +240,9 @@ export default function LoginPage() {
 
             <button
               type="button"
-              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg
-              bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-              hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150"
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-600 rounded-lg
+              bg-gray-800 text-gray-300
+              hover:bg-gray-700 transition duration-150"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
@@ -252,9 +252,9 @@ export default function LoginPage() {
           </div>
 
           {/* Footer Text */}
-          <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-center text-sm text-gray-400">
             Belum punya akun?{" "}
-            <button className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition">
+            <button className="font-medium text-blue-400 hover:text-blue-300 transition">
               Daftar sekarang
             </button>
           </p>
@@ -262,7 +262,7 @@ export default function LoginPage() {
       </div>
 
       {/* RIGHT SIDE - Decorative */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden items-center justify-center">
+      <div className="hidden lg:flex flex-1 bg-black relative overflow-hidden items-center justify-center">
         {/* Decorative Elements */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl" />
