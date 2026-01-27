@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Edit, Plus, Search, Trash2 } from "lucide-react";
+import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +61,8 @@ export default function PayrollPage() {
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null);
   const [formData, setFormData] = useState({
@@ -240,6 +242,18 @@ export default function PayrollPage() {
       emp.year.toString().includes(searchTerm),
   );
 
+  // Reset page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedPayrolls = filtered.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -248,9 +262,12 @@ export default function PayrollPage() {
         </h2>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" /> Proses Gaji
-            </Button>
+              <button
+                      onClick={handleOpenModal}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" /> Proses Gaji
+                    </button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
@@ -535,8 +552,8 @@ export default function PayrollPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length > 0 ? (
-                filtered.map((emp) => (
+              {paginatedPayrolls.length > 0 ? (
+                paginatedPayrolls.map((emp) => (
                   <tr
                     key={emp.id}
                     className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -609,6 +626,54 @@ export default function PayrollPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Menampilkan {startIndex + 1} -{" "}
+            {Math.min(startIndex + itemsPerPage, filtered.length)} dari{" "}
+            {filtered.length} data
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === page
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,14 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface Performance {
   id: string;
@@ -39,6 +31,19 @@ interface Performance {
   totalScore: number;
   notes: string;
 }
+
+const initialEmployeesData = [
+  {
+    id: "1",
+    name: "Budi Santoso",
+    position: "Manager",
+  },
+  {
+    id: "2",
+    name: "Siti Nurhaliza",
+    position: "Staff",
+  },
+];
 
 const initialPerformances: Performance[] = [
   {
@@ -72,6 +77,27 @@ export default function PerformancePage() {
     useState<Performance | null>(null);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // Reset page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const filteredPerformances = performances.filter(
+    (perf) =>
+      perf.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      perf.period.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
+
+  const totalPages = Math.ceil(filteredPerformances.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedPerformances = filteredPerformances.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
 
   const [formData, setFormData] = useState({
     employeeName: "",
@@ -90,6 +116,12 @@ export default function PerformancePage() {
       const savedEmployees = localStorage.getItem("hr_employees");
       if (savedEmployees) {
         setEmployees(JSON.parse(savedEmployees));
+      } else {
+        setEmployees(initialEmployeesData);
+        // Optionally save to localStorage if we want to persist these defaults
+        // localStorage.setItem("hr_employees", JSON.stringify(initialEmployeesData)); 
+        // Better not to overwrite if it's meant to be managed by EmployeesPage, 
+        // but for this page to work we need data.
       }
 
       // Load performances
@@ -167,6 +199,12 @@ export default function PerformancePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.employeeName) {
+      alert("Mohon pilih karyawan terlebih dahulu");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -258,84 +296,163 @@ export default function PerformancePage() {
         <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
           Penilaian Kinerja
         </h2>
-        <Button onClick={() => handleOpenModal()} className="gap-2">
-          <Plus className="w-4 h-4" /> Tambah Penilaian
-        </Button>
+          <button
+                  onClick={() => handleOpenModal()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Tambah Penilaian
+                </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-        <Table>
-          <TableHeader>
-            <TableRow className="dark:border-gray-700">
-              <TableHead className="dark:text-gray-100">
-                Nama Karyawan
-              </TableHead>
-              <TableHead className="dark:text-gray-100">Periode</TableHead>
-              <TableHead className="dark:text-gray-100">
-                Produktivitas
-              </TableHead>
-              <TableHead className="dark:text-gray-100">Kualitas</TableHead>
-              <TableHead className="dark:text-gray-100">Kerjasama</TableHead>
-              <TableHead className="dark:text-gray-100">Disiplin</TableHead>
-              <TableHead className="dark:text-gray-100">Total Score</TableHead>
-              <TableHead className="text-right dark:text-gray-100">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {performances.map((perf) => (
-              <TableRow
-                key={perf.id}
-                className="dark:border-gray-700 dark:hover:bg-gray-700"
-              >
-                <TableCell className="font-medium dark:text-gray-100">
-                  {perf.employeeName}
-                </TableCell>
-                <TableCell className="dark:text-gray-300">
-                  {perf.period}
-                </TableCell>
-                <TableCell>
-                  <StarRating rating={perf.productivity} />
-                </TableCell>
-                <TableCell>
-                  <StarRating rating={perf.quality} />
-                </TableCell>
-                <TableCell>
-                  <StarRating rating={perf.teamwork} />
-                </TableCell>
-                <TableCell>
-                  <StarRating rating={perf.discipline} />
-                </TableCell>
-                <TableCell>
-                  <span className="font-bold text-blue-600 dark:text-blue-400">
-                    {perf.totalScore}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleOpenModal(perf)}
-                      className="dark:text-blue-400 dark:hover:bg-blue-900/30"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(perf.id)}
-                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-6">
+          <Search className="w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Cari nama karyawan atau periode..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b dark:border-gray-700">
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Nama Karyawan
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Periode
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Produktivitas
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Kualitas
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Kerjasama
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Disiplin
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Total Score
+                </th>
+                <th className="text-right p-3 font-semibold dark:text-gray-300">
+                  Aksi
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedPerformances.length > 0 ? (
+                paginatedPerformances.map((perf) => (
+                  <tr
+                    key={perf.id}
+                    className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    <td className="p-3 font-medium dark:text-white">
+                      {perf.employeeName}
+                    </td>
+                    <td className="p-3 dark:text-gray-300">{perf.period}</td>
+                    <td className="p-3 dark:text-gray-300">
+                      <StarRating rating={perf.productivity} />
+                    </td>
+                    <td className="p-3 dark:text-gray-300">
+                      <StarRating rating={perf.quality} />
+                    </td>
+                    <td className="p-3 dark:text-gray-300">
+                      <StarRating rating={perf.teamwork} />
+                    </td>
+                    <td className="p-3 dark:text-gray-300">
+                      <StarRating rating={perf.discipline} />
+                    </td>
+                    <td className="p-3">
+                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                        {perf.totalScore}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenModal(perf)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(perf.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="p-8 text-center text-gray-500 dark:text-gray-400"
+                  >
+                    Tidak ada data penilaian yang ditemukan
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Menampilkan {startIndex + 1} -{" "}
+            {Math.min(startIndex + itemsPerPage, filteredPerformances.length)}{" "}
+            dari {filteredPerformances.length} data
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === page
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Dialog open={showModal} onOpenChange={setShowModal}>

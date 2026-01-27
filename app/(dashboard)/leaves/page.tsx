@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, CheckCircle, XCircle, Trash2, Search, Edit } from "lucide-react";
+import { Plus, CheckCircle, XCircle, Trash2, Search, Edit, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -48,6 +48,9 @@ export default function LeavesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   const [formData, setFormData] = useState({
     employeeName: "",
     type: "Cuti",
@@ -161,6 +164,18 @@ export default function LeavesPage() {
       emp.startDate.includes(searchTerm),
   );
 
+  // Reset page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedLeaves = filtered.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -169,7 +184,7 @@ export default function LeavesPage() {
             Cuti/Izin
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Total: {leaves.length} pengajuan
+           
           </p>
         </div>
         <button
@@ -220,8 +235,8 @@ export default function LeavesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length > 0 ? (
-                filtered.map((emp) => (
+              {paginatedLeaves.length > 0 ? (
+                paginatedLeaves.map((emp) => (
                   <tr
                     key={emp.id}
                     className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -300,6 +315,50 @@ export default function LeavesPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Menampilkan {startIndex + 1} -{" "}
+            {Math.min(startIndex + itemsPerPage, filtered.length)} dari{" "}
+            {filtered.length} data
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === page
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
+            </div>
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 

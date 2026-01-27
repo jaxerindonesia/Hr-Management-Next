@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -49,6 +49,13 @@ export default function EmployeesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // Reset page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const [formData, setFormData] = useState({
     nip: "",
@@ -206,6 +213,13 @@ export default function EmployeesPage() {
       emp.position.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedEmployees = filteredEmployees.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
+
   return (
     <>
       <div className="space-y-6">
@@ -213,7 +227,7 @@ export default function EmployeesPage() {
           <div>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Data Karyawan</h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Total: {employees.length} karyawan
+              
             </p>
           </div>
           <button
@@ -250,8 +264,8 @@ export default function EmployeesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredEmployees.length > 0 ? (
-                  filteredEmployees.map((emp) => (
+                {paginatedEmployees.length > 0 ? (
+                  paginatedEmployees.map((emp) => (
                     <tr key={emp.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="p-3 font-medium dark:text-white">{emp.nip}</td>
                       <td className="p-3 dark:text-gray-300">{emp.name}</td>
@@ -296,6 +310,50 @@ export default function EmployeesPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Menampilkan {startIndex + 1} -{" "}
+              {Math.min(startIndex + itemsPerPage, filteredEmployees.length)}{" "}
+              dari {filteredEmployees.length} data
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === page
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ),
+                )}
+              </div>
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
