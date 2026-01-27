@@ -264,10 +264,7 @@ export default function LoginPage() {
       {/* RIGHT SIDE - Decorative */}
       <div className="hidden lg:flex flex-1 bg-black relative overflow-hidden items-center justify-center">
         {/* Decorative Elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl" />
-        </div>
+      
 
         {/* Content */}
         <div className="relative z-10 text-white p-12 text-center">
@@ -290,7 +287,7 @@ export default function LoginPage() {
               ].map((feature, index) => (
                 <div
                   key={index}
-                  className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg p-3"
+                  className="flex items-center gap-2 bg-black/10 backdrop-blur-sm rounded-lg p-3"
                 >
                   <svg
                     className="w-5 h-5 text-green-400"
