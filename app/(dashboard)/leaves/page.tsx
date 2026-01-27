@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { Plus, CheckCircle, XCircle, Trash2, Search, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -45,6 +45,7 @@ const initialLeaves: Leave[] = [
 
 export default function LeavesPage() {
   const [leaves, setLeaves] = useState<Leave[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -153,6 +154,13 @@ export default function LeavesPage() {
     alert("✅ Pengajuan cuti berhasil dihapus!");
   };
 
+  const filtered = leaves.filter(
+    (emp) =>
+      emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.startDate.includes(searchTerm),
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -172,106 +180,107 @@ export default function LeavesPage() {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <Table>
-          <TableHeader>
-            <TableRow className="dark:border-gray-700">
-              <TableHead className="dark:text-gray-100">
-                Nama Karyawan
-              </TableHead>
-              <TableHead className="dark:text-gray-100">Jenis</TableHead>
-              <TableHead className="dark:text-gray-100">
-                Tanggal Mulai
-              </TableHead>
-              <TableHead className="dark:text-gray-100">
-                Tanggal Selesai
-              </TableHead>
-              <TableHead className="dark:text-gray-100">Alasan</TableHead>
-              <TableHead className="dark:text-gray-100">Status</TableHead>
-              <TableHead className="text-right dark:text-gray-100">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {leaves.length > 0 ? (
-              leaves.map((leave) => (
-                <TableRow
-                  key={leave.id}
-                  className="dark:border-gray-700 dark:hover:bg-gray-700"
-                >
-                  <TableCell className="font-medium dark:text-gray-100">
-                    {leave.employeeName}
-                  </TableCell>
-                  <TableCell className="dark:text-gray-300">
-                    {leave.type}
-                  </TableCell>
-                  <TableCell className="dark:text-gray-300">
-                    {leave.startDate}
-                  </TableCell>
-                  <TableCell className="dark:text-gray-300">
-                    {leave.endDate}
-                  </TableCell>
-                  <TableCell className="dark:text-gray-300">
-                    {leave.reason}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        leave.status === "approved"
-                          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                          : leave.status === "rejected"
-                            ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
-                      }`}
-                    >
-                      {leave.status === "pending"
-                        ? "Menunggu"
-                        : leave.status === "approved"
-                          ? "Disetujui"
-                          : "Ditolak"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {leave.status === "pending" && (
-                        <>
-                          <button
-                            onClick={() => handleApprove(leave.id)}
-                            className="p-2 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-                          >
-                            <CheckCircle className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleReject(leave.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                          >
-                            <XCircle className="w-5 h-5" />
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={() => handleDelete(leave.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-6">
+          <Search className="w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Cari nama karyawan..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b dark:border-gray-700">
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Nama Karyawan
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Jenis
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Tanggal Mulai
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Tanggal Selesai
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Alasan
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Status
+                </th>
+                <th className="text-right p-3 font-semibold dark:text-gray-300">
+                  Aksi
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length > 0 ? (
+                filtered.map((emp) => (
+                  <tr
+                    key={emp.id}
+                    className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    <td className="p-3 font-medium dark:text-white">
+                      {emp.employeeName}
+                    </td>
+                    <td className="p-3 dark:text-gray-300">{emp.type}</td>
+                    <td className="p-3 dark:text-gray-300">{emp.startDate}</td>
+                    <td className="p-3 dark:text-gray-300">{emp.endDate}</td>
+                    <td className="p-3 dark:text-gray-300">
+                      {emp.reason || "-"}
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          emp.status === "approved"
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400"
+                        }`}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-center py-8 text-gray-500 dark:text-gray-400"
-                >
-                  Tidak ada data pengajuan cuti
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                        {emp.status === "approved"
+                          ? "DISETUJUI"
+                          : emp.status === "rejected"
+                            ? "DITOLAK"
+                            : "MENUNGGU"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenModal()}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(emp.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="p-8 text-center text-gray-500 dark:text-gray-400"
+                  >
+                    Tidak ada data karyawan yang ditemukan
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modal Form */}

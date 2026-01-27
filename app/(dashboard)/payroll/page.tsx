@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, FileText, Trash2, Edit } from "lucide-react";
+import { Edit, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +60,7 @@ const months = [
 export default function PayrollPage() {
   const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null);
   const [formData, setFormData] = useState({
@@ -104,6 +105,19 @@ export default function PayrollPage() {
     })
       .format(amount)
       .replace("IDR", "Rp");
+  };
+
+  const handleOpenModal = () => {
+    setFormData({
+      employeeName: "",
+      month: months[new Date().getMonth()],
+      year: new Date().getFullYear(),
+      basicSalary: "",
+      allowances: "",
+      deductions: "",
+      status: "pending",
+    });
+    setIsDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -175,6 +189,13 @@ export default function PayrollPage() {
     }
   };
 
+  const handleMarkAsPaid = (id: string) => {
+    const updatedPayrolls = payrolls.map((p) =>
+      p.id === id ? { ...p, status: "paid" as const } : p,
+    );
+    setPayrolls(updatedPayrolls);
+  };
+
   const resetForm = () => {
     setFormData({
       employeeName: "",
@@ -211,6 +232,13 @@ export default function PayrollPage() {
   const currentMonthPending = currentMonthPayrolls
     .filter((p) => p.status === "pending")
     .reduce((sum, p) => sum + p.totalSalary, 0);
+
+  const filtered = payrolls.filter(
+    (emp) =>
+      emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.month.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.year.toString().includes(searchTerm),
+  );
 
   return (
     <div className="space-y-6">
@@ -464,94 +492,124 @@ export default function PayrollPage() {
       </div>
 
       {/* Payroll Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
-        <Table>
-          <TableHeader>
-            <TableRow className="dark:border-gray-700">
-              <TableHead className="dark:text-gray-100">
-                Nama Karyawan
-              </TableHead>
-              <TableHead className="dark:text-gray-100">Periode</TableHead>
-              <TableHead className="dark:text-gray-100">Gaji Pokok</TableHead>
-              <TableHead className="dark:text-gray-100">Tunjangan</TableHead>
-              <TableHead className="dark:text-gray-100">Potongan</TableHead>
-              <TableHead className="dark:text-gray-100">Total</TableHead>
-              <TableHead className="dark:text-gray-100">Status</TableHead>
-              <TableHead className="text-right dark:text-gray-100">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payrolls.length > 0 ? (
-              payrolls.map((payroll) => (
-                <TableRow
-                  key={payroll.id}
-                  className="dark:border-gray-700 dark:hover:bg-gray-700"
-                >
-                  <TableCell className="font-medium dark:text-gray-100">
-                    {payroll.employeeName}
-                  </TableCell>
-                  <TableCell className="dark:text-gray-300">
-                    {payroll.month} {payroll.year}
-                  </TableCell>
-                  <TableCell className="dark:text-gray-300">
-                    {formatCurrency(payroll.basicSalary)}
-                  </TableCell>
-                  <TableCell className="text-green-600 dark:text-green-400">
-                    {formatCurrency(payroll.allowances)}
-                  </TableCell>
-                  <TableCell className="text-red-600 dark:text-red-400">
-                    {formatCurrency(payroll.deductions)}
-                  </TableCell>
-                  <TableCell className="font-bold dark:text-gray-100">
-                    {formatCurrency(payroll.totalSalary)}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        payroll.status === "paid"
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                      }`}
-                    >
-                      {payroll.status === "paid" ? "Dibayar" : "Pending"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(payroll)}
-                        className="dark:text-blue-400 dark:hover:bg-blue-900/30"
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
+        <div className="flex items-center gap-2 mb-6">
+          <Search className="w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Cari nama karyawan..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b dark:border-gray-700">
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Nama Karyawan
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Periode
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Gaji Pokok
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Tunjangan
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Potongan
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Total Gaji
+                </th>
+                <th className="text-left p-3 font-semibold dark:text-gray-300">
+                  Status
+                </th>
+                <th className="text-right p-3 font-semibold dark:text-gray-300">
+                  Aksi
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length > 0 ? (
+                filtered.map((emp) => (
+                  <tr
+                    key={emp.id}
+                    className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    <td className="p-3 font-medium dark:text-white">
+                      {emp.employeeName}
+                    </td>
+                    <td className="p-3 dark:text-gray-300">
+                      {emp.month} {emp.year}
+                    </td>
+                    <td className="p-3 dark:text-gray-300">
+                      {formatCurrency(emp.basicSalary)}
+                    </td>
+                    <td className="p-3 text-green-600 dark:text-green-400">
+                      + {formatCurrency(emp.allowances)}
+                    </td>
+                    <td className="p-3 text-red-600 dark:text-red-400">
+                      - {formatCurrency(emp.deductions)}
+                    </td>
+                    <td className="p-3 font-bold dark:text-white">
+                      {formatCurrency(emp.totalSalary)}
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          emp.status === "paid"
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                        }`}
                       >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(payroll.id)}
-                        className="text-red-500 dark:text-red-400 dark:hover:bg-red-900/30"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="text-center py-8 text-gray-500 dark:text-gray-400"
-                >
-                  Belum ada data payroll. Klik "Proses Gaji" untuk menambahkan.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                        {emp.status === "paid" ? "Dibayar" : "Pending"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        {emp.status === "pending" && (
+                          <button
+                            onClick={() => handleMarkAsPaid(emp.id)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                            title="Tandai Sudah Dibayar"
+                          >
+                            <span className="font-bold text-xs">BAYAR</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleEdit(emp)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(emp.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="p-8 text-center text-gray-500 dark:text-gray-400"
+                  >
+                    Tidak ada data payroll yang ditemukan
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
