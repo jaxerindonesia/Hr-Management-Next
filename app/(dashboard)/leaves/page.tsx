@@ -1,16 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, CheckCircle, XCircle, Trash2, Search, Edit, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Plus, CheckCircle, XCircle, Trash2, Search, Edit, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { useAbsenceTypes } from "@/lib/absence-context";
 
 interface Leave {
   id: string;
@@ -41,15 +34,41 @@ const initialLeaves: Leave[] = [
     reason: "Demam",
     status: "approved",
   },
+  {
+    id: "4",
+    employeeName: "Rina Kartika",
+    type: "Cuti Hamil",
+    startDate: "2024-03-01",
+    endDate: "2024-05-31",
+    reason: "Melahirkan",
+    status: "pending",
+  },
 ];
 
 export default function LeavesPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const typeParam = searchParams.get("type");
+  const actionParam = searchParams.get("action");
+  const { absenceTypes, addAbsenceType, removeAbsenceType } = useAbsenceTypes();
+  
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [newType, setNewType] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  // Auto open modal if action=new
+  useEffect(() => {
+    if (actionParam === "new") {
+      setShowModal(true);
+      // Clean URL without refresh
+      router.replace("/leaves");
+    }
+  }, [actionParam, router]);
 
   const [formData, setFormData] = useState({
     employeeName: "",
@@ -83,7 +102,7 @@ export default function LeavesPage() {
   const handleOpenModal = () => {
     setFormData({
       employeeName: "",
-      type: "Cuti",
+      type: typeParam || "Cuti",
       startDate: "",
       endDate: "",
       reason: "",
@@ -126,6 +145,7 @@ export default function LeavesPage() {
       setLeaves([...leaves, newLeave]);
       alert("✅ Pengajuan cuti berhasil disimpan!");
       handleCloseModal();
+      router.replace(`/leaves?type=${encodeURIComponent(formData.type)}`);
     } catch (error) {
       console.error("Error saving leave:", error);
       alert("❌ Gagal menyimpan pengajuan cuti");
@@ -158,16 +178,24 @@ export default function LeavesPage() {
   };
 
   const filtered = leaves.filter(
-    (emp) =>
-      emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.startDate.includes(searchTerm),
+    (emp) => {
+      const matchesSearch = emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.startDate.includes(searchTerm);
+      const matchesType = typeParam ? emp.type.toLowerCase().includes(typeParam.toLowerCase()) : true;
+      
+      return matchesSearch && matchesType;
+    }
   );
 
   // Reset page when search term changes
-  useEffect(() => {
+  useEffect(() => { 
     setCurrentPage(1);
   }, [searchTerm]);
+  // Reset page when type filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [typeParam]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -181,18 +209,26 @@ export default function LeavesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Cuti/Izin
+            {typeParam ? `Data ${typeParam}` : "Cuti/Izin"}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
            
           </p>
         </div>
-        <button
-          onClick={handleOpenModal}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Ajukan Cuti
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowTypeModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
+            <Settings className="w-4 h-4" /> Kelola Jenis
+          </button>
+          <button
+            onClick={handleOpenModal}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Ajukan Cuti
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
@@ -398,10 +434,11 @@ export default function LeavesPage() {
                     }
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="Cuti">Cuti</option>
-                    <option value="Sakit">Sakit</option>
-                    <option value="Izin">Izin</option>
-                    <option value="Cuti Hamil">Cuti Hamil</option>
+                    {absenceTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -465,6 +502,71 @@ export default function LeavesPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Type Management Modal */}
+      {showTypeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                Kelola Jenis Ketidakhadiran
+              </h3>
+
+              <div className="flex gap-2 mb-6">
+                <input
+                  type="text"
+                  value={newType}
+                  onChange={(e) => setNewType(e.target.value)}
+                  placeholder="Tambah jenis baru..."
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={() => {
+                    if (newType.trim()) {
+                      addAbsenceType(newType.trim());
+                      setNewType("");
+                    }
+                  }}
+                  disabled={!newType.trim()}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {absenceTypes.map((type) => (
+                  <div
+                    key={type}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                  >
+                    <span className="text-gray-900 dark:text-gray-100">{type}</span>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Hapus jenis "${type}"?`)) {
+                          removeAbsenceType(type);
+                        }
+                      }}
+                      className="text-red-500 hover:text-red-700 p-1"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 text-right">
+                <button
+                  onClick={() => setShowTypeModal(false)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         </div>

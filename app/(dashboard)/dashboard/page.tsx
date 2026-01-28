@@ -91,7 +91,7 @@ export default function DashboardPage() {
   const [performances, setPerformances] = useState<typeof defaultPerformances>(
     [],
   );
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
   // Function to load data from localStorage
   const loadData = () => {
@@ -156,6 +156,9 @@ export default function DashboardPage() {
 
     window.addEventListener("focus", handleFocus);
 
+    // Set initial time on client side to avoid hydration mismatch
+    setCurrentTime(new Date());
+
     // Update waktu setiap detik
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -183,7 +186,11 @@ export default function DashboardPage() {
   const calculateDaysLeft = (dateStr: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const targetDate = new Date(dateStr);
+
+    // Parse YYYY-MM-DD explicitly to local time
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const targetDate = new Date(year, month - 1, day);
+    
     targetDate.setHours(0, 0, 0, 0);
     const diffTime = targetDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -218,13 +225,19 @@ export default function DashboardPage() {
             Dashboard
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {currentTime.toLocaleDateString("id-ID", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}{" "}
-            - {currentTime.toLocaleTimeString("id-ID")}
+            {currentTime ? (
+              <>
+                {currentTime.toLocaleDateString("id-ID", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}{" "}
+                - {currentTime.toLocaleTimeString("id-ID")}
+              </>
+            ) : (
+              "Memuat waktu..."
+            )}
           </p>
         </div>
       </div>
@@ -306,8 +319,8 @@ export default function DashboardPage() {
                     .reduce((sum, p) => sum + p.totalSalary, 0),
                 )}
               </p>
-            </div>
-            <div className="w-12 h-12 flex items-center justify-center bg-purple-400 bg-opacity-30 rounded-full">
+                </div>
+            <div className="w-12 h-12 flex items-center justify-center bg-purple-400/30 rounded-full">
               <span className="text-2xl font-bold text-purple-100">Rp</span>
             </div>
           </div>

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,8 +126,8 @@ export default function PerformancePage() {
       } else {
         setEmployees(initialEmployeesData);
         // Optionally save to localStorage if we want to persist these defaults
-        // localStorage.setItem("hr_employees", JSON.stringify(initialEmployeesData)); 
-        // Better not to overwrite if it's meant to be managed by EmployeesPage, 
+        // localStorage.setItem("hr_employees", JSON.stringify(initialEmployeesData));
+        // Better not to overwrite if it's meant to be managed by EmployeesPage,
         // but for this page to work we need data.
       }
 
@@ -199,7 +206,7 @@ export default function PerformancePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.employeeName) {
       alert("Mohon pilih karyawan terlebih dahulu");
       return;
@@ -296,12 +303,12 @@ export default function PerformancePage() {
         <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
           Penilaian Kinerja
         </h2>
-          <button
-                  onClick={() => handleOpenModal()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Tambah Penilaian
-                </button>
+        <button
+          onClick={() => handleOpenModal()}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Tambah Penilaian
+        </button>
       </div>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
@@ -409,9 +416,9 @@ export default function PerformancePage() {
         {/* Pagination Controls */}
         <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Menampilkan {" "}
+            Menampilkan{" "}
             {Math.min(startIndex + itemsPerPage, filteredPerformances.length)}{" "}
-            dari   {filteredPerformances.length} data
+            dari {filteredPerformances.length} data
           </p>
           <div className="flex items-center gap-2">
             <Button
