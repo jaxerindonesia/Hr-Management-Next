@@ -188,6 +188,7 @@ export default function Sidebar() {
                           <Link
                             key={sub.name}
                             href={sub.path}
+                          prefetch={false}
                             className={`block text-sm py-2 px-3 rounded-md transition-colors ${
                               isSubActive
                                 ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 font-medium"

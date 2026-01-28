@@ -65,8 +65,6 @@ export default function LeavesPage() {
   useEffect(() => {
     if (actionParam === "new") {
       setShowModal(true);
-      // Clean URL without refresh
-      router.replace("/leaves");
     }
   }, [actionParam, router]);
 
