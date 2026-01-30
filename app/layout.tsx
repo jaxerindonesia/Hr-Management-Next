@@ -18,8 +18,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+            <div className="flex-1">{children}</div>
+            <footer className="border-t border-gray-200 dark:border-gray-700 py-3 text-center text-xs text-gray-600 dark:text-gray-400">
+              © Hr management Jaxer Grup Indonesia 2026
+            </footer>
+          </div>
+        </Providers>
       </body>
     </html>
   );

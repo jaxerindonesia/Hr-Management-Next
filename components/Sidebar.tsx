@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
@@ -37,6 +37,14 @@ export default function Sidebar() {
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
+
+  // Collapse sidebar by default on small screens
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isSmall = window.matchMedia("(max-width: 767px)").matches;
+      if (isSmall) setSidebarOpen(false);
+    }
+  }, []);
 
   // Function untuk handle logout
   const handleLogout = () => {
