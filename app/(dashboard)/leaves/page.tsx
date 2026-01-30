@@ -219,13 +219,7 @@ export default function LeavesPage() {
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             <Settings className="w-4 h-4" /> Kelola Jenis
-          </button>
-          <button
-            onClick={handleOpenModal}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Ajukan Cuti
-          </button>
+          </button> 
         </div>
       </div>
 

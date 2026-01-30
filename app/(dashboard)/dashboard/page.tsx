@@ -242,7 +242,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Cards Statistik */}
+      {/* Cards Statistik  yang di atas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl ">
           <div className="flex items-center justify-between">
@@ -327,7 +327,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Hari Libur & Event Mendatang */}
+      {/* card pada Hari Libur & Event Mendatang */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
         <div className="flex items-center gap-2 mb-4">
           <Calendar className="w-6 h-6 text-red-500" />
@@ -376,7 +376,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Baris 2: Pengajuan Cuti & Karyawan Terbaik */}
+      {/* Card Pada Pengajuan Cuti */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <h3 className="text-lg font-semibold mb-4 dark:text-white">
@@ -421,7 +421,7 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-
+        {/* Card Karyawan Terbaik */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <h3 className="text-lg font-semibold mb-4 dark:text-white">
             Karyawan Terbaik
