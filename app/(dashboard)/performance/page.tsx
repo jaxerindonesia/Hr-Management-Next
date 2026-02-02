@@ -299,20 +299,8 @@ export default function PerformancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Penilaian Kinerja
-        </h2>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Tambah Penilaian
-        </button>
-      </div>
-
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-4 mb-6">
           <Search className="w-5 h-5 text-gray-400" />
           <input
             type="text"
@@ -321,6 +309,13 @@ export default function PerformancePage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Tambah Penilaian
+          </button>
         </div>
 
         <div className="overflow-x-auto">

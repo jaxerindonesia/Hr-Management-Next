@@ -2,7 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, CheckCircle, XCircle, Trash2, Search, Edit, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import {
+  Plus,
+  CheckCircle,
+  XCircle,
+  Trash2,
+  Search,
+  Edit,
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+} from "lucide-react";
 import { useAbsenceTypes } from "@/lib/absence-context";
 
 interface Leave {
@@ -51,7 +61,7 @@ function LeavesContent() {
   const typeParam = searchParams.get("type");
   const actionParam = searchParams.get("action");
   const { absenceTypes, addAbsenceType, removeAbsenceType } = useAbsenceTypes();
-  
+
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -175,19 +185,20 @@ function LeavesContent() {
     alert("✅ Pengajuan cuti berhasil dihapus!");
   };
 
-  const filtered = leaves.filter(
-    (emp) => {
-      const matchesSearch = emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.startDate.includes(searchTerm);
-      const matchesType = typeParam ? emp.type.toLowerCase().includes(typeParam.toLowerCase()) : true;
-      
-      return matchesSearch && matchesType;
-    }
-  );
+  const filtered = leaves.filter((emp) => {
+    const matchesSearch =
+      emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.startDate.includes(searchTerm);
+    const matchesType = typeParam
+      ? emp.type.toLowerCase().includes(typeParam.toLowerCase())
+      : true;
+
+    return matchesSearch && matchesType;
+  });
 
   // Reset page when search term changes
-  useEffect(() => { 
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
   // Reset page when type filter changes
@@ -197,34 +208,12 @@ function LeavesContent() {
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedLeaves = filtered.slice(
-    startIndex,
-    startIndex + itemsPerPage,
-  );
+  const paginatedLeaves = filtered.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            {typeParam ? `Data ${typeParam}` : "Cuti/Izin"}
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-           
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowTypeModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            <Settings className="w-4 h-4" /> Kelola Jenis
-          </button> 
-        </div>
-      </div>
-
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-4 mb-6">
           <Search className="w-5 h-5 text-gray-400" />
           <input
             type="text"
@@ -232,7 +221,13 @@ function LeavesContent() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          />{" "}
+          <button
+            onClick={() => setShowTypeModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
+            <Settings className="w-4 h-4" /> Kelola Jenis
+          </button>
         </div>
 
         <div className="overflow-x-auto">
@@ -346,11 +341,10 @@ function LeavesContent() {
         </div>
 
         {/* Pagination Controls */}
-       <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
+        <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Menampilkan {" "}
-            {Math.min(startIndex + itemsPerPage, filtered.length)} dari{" "}
-            {filtered.length} data
+            Menampilkan {Math.min(startIndex + itemsPerPage, filtered.length)}{" "}
+            dari {filtered.length} data
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -536,7 +530,9 @@ function LeavesContent() {
                     key={type}
                     className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
                   >
-                    <span className="text-gray-900 dark:text-gray-100">{type}</span>
+                    <span className="text-gray-900 dark:text-gray-100">
+                      {type}
+                    </span>
                     <button
                       onClick={() => {
                         if (confirm(`Hapus jenis "${type}"?`)) {
@@ -569,7 +565,9 @@ function LeavesContent() {
 
 export default function LeavesPage() {
   return (
-    <React.Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+    <React.Suspense
+      fallback={<div className="p-4 text-center">Loading...</div>}
+    >
       <LeavesContent />
     </React.Suspense>
   );

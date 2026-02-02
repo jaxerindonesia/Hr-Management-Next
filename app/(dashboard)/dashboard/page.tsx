@@ -190,7 +190,7 @@ export default function DashboardPage() {
     // Parse YYYY-MM-DD explicitly to local time
     const [year, month, day] = dateStr.split("-").map(Number);
     const targetDate = new Date(year, month - 1, day);
-    
+
     targetDate.setHours(0, 0, 0, 0);
     const diffTime = targetDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -215,32 +215,9 @@ export default function DashboardPage() {
       .sort((a, b) => a.daysLeft - b.daysLeft)
       .slice(0, 4);
   };
-
   return (
-    <div className="space-y-6  w-full">
-      {/* Header dengan Waktu Real-time */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Dashboard
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {currentTime ? (
-              <>
-                {currentTime.toLocaleDateString("id-ID", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}{" "}
-                - {currentTime.toLocaleTimeString("id-ID")}
-              </>
-            ) : (
-              "Memuat waktu..."
-            )}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      {/* Waktu dan tanggal */}
 
       {/* Cards Statistik  yang di atas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -319,7 +296,7 @@ export default function DashboardPage() {
                     .reduce((sum, p) => sum + p.totalSalary, 0),
                 )}
               </p>
-                </div>
+            </div>
             <div className="w-12 h-12 flex items-center justify-center bg-purple-400/30 rounded-full">
               <span className="text-2xl font-bold text-purple-100">Rp</span>
             </div>

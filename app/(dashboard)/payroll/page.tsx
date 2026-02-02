@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Edit,
+  Plus,
+  Search,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -257,18 +264,7 @@ export default function PayrollPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Payroll
-        </h2>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-          <DialogTrigger asChild>
-              <button
-                      onClick={handleOpenModal}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" /> Proses Gaji
-                    </button>
-          </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
@@ -510,7 +506,7 @@ export default function PayrollPage() {
 
       {/* Payroll Table */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-4 mb-6">
           <Search className="w-5 h-5 text-gray-400" />
           <input
             type="text"
@@ -519,6 +515,12 @@ export default function PayrollPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          <button
+            onClick={handleOpenModal}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Proses Gaji
+          </button>
         </div>
 
         <div className="overflow-x-auto">
@@ -629,11 +631,10 @@ export default function PayrollPage() {
         </div>
 
         {/* Pagination Controls */}
-   <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
+        <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Menampilkan {" "}
-            {Math.min(startIndex + itemsPerPage, filtered.length)} dari{" "}
-            {filtered.length} data
+            Menampilkan {Math.min(startIndex + itemsPerPage, filtered.length)}{" "}
+            dari {filtered.length} data
           </p>
           <div className="flex items-center gap-2">
             <Button

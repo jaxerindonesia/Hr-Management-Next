@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 interface Employee {
   id: string;
@@ -223,23 +230,8 @@ export default function EmployeesPage() {
   return (
     <>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Data Karyawan</h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              
-            </p>
-          </div>
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Tambah Karyawan
-          </button>
-        </div>
-
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-4 mb-6">
             <Search className="w-5 h-5 text-gray-400" />
             <input
               type="text"
@@ -248,30 +240,59 @@ export default function EmployeesPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <button
+              onClick={() => handleOpenModal()}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Tambah Karyawan
+            </button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b dark:border-gray-700">
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">NIP</th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">Nama</th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">Posisi</th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">Departemen</th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">Gaji</th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">Status</th>
-                  <th className="text-right p-3 font-semibold dark:text-gray-300">Aksi</th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    NIP
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Nama
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Posisi
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Departemen
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Gaji
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Status
+                  </th>
+                  <th className="text-right p-3 font-semibold dark:text-gray-300">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedEmployees.length > 0 ? (
                   paginatedEmployees.map((emp) => (
-                    <tr key={emp.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="p-3 font-medium dark:text-white">{emp.nip}</td>
+                    <tr
+                      key={emp.id}
+                      className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      <td className="p-3 font-medium dark:text-white">
+                        {emp.nip}
+                      </td>
                       <td className="p-3 dark:text-gray-300">{emp.name}</td>
                       <td className="p-3 dark:text-gray-300">{emp.position}</td>
-                      <td className="p-3 dark:text-gray-300">{emp.department}</td>
-                      <td className="p-3 dark:text-gray-300">{formatCurrency(emp.salary)}</td>
+                      <td className="p-3 dark:text-gray-300">
+                        {emp.department}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
+                        {formatCurrency(emp.salary)}
+                      </td>
                       <td className="p-3">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -303,7 +324,10 @@ export default function EmployeesPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-500 dark:text-gray-400">
+                    <td
+                      colSpan={7}
+                      className="p-8 text-center text-gray-500 dark:text-gray-400"
+                    >
                       Tidak ada data karyawan yang ditemukan
                     </td>
                   </tr>
@@ -315,7 +339,7 @@ export default function EmployeesPage() {
           {/* Pagination Controls */}
           <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Menampilkan {" "}
+              Menampilkan{" "}
               {Math.min(startIndex + itemsPerPage, filteredEmployees.length)}{" "}
               dari {filteredEmployees.length} data
             </p>
@@ -368,7 +392,9 @@ export default function EmployeesPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium dark:text-gray-300">NIP *</label>
+                  <label className="block text-sm font-medium dark:text-gray-300">
+                    NIP *
+                  </label>
                   <input
                     type="text"
                     value={formData.nip}
