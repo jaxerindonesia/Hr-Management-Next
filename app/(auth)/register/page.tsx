@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Eye, EyeOff, Mail, Lock, AlertCircle, ArrowRight, Sparkles, User, Building, Phone } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, AlertCircle, ArrowRight, Sparkles, User, Building, Phone, Layers, Network, Briefcase } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -266,11 +266,11 @@ export default function RegisterPage() {
                       htmlFor="company"
                       className="block text-sm font-semibold text-gray-300 ml-1"
                     >
-                      Perusahaan
+                      Divisi
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Building className="h-5 w-5 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
+                        <Briefcase className="h-5 w-5 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
                       </div>
                       <input
                         id="company"
@@ -284,7 +284,7 @@ export default function RegisterPage() {
                         placeholder-gray-500
                         focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white/10
                         transition-all duration-300"
-                        placeholder="PT. Example"
+                        placeholder="Divisi"
                       />
                     </div>
                   </div>
@@ -473,7 +473,7 @@ export default function RegisterPage() {
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/20 backdrop-blur-sm border border-blue-500/30">
                   <Sparkles className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm font-semibold text-blue-300">Gratis untuk 30 Hari Pertama</span>
+                  <span className="text-sm font-semibold text-blue-300">Jaxer Grup Indonesia</span>
                 </div>
                 
                 <h1 className="text-6xl font-bold leading-tight bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
