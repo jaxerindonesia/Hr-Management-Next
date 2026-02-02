@@ -25,9 +25,7 @@ export default function RootLayout({
         <Providers>
           <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
             <div className="flex-1">{children}</div>
-            <footer className="border-t border-gray-200 dark:border-gray-700 py-3 text-center text-xs text-gray-600 dark:text-gray-400">
-              © Hr management Jaxer Grup Indonesia 2026
-            </footer>
+            
           </div>
         </Providers>
       </body>

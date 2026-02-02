@@ -123,3 +123,61 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Make phone displays sticky on mobile screens */
+@media (max-width: 700px) {
+  [type="tel"],
+  input[type="tel"],
+  .phone-display,
+  [id*="phone"],
+  label[for*="phone"] {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--background);
+  }
+}
+
+/* Mobile navbar adjustments */
+@media (max-width: 1023px) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Prevent scroll when mobile menu is open */
+  body.mobile-menu-open {
+    overflow: hidden;
+  }
+
+  /* Smooth animations for mobile menu */
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  .mobile-menu-slide {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  /* Custom scrollbar for mobile menu */
+  .mobile-menu-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .mobile-menu-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .mobile-menu-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+  }
+
+  .dark .mobile-menu-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}

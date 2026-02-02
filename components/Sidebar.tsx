@@ -107,9 +107,9 @@ export default function Sidebar() {
   return (
     <>
       <aside
-        className={`flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+        className={`flex flex-col bg-white dark:bg-gray-800 border-r md:border-r border-t md:border-t-0 border-gray-200 dark:border-gray-700
         transition-all duration-300 ease-in-out
-        ${sidebarOpen ? "w-72" : "w-20"}`}
+        ${sidebarOpen ? "md:w-72" : "md:w-20"} w-full h-full lg:h-screen md:sticky md:top-0 md:overflow-y-auto`}
       >
         {/* ===== HEADER ===== */}
         <div className="h-16 flex items-center justify-center border-b dark:border-gray-700 px-4">

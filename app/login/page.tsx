@@ -85,7 +85,7 @@ export default function LoginPage() {
                 </div>
                 <div className="space-y-2">
                   <h2 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">
-                    Selamat Datang Kembali
+                    Selamat Datang 
                   </h2>
                   <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
                     <Sparkles className="w-4 h-4 text-blue-400" />
@@ -129,7 +129,7 @@ export default function LoginPage() {
                       placeholder-gray-500
                       focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white/10
                       transition-all duration-300"
-                      placeholder="nama@perusahaan.com"
+                      placeholder="nama@jaxergrup.com"
                     />
                   </div>
                 </div>
