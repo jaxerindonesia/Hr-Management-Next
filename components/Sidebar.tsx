@@ -46,13 +46,16 @@ export default function Sidebar() {
     }
   }, []);
 
-  // Function untuk handle logout
-  const handleLogout = () => {
-    // Hapus data session/token dari localStorage jika ada
-    localStorage.removeItem("hr_auth_token");
-    localStorage.removeItem("hr_user_data");
-    
-    // Redirect ke halaman login
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("LOGOUT ERROR:", err);
+    }
+
     router.push("/login");
   };
 

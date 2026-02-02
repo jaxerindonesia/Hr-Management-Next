@@ -22,18 +22,42 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setError("");
     setIsLoading(true);
 
-    setTimeout(() => {
-      if (formData.email && formData.password) {
-        router.push("/dashboard");
-      } else {
-        setError("Email dan password harus diisi");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", 
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          remember_me: rememberMe,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Login failed");
         setIsLoading(false);
+        return;
       }
-    }, 1500);
+
+      // save to local storage
+      localStorage.setItem("hr_user_data", JSON.stringify(data.user));
+
+      router.push("/dashboard");
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      setIsLoading(false);
+    }
   };
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({

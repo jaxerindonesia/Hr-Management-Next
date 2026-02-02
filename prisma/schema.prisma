@@ -1,93 +1,157 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
-model Employee {
-  id            String   @id @default(cuid())
-  nip           String   @unique
-  name          String
-  email         String   @unique
-  phone         String
-  position      String
-  department    String
-  joinDate      DateTime
-  salary        Float
-  photo         String?
-  status        String   @default("active")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  leaves        Leave[]
-  payrolls      Payroll[]
-  performances  Performance[]
-  attendances   Attendance[]
+model Role {
+  id         String @id @default(uuid()) @db.Uuid
+  name       String
+  permission Json
+
+  users User[]
+
+  @@map("roles")
 }
 
-model Leave {
-  id          String   @id @default(cuid())
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  type        String
-  startDate   DateTime
-  endDate     DateTime
-  reason      String
-  status      String   @default("pending")
-  approvedBy  String?
-  approvedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model User {
+  id String @id @default(uuid()) @db.Uuid
+
+  roleId String @map("role_id") @db.Uuid
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  email      String @unique
+  name       String
+  nik        String?
+  phone      String?
+  position   String?
+  department String?
+  joinDate   DateTime? @map("join_date")
+  salary     Float?
+  avatarUrl  String? @map("avatar_url")
+
+  password     String
+  currentToken String @map("current_token")
+  salt         String
+
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  submissions  Submission[]
+  payrolls     Payroll[]
+  performances Performance[]
+  attendances  Attendance[]
+
+  @@map("users")
+}
+
+model SubmissionType {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @unique
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  submissions Submission[]
+
+  @@map("submission_types")
+}
+
+model Submission {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  submissionTypeId String @map("submission_type_id") @db.Uuid
+  submissionType   SubmissionType @relation(fields: [submissionTypeId], references: [id], onDelete: Cascade)
+
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  reason    String
+
+  status String @default("pending")
+
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("submissions")
 }
 
 model Attendance {
-  id          String   @id @default(cuid())
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  date        DateTime
-  checkIn     DateTime?
-  checkOut    DateTime?
-  status      String
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date     DateTime
+  checkIn  DateTime? @map("check_in")
+  checkOut DateTime? @map("check_out")
+
+  status String
+  notes  String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("attendances")
 }
 
 model Payroll {
-  id              String   @id @default(cuid())
-  employeeId      String
-  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  month           Int
-  year            Int
-  basicSalary     Float
-  allowances      Float    @default(0)
-  deductions      Float    @default(0)
-  totalSalary     Float
-  status          String   @default("pending")
-  paidAt          DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  month Int
+  year  Int
+
+  basicSalary Float @map("basic_salary")
+  allowances  Float @default(0)
+  deductions  Float @default(0)
+
+  totalSalary Float @map("total_salary")
+  status      String @default("pending")
+  paidAt      DateTime? @map("paid_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("payrolls")
 }
 
 model Performance {
-  id              String   @id @default(cuid())
-  employeeId      String
-  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  period          String
-  productivity    Int
-  quality         Int
-  teamwork        Int
-  discipline      Int
-  totalScore      Float
-  notes           String?
-  evaluatedBy     String
-  evaluatedAt     DateTime
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  period String
+
+  productivity Int
+  quality      Int
+  teamwork     Int
+  discipline   Int
+
+  totalScore Float @map("total_score")
+
+  notes String?
+  evaluatedBy String   @map("evaluated_by")
+  evaluatedAt DateTime @map("evaluated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("performances")
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Sun, Moon, Bell, User, ChevronDown } from "lucide-react";
@@ -14,6 +14,10 @@ import { Sun, Moon, Bell, User, ChevronDown } from "lucide-react";
 export default function DesktopNavbar() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const [user, setUser] = React.useState({
+    name: "Admin User",
+    role: "Administrator",
+  });
 
   // Get page title from pathname
   const getPageTitle = () => {
@@ -39,6 +43,11 @@ export default function DesktopNavbar() {
     };
     return now.toLocaleDateString("id-ID", options);
   };
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("hr_user_data") || '{}');
+    if (user?.name) setUser(user);
+  }, []);
 
   return (
     <nav className="hidden lg:block sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
@@ -78,10 +87,10 @@ export default function DesktopNavbar() {
             </div>
             <div className="text-left hidden xl:block">
               <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                Admin User
+                {user.name}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Administrator
+                {user.role}
               </p>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400 hidden xl:block" />
