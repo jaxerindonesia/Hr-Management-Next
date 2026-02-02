@@ -45,7 +45,7 @@ const initialLeaves: Leave[] = [
   },
 ];
 
-export default function LeavesPage() {
+function LeavesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type");
@@ -564,5 +564,13 @@ export default function LeavesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LeavesPage() {
+  return (
+    <React.Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+      <LeavesContent />
+    </React.Suspense>
   );
 }

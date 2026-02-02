@@ -1,5 +1,6 @@
 "use client";
 
+import React, { Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import MobileNavbar from "@/components/MobileNavbar";
 import DesktopNavbar from "@/components/DesktopNavbar";
@@ -18,7 +19,9 @@ export default function DashboardLayout({
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
         {/* Sidebar - Only visible on desktop/laptop */}
         <div className="hidden lg:block">
-          <Sidebar />
+          <Suspense fallback={<div className="w-64 bg-white dark:bg-gray-800 h-full border-r border-gray-200 dark:border-gray-700" />}>
+            <Sidebar />
+          </Suspense>
         </div>
         
         <main className="flex-1 overflow-auto flex flex-col">
