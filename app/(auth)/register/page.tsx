@@ -56,12 +56,37 @@ export default function RegisterPage() {
       return;
     }
 
-    setTimeout(() => {
-      setSuccess("Registrasi berhasil! Mengalihkan ke halaman login...");
-      setTimeout(() => {
-        router.push("/login");
-      }, 1500);
-    }, 1500);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", 
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          name: formData.fullName,
+          phone: formData.phone,
+          position: formData.company,
+          department: formData.company,
+          roleId: process.env.NEXT_PUBLIC_DEFAULT_ROLE_ID,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Register failed");
+        setIsLoading(false);
+        return;
+      }
+
+      router.push("/login");
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -381,7 +406,7 @@ export default function RegisterPage() {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || !agreeToTerms }
                   className="w-full group relative flex justify-center items-center gap-2 py-3.5 px-4 
                   rounded-xl text-white font-semibold
                   bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600
@@ -391,7 +416,7 @@ export default function RegisterPage() {
                   shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02]
                   overflow-hidden"
                 >
-                  {isLoading ? (
+                  {isLoading  ? (
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       <span>Memproses...</span>
