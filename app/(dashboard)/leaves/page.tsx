@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
+  Filter,
+  X,
 } from "lucide-react";
 import { useAbsenceTypes } from "@/lib/absence-context";
 
@@ -66,9 +68,18 @@ function LeavesContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [newType, setNewType] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Filter states
+  const [filterName, setFilterName] = useState("");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+  
   const itemsPerPage = 5;
 
   // Auto open modal if action=new
@@ -185,22 +196,63 @@ function LeavesContent() {
     alert("✅ Pengajuan cuti berhasil dihapus!");
   };
 
+  const clearAllFilters = () => {
+    setFilterName("");
+    setFilterType("all");
+    setFilterStatus("all");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setSearchTerm("");
+  };
+
+  // Count active filters
+  const activeFilterCount = [
+    filterName !== "",
+    filterType !== "all",
+    filterStatus !== "all",
+    filterStartDate !== "",
+    filterEndDate !== "",
+  ].filter(Boolean).length;
+
+  // Apply all filters
   const filtered = leaves.filter((emp) => {
     const matchesSearch =
       emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.startDate.includes(searchTerm);
-    const matchesType = typeParam
+    
+    const matchesName = emp.employeeName.toLowerCase().includes(filterName.toLowerCase());
+    const matchesType = filterType === "all" || emp.type === filterType;
+    const matchesStatus = filterStatus === "all" || emp.status === filterStatus;
+    
+    let matchesStartDate = true;
+    if (filterStartDate) {
+      matchesStartDate = emp.startDate >= filterStartDate;
+    }
+    
+    let matchesEndDate = true;
+    if (filterEndDate) {
+      matchesEndDate = emp.endDate <= filterEndDate;
+    }
+
+    const matchesTypeParam = typeParam
       ? emp.type.toLowerCase().includes(typeParam.toLowerCase())
       : true;
 
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesName && matchesType && matchesStatus && 
+           matchesStartDate && matchesEndDate && matchesTypeParam;
   });
+
+  // Get unique types for filter
+  const uniqueTypes = Array.from(
+    new Set(leaves.map((leave) => leave.type))
+  ).sort();
 
   // Reset page when search term changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filterName, filterType, filterStatus, filterStartDate, filterEndDate]);
+  
   // Reset page when type filter changes
   useEffect(() => {
     setCurrentPage(1);
@@ -213,22 +265,196 @@ function LeavesContent() {
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-        <div className="flex items-center gap-4 mb-6">
-          <Search className="w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Cari nama karyawan..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />{" "}
+        {/* Header dengan Kelola Jenis di kiri dan Filter di kanan */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+          {/* Kelola Jenis Button - Di kiri */}
           <button
             onClick={() => setShowTypeModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             <Settings className="w-4 h-4" /> Kelola Jenis
           </button>
+
+          {/* Spacer */}
+          <div className="flex-1"></div>
+
+          {/* Filter Button - Di kanan */}
+          <button
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              showFilterPanel
+                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
+                : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            Filter
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
+
+        {/* Filter Panel */}
+        {showFilterPanel && (
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                Filter Data Cuti/Izin
+              </h3>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={clearAllFilters}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  Hapus Semua Filter
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Name Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Nama Karyawan
+                </label>
+                <input
+                  type="text"
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
+                  placeholder="Filter nama..."
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Type Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Jenis Cuti
+                </label>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Semua Jenis</option>
+                  {uniqueTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Status
+                </label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Semua Status</option>
+                  <option value="pending">Menunggu</option>
+                  <option value="approved">Disetujui</option>
+                  <option value="rejected">Ditolak</option>
+                </select>
+              </div>
+
+              {/* Start Date Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Dari Tanggal
+                </label>
+                <input
+                  type="date"
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* End Date Filter */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Sampai Tanggal
+                </label>
+                <input
+                  type="date"
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Active Filters Display */}
+            {activeFilterCount > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {filterName && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Nama: {filterName}
+                    <button
+                      onClick={() => setFilterName("")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterType !== "all" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Jenis: {filterType}
+                    <button
+                      onClick={() => setFilterType("all")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterStatus !== "all" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Status: {filterStatus === "pending" ? "Menunggu" : filterStatus === "approved" ? "Disetujui" : "Ditolak"}
+                    <button
+                      onClick={() => setFilterStatus("all")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterStartDate && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Dari: {filterStartDate}
+                    <button
+                      onClick={() => setFilterStartDate("")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterEndDate && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Sampai: {filterEndDate}
+                    <button
+                      onClick={() => setFilterEndDate("")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -278,7 +504,9 @@ function LeavesContent() {
                         className={`px-2 py-1 rounded-full text-xs font-medium ${
                           emp.status === "approved"
                             ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400"
+                            : emp.status === "rejected"
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                         }`}
                       >
                         {emp.status === "approved"
@@ -294,14 +522,14 @@ function LeavesContent() {
                           <>
                             <button
                               onClick={() => handleApprove(emp.id)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                              className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg"
                               title="Setujui"
                             >
                               <CheckCircle className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleReject(emp.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                              className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                               title="Tolak"
                             >
                               <XCircle className="w-4 h-4" />
@@ -310,14 +538,14 @@ function LeavesContent() {
                         )}
                         <button
                           onClick={() => handleOpenModal()}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
                           title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(emp.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                           title="Hapus"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -332,7 +560,7 @@ function LeavesContent() {
                     colSpan={7}
                     className="p-8 text-center text-gray-500 dark:text-gray-400"
                   >
-                    Tidak ada data karyawan yang ditemukan
+                    Tidak ada data cuti/izin yang ditemukan
                   </td>
                 </tr>
               )}
@@ -341,46 +569,54 @@ function LeavesContent() {
         </div>
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Menampilkan {Math.min(startIndex + itemsPerPage, filtered.length)}{" "}
-            dari {filtered.length} data
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                      currentPage === page
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ),
-              )}
-            </div>
-            <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+        <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t dark:border-gray-700 gap-4">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Menampilkan <span className="font-semibold text-gray-900 dark:text-white">{filtered.length}</span> dari{" "}
+            <span className="font-semibold text-gray-900 dark:text-white">{leaves.length}</span> data
           </div>
+
+          {filtered.length > 0 && (
+            <div className="flex items-center gap-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Halaman {currentPage} dari {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === page
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
+                </div>
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

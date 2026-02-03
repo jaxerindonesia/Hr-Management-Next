@@ -8,6 +8,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Filter,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +71,13 @@ export default function PayrollPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Filter states
+  const [filterMonth, setFilterMonth] = useState<string>("all");
+  const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+
   const itemsPerPage = 5;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayroll, setEditingPayroll] = useState<Payroll | null>(null);
@@ -242,17 +251,33 @@ export default function PayrollPage() {
     .filter((p) => p.status === "pending")
     .reduce((sum, p) => sum + p.totalSalary, 0);
 
-  const filtered = payrolls.filter(
-    (emp) =>
+  // Get unique years for filter
+  const uniqueYears = Array.from(new Set(payrolls.map(p => p.year))).sort((a, b) => b - a);
+
+  const clearAllFilters = () => {
+    setFilterMonth("all");
+    setFilterYear("all");
+    setFilterStatus("all");
+    setSearchTerm("");
+  };
+
+  const filtered = payrolls.filter((emp) => {
+    const matchesSearch =
       emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.month.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.year.toString().includes(searchTerm),
-  );
+      emp.year.toString().includes(searchTerm);
 
-  // Reset page when search term changes
+    const matchesMonth = filterMonth === "all" || emp.month === filterMonth;
+    const matchesYear = filterYear === "all" || emp.year.toString() === filterYear;
+    const matchesStatus = filterStatus === "all" || emp.status === filterStatus;
+
+    return matchesSearch && matchesMonth && matchesYear && matchesStatus;
+  });
+
+  // Reset page when search term or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filterMonth, filterYear, filterStatus]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -506,21 +531,109 @@ export default function PayrollPage() {
 
       {/* Payroll Table */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-        <div className="flex items-center gap-4 mb-6">
-          <Search className="w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Cari nama karyawan..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleOpenModal}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Proses Gaji
-          </button>
+        {/* Search and Filter Bar */}
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Cari nama karyawan..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => setShowFilterPanel(!showFilterPanel)}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                  showFilterPanel || filterMonth !== "all" || filterYear !== "all" || filterStatus !== "all"
+                    ? "bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400"
+                    : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                Filter
+              </button>
+
+              <button
+                onClick={handleOpenModal}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Proses Gaji
+              </button>
+            </div>
+          </div>
+
+          {/* Filter Panel */}
+          {showFilterPanel && (
+            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medium text-gray-900 dark:text-white">Filter Data</h3>
+                <button 
+                  onClick={clearAllFilters}
+                  className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1"
+                >
+                  <X className="w-4 h-4" /> Reset Filter
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Bulan
+                  </label>
+                  <select
+                    value={filterMonth}
+                    onChange={(e) => setFilterMonth(e.target.value)}
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Semua Bulan</option>
+                    {months.map((month) => (
+                      <option key={month} value={month}>
+                        {month}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Tahun
+                  </label>
+                  <select
+                    value={filterYear}
+                    onChange={(e) => setFilterYear(e.target.value)}
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Semua Tahun</option>
+                    {uniqueYears.map((year) => (
+                      <option key={year} value={year.toString()}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Status
+                  </label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Semua Status</option>
+                    <option value="paid">Dibayar (Paid)</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">
