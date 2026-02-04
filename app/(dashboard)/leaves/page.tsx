@@ -72,6 +72,8 @@ function LeavesContent() {
   const [newType, setNewType] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   
   // Filter states
   const [filterName, setFilterName] = useState("");
@@ -100,6 +102,20 @@ function LeavesContent() {
   // Load data dari localStorage saat pertama kali
   useEffect(() => {
     if (typeof window !== "undefined") {
+      const userData = localStorage.getItem("hr_user_data");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          setUserRole(user.role);
+          setUserName(user.name);
+          if (user.role !== "Super Admin") {
+             setFormData(prev => ({ ...prev, employeeName: user.name }));
+          }
+        } catch (e) {
+          console.error("Error parsing user data", e);
+        }
+      }
+
       const savedLeaves = localStorage.getItem("hr_leaves");
       if (savedLeaves) {
         setLeaves(JSON.parse(savedLeaves));
@@ -118,9 +134,16 @@ function LeavesContent() {
     }
   }, [leaves]);
 
-  const handleOpenModal = () => {
+  const handleOpenModal = (leaveToEdit?: Leave) => {
+    if (leaveToEdit) {
+        // Edit mode would go here if implemented properly, currently the edit button just opens empty modal or with predefined values
+        // But the original code just calls handleOpenModal() without args for edit button too? 
+        // Wait, line 540 calls handleOpenModal() without args.
+        // Let's stick to original behavior but pre-fill name if user.
+    }
+    
     setFormData({
-      employeeName: "",
+      employeeName: userRole === "Super Admin" ? "" : (userName || ""),
       type: typeParam || "Cuti",
       startDate: "",
       endDate: "",
@@ -132,7 +155,7 @@ function LeavesContent() {
   const handleCloseModal = () => {
     setShowModal(false);
     setFormData({
-      employeeName: "",
+      employeeName: userRole === "Super Admin" ? "" : (userName || ""),
       type: "Cuti",
       startDate: "",
       endDate: "",
@@ -239,8 +262,10 @@ function LeavesContent() {
       ? emp.type.toLowerCase().includes(typeParam.toLowerCase())
       : true;
 
+    const matchesUser = userRole === "Super Admin" || emp.employeeName === userName;
+
     return matchesSearch && matchesName && matchesType && matchesStatus && 
-           matchesStartDate && matchesEndDate && matchesTypeParam;
+           matchesStartDate && matchesEndDate && matchesTypeParam && matchesUser;
   });
 
   // Get unique types for filter
@@ -518,7 +543,7 @@ function LeavesContent() {
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-2">
-                        {emp.status === "pending" && (
+                        {emp.status === "pending" && userRole === "Super Admin" && (
                           <>
                             <button
                               onClick={() => handleApprove(emp.id)}
@@ -543,6 +568,7 @@ function LeavesContent() {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
+                        {(userRole === "Super Admin" || emp.status === "pending") && (
                         <button
                           onClick={() => handleDelete(emp.id)}
                           className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
@@ -550,6 +576,7 @@ function LeavesContent() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -641,7 +668,8 @@ function LeavesContent() {
                       setFormData({ ...formData, employeeName: e.target.value })
                     }
                     placeholder="Masukkan nama karyawan"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={userRole !== "Super Admin"}
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${userRole !== "Super Admin" ? "opacity-60 cursor-not-allowed bg-gray-100 dark:bg-gray-600" : ""}`}
                   />
                 </div>
 

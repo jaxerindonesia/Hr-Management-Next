@@ -19,6 +19,7 @@ import {
   Wallet,
   AlertTriangle,
   X,
+  Shield,
 } from "lucide-react";
 import { useAbsenceTypes } from "@/lib/absence-context";
 
@@ -26,11 +27,26 @@ export default function Sidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { absenceTypes } = useAbsenceTypes();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const userData = localStorage.getItem("hr_user_data");
+      if (userData) {
+        try {
+          const user = JSON.parse(userData);
+          setUserRole(user.role);
+        } catch (e) {
+          console.error("Error parsing user data", e);
+        }
+      }
+    }
+  }, []);
 
   const toggleMenu = (id: string) => {
     setExpandedMenus((prev) =>
@@ -59,8 +75,8 @@ export default function Sidebar() {
     router.push("/login");
   };
 
-  const menuItems = React.useMemo(
-    () => [
+  const menuItems = React.useMemo(() => {
+    const allItems = [
       {
         id: "dashboard",
         name: "Dashboard",
@@ -72,6 +88,7 @@ export default function Sidebar() {
         name: "Data Karyawan",
         icon: Users,
         path: "/employees",
+        roles: ["Super Admin"],
       },
       {
         id: "leaves",
@@ -96,16 +113,33 @@ export default function Sidebar() {
         name: "Payroll",
         icon: Wallet,
         path: "/payroll",
+        roles: ["Super Admin"],
       },
       {
         id: "performance",
         name: "Penilaian Kinerja",
         icon: TrendingUp,
         path: "/performance",
+        roles: ["Super Admin"],
       },
-    ],
-    [absenceTypes],
-  );
+      {
+        id: "roles",
+        name: "Roles",
+        icon: Shield,
+        path: "/roles",
+        roles: ["Super Admin"],
+      },
+    ];
+
+    if (!userRole) return allItems;
+
+    return allItems.filter((item) => {
+      if (item.roles) {
+        return item.roles.includes(userRole);
+      }
+      return true;
+    });
+  }, [absenceTypes, userRole]);
 
   return (
     <>
