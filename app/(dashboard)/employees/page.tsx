@@ -8,6 +8,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Filter,
+  X,
 } from "lucide-react";
 
 interface Employee {
@@ -57,12 +59,21 @@ export default function EmployeesPage() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Filter states
+  const [filterDepartment, setFilterDepartment] = useState<string>("all");
+  const [filterPosition, setFilterPosition] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterName, setFilterName] = useState("");
+  const [filterNip, setFilterNip] = useState("");
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  
   const itemsPerPage = 5;
 
-  // Reset page when search term changes
+  // Reset page when search term or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filterDepartment, filterPosition, filterStatus, filterName, filterNip]);
 
   const [formData, setFormData] = useState({
     nip: "",
@@ -106,6 +117,15 @@ export default function EmployeesPage() {
       .format(amount)
       .replace("IDR", "Rp");
   };
+
+  // Get unique departments, positions, and statuses for filter options
+  const uniqueDepartments = Array.from(
+    new Set(employees.map((emp) => emp.department))
+  ).sort();
+  
+  const uniquePositions = Array.from(
+    new Set(employees.map((emp) => emp.position))
+  ).sort();
 
   const handleOpenModal = (employee?: Employee) => {
     if (employee) {
@@ -213,12 +233,52 @@ export default function EmployeesPage() {
     alert("✅ Karyawan berhasil dihapus!");
   };
 
-  const filteredEmployees = employees.filter(
-    (emp) =>
+  const clearAllFilters = () => {
+    setFilterDepartment("all");
+    setFilterPosition("all");
+    setFilterStatus("all");
+    setFilterName("");
+    setFilterNip("");
+    setSearchTerm("");
+  };
+
+  // Count active filters
+  const activeFilterCount = [
+    filterDepartment !== "all",
+    filterPosition !== "all",
+    filterStatus !== "all",
+    filterName !== "",
+    filterNip !== "",
+  ].filter(Boolean).length;
+
+  // Apply all filters
+  const filteredEmployees = employees.filter((emp) => {
+    // Search filter
+    const matchesSearch =
       emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.nip.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.position.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+      emp.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.department.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Specific Name filter
+    const matchesName = emp.name.toLowerCase().includes(filterName.toLowerCase());
+
+    // Specific NIP filter
+    const matchesNip = emp.nip.toLowerCase().includes(filterNip.toLowerCase());
+
+    // Department filter
+    const matchesDepartment =
+      filterDepartment === "all" || emp.department === filterDepartment;
+
+    // Position filter
+    const matchesPosition =
+      filterPosition === "all" || emp.position === filterPosition;
+
+    // Status filter
+    const matchesStatus = filterStatus === "all" || emp.status === filterStatus;
+
+    return matchesSearch && matchesName && matchesNip && matchesDepartment && matchesPosition && matchesStatus;
+  });
 
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -231,22 +291,202 @@ export default function EmployeesPage() {
     <>
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <div className="flex items-center gap-4 mb-6">
-            <Search className="w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Cari karyawan..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          {/* Search and Filter Bar - Tambah di kiri, Filter di kanan */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+            {/* Tambah Button - Sekarang di kiri */}
             <button
               onClick={() => handleOpenModal()}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <Plus className="w-4 h-4" /> Tambah Karyawan
+              <Plus className="w-4 h-4" /> Tambah
+            </button>
+
+            {/* Spacer untuk mendorong tombol Filter ke kanan */}
+            <div className="flex-1"></div>
+            
+            {/* Filter Button - Sekarang di kanan */}
+            <button
+              onClick={() => setShowFilterPanel(!showFilterPanel)}
+              className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                showFilterPanel
+                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
+                  : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              Filter
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
           </div>
+
+          {/* Filter Panel */}
+          {showFilterPanel && (
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Filter Data Karyawan
+                </h3>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                  >
+                    <X className="w-4 h-4" />
+                    Hapus Semua Filter
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Name Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Nama Karyawan
+                  </label>
+                  <input
+                    type="text"
+                    value={filterName}
+                    onChange={(e) => setFilterName(e.target.value)}
+                    placeholder="Filter nama..."
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* NIP Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    NIP
+                  </label>
+                  <input
+                    type="text"
+                    value={filterNip}
+                    onChange={(e) => setFilterNip(e.target.value)}
+                    placeholder="Filter NIP..."
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Department Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Departemen
+                  </label>
+                  <select
+                    value={filterDepartment}
+                    onChange={(e) => setFilterDepartment(e.target.value)}
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Semua Departemen</option>
+                    {uniqueDepartments.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Position Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Posisi
+                  </label>
+                  <select
+                    value={filterPosition}
+                    onChange={(e) => setFilterPosition(e.target.value)}
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Semua Posisi</option>
+                    {uniquePositions.map((pos) => (
+                      <option key={pos} value={pos}>
+                        {pos}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                    Status
+                  </label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Semua Status</option>
+                    <option value="active">Aktif</option>
+                    <option value="inactive">Tidak Aktif</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Active Filters Display */}
+              {activeFilterCount > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {filterName && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                      Nama: {filterName}
+                      <button
+                        onClick={() => setFilterName("")}
+                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filterNip && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                      NIP: {filterNip}
+                      <button
+                        onClick={() => setFilterNip("")}
+                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filterDepartment !== "all" && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                      Departemen: {filterDepartment}
+                      <button
+                        onClick={() => setFilterDepartment("all")}
+                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filterPosition !== "all" && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                      Posisi: {filterPosition}
+                      <button
+                        onClick={() => setFilterPosition("all")}
+                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filterStatus !== "all" && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                      Status: {filterStatus === "active" ? "Aktif" : "Tidak Aktif"}
+                      <button
+                        onClick={() => setFilterStatus("all")}
+                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -301,20 +541,20 @@ export default function EmployeesPage() {
                               : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400"
                           }`}
                         >
-                          {emp.status}
+                          {emp.status === "active" ? "Aktif" : "Tidak Aktif"}
                         </span>
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => handleOpenModal(emp)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                            className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(emp.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -337,47 +577,56 @@ export default function EmployeesPage() {
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Menampilkan{" "}
-              {Math.min(startIndex + itemsPerPage, filteredEmployees.length)}{" "}
-              dari {filteredEmployees.length} data
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page
-                          ? "bg-blue-600 text-white"
-                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ),
-                )}
-              </div>
-              <button
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t dark:border-gray-700 gap-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Menampilkan <span className="font-semibold text-gray-900 dark:text-white">{filteredEmployees.length}</span> dari{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">{employees.length}</span> karyawan
             </div>
+
+            {filteredEmployees.length > 0 && (
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Halaman {currentPage} dari {totalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                            currentPage === page
+                              ? "bg-blue-600 text-white"
+                              : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -390,7 +639,7 @@ export default function EmployeesPage() {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium dark:text-gray-300">
                     NIP *
@@ -408,7 +657,7 @@ export default function EmployeesPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">
+                  <label className="block text-sm font-medium dark:text-gray-300">
                     Nama Lengkap *
                   </label>
                   <input
@@ -417,7 +666,7 @@ export default function EmployeesPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     placeholder="Contoh: Ahmad Rizki"
                   />
@@ -426,21 +675,23 @@ export default function EmployeesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">Email *</label>
+                  <label className="block text-sm font-medium dark:text-gray-300">
+                    Email *
+                  </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     placeholder="ahmad@example.com"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">
+                  <label className="block text-sm font-medium dark:text-gray-300">
                     No. Telepon *
                   </label>
                   <input
@@ -449,7 +700,7 @@ export default function EmployeesPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, phone: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     placeholder="081234567890"
                   />
@@ -458,21 +709,23 @@ export default function EmployeesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">Posisi *</label>
+                  <label className="block text-sm font-medium dark:text-gray-300">
+                    Posisi *
+                  </label>
                   <input
                     type="text"
                     value={formData.position}
                     onChange={(e) =>
                       setFormData({ ...formData, position: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     placeholder="Contoh: Developer"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">
+                  <label className="block text-sm font-medium dark:text-gray-300">
                     Departemen *
                   </label>
                   <select
@@ -480,7 +733,7 @@ export default function EmployeesPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, department: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
                     <option value="">Pilih Departemen</option>
@@ -495,7 +748,7 @@ export default function EmployeesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">
+                  <label className="block text-sm font-medium dark:text-gray-300">
                     Tanggal Bergabung *
                   </label>
                   <input
@@ -504,20 +757,22 @@ export default function EmployeesPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, joinDate: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium">Gaji *</label>
+                  <label className="block text-sm font-medium dark:text-gray-300">
+                    Gaji *
+                  </label>
                   <input
                     type="number"
                     value={formData.salary}
                     onChange={(e) =>
                       setFormData({ ...formData, salary: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     placeholder="10000000"
                   />
@@ -525,24 +780,26 @@ export default function EmployeesPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Status</label>
+                <label className="block text-sm font-medium dark:text-gray-300">
+                  Status
+                </label>
                 <select
                   value={formData.status}
                   onChange={(e) =>
                     setFormData({ ...formData, status: e.target.value })
                   }
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="active">Aktif</option>
                   <option value="inactive">Tidak Aktif</option>
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t dark:border-gray-700">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-6 py-2 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors dark:text-gray-300"
                 >
                   Batal
                 </button>
