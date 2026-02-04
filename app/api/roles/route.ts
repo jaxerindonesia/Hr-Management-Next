@@ -9,7 +9,11 @@ export async function GET() {
       orderBy: { name: "asc" },
     });
 
-    return NextResponse.json(roles);
+    return NextResponse.json({
+      message: "Roles retrieved successfully",
+      data: roles,
+    });
+
   } catch (error) {
     console.error("GET ROLES ERROR:", error);
 
