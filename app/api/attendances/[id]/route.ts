@@ -12,9 +12,10 @@ type Params = {
 };
 
 export async function GET(_: Request, { params }: Params) {
+  const p = await params;
   try {
     const attendance = await prisma.attendance.findUnique({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     if (!attendance) {
@@ -29,7 +30,6 @@ export async function GET(_: Request, { params }: Params) {
       data: attendance,
     });
   } catch (error) {
-    console.error("GET ATTENDANCE ERROR:", error);
     return NextResponse.json(
       { message: "Failed to retrieve attendance" },
       { status: 500 }
@@ -38,6 +38,7 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
+  const p = await params;
   try {
     const body = await req.json();
 
@@ -51,7 +52,7 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.notes) updateData.notes = body.notes;
 
     const attendance = await prisma.attendance.update({
-      where: { id: params.id },
+      where: { id: p.id },
       data: updateData,
     });
 
@@ -60,8 +61,6 @@ export async function PUT(req: Request, { params }: Params) {
       data: attendance,
     });
   } catch (error) {
-    console.error("UPDATE ATTENDANCE ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to update attendance" },
       { status: 500 }
@@ -71,17 +70,16 @@ export async function PUT(req: Request, { params }: Params) {
 
 
 export async function DELETE(_: Request, { params }: Params) {
+  const p = await params;
   try {
     await prisma.attendance.delete({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     return NextResponse.json({
       message: "Attendance successfully deleted",
     });
   } catch (error) {
-    console.error("DELETE ATTENDANCE ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to delete attendance" },
       { status: 500 }

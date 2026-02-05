@@ -14,8 +14,6 @@ export async function GET() {
       data: payroll,
     });
   } catch (error) {
-    console.error("GET PAYROLL ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to retrieve payroll data" },
       { status: 500 }
@@ -78,7 +76,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("CREATE PAYROLL ERROR:", error);
     return NextResponse.json(
       { message: "Failed to create payroll" },
       { status: 500 }

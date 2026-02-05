@@ -11,9 +11,10 @@ type Params = {
 };
 
 export async function GET(_: Request, { params }: Params) {
+  const p = await params;
   try {
     const payroll = await prisma.payroll.findUnique({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     if (!payroll) {
@@ -25,7 +26,6 @@ export async function GET(_: Request, { params }: Params) {
 
     return NextResponse.json(payroll);
   } catch (error) {
-    console.error("GET PAYROLL ERROR:", error);
     return NextResponse.json(
       { message: "Failed to retrieve payroll" },
       { status: 500 }
@@ -34,6 +34,7 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
+  const p = await params;
   try {
     const body = await req.json();
 
@@ -49,7 +50,7 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.paidAt) updateData.paidAt = new Date(body.paidAt);
 
     const payroll = await prisma.payroll.update({
-      where: { id: params.id },
+      where: { id: p.id },
       data: updateData,
     });
 
@@ -58,8 +59,6 @@ export async function PUT(req: Request, { params }: Params) {
       data: payroll,
     });
   } catch (error) {
-    console.error("UPDATE PAYROLL ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to update payroll" },
       { status: 500 }
@@ -68,17 +67,16 @@ export async function PUT(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_: Request, { params }: Params) {
+  const p = await params;
   try {
     await prisma.payroll.delete({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     return NextResponse.json({
       message: "Payroll successfully deleted",
     });
   } catch (error) {
-    console.error("DELETE PAYROLL ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to delete payroll" },
       { status: 500 }

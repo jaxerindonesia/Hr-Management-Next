@@ -2,54 +2,90 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    // 1. Buat Roles
+    // ===============================
+    // ROLE PERMISSIONS (STANDARD)
+    // ===============================
+
     const roles = [
       {
-        name: "Super Admin", // Sesuai dengan pengecekan di dashboard
-        permission: {
-          dashboard: { read: true, write: true },
-          employees: { read: true, write: true },
-          payroll: { read: true, write: true },
-          settings: { read: true, write: true },
-        },
+        name: "Super Admin",
+        permission: [
+          { model: "users", action: "get-all" },
+          { model: "users", action: "get-by-id" },
+          { model: "users", action: "create" },
+          { model: "users", action: "update" },
+
+          { model: "roles", action: "get-all" },
+          { model: "roles", action: "get-by-id" },
+          { model: "roles", action: "create" },
+          { model: "roles", action: "update" },
+
+          { model: "leaves", action: "get-all" },
+          { model: "leaves", action: "get-by-id" },
+          { model: "leaves", action: "create" },
+          { model: "leaves", action: "update" },
+        ],
       },
+
       {
         name: "Karyawan",
-        permission: {
-          dashboard: { read: true, write: false },
-          leaves: { read: true, write: true },
-          attendance: { read: true, write: true },
-        },
+        permission: [
+          { model: "dashboard", action: "view" },
+
+          { model: "leaves", action: "get-all" },
+          { model: "leaves", action: "get-by-id" },
+          { model: "leaves", action: "create" },
+
+          { model: "attendance", action: "get-all" },
+          { model: "attendance", action: "create" },
+        ],
       },
     ];
 
     const createdRoles = [];
 
     for (const roleData of roles) {
-      let role = await prisma.role.findFirst({
+      const existingRole = await prisma.role.findFirst({
         where: { name: roleData.name },
       });
 
-      if (!role) {
+      let role;
+
+      if (!existingRole) {
         role = await prisma.role.create({
           data: roleData,
         });
+      } else {
+        // 🔥 update permission kalau sudah ada
+        role = await prisma.role.update({
+          where: { id: existingRole.id },
+          data: {
+            permission: roleData.permission,
+          },
+        });
       }
+
       createdRoles.push(role);
     }
+
+    // ===============================
+    // USERS SEED
+    // ===============================
 
     const adminRole = createdRoles.find((r) => r.name === "Super Admin");
     const employeeRole = createdRoles.find((r) => r.name === "Karyawan");
 
     if (!adminRole || !employeeRole) {
-      return NextResponse.json({ message: "Gagal membuat role" }, { status: 500 });
+      return NextResponse.json(
+        { message: "Gagal membuat role" },
+        { status: 500 }
+      );
     }
 
-    // 2. Buat Users
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash("password", salt);
 
@@ -59,7 +95,7 @@ export async function GET() {
         name: "Administrator",
         roleId: adminRole.id,
         password: hashedPassword,
-        salt: salt,
+        salt,
         currentToken: "",
         nik: "ADM001",
         position: "Head of IT",
@@ -68,10 +104,10 @@ export async function GET() {
       },
       {
         email: "karyawan@company.com",
-        name: "Budi Santoso", // Nama sesuai data dummy dashboard
+        name: "Budi Santoso",
         roleId: employeeRole.id,
         password: hashedPassword,
-        salt: salt,
+        salt,
         currentToken: "",
         nik: "EMP001",
         position: "Staff",
@@ -106,8 +142,12 @@ export async function GET() {
     });
   } catch (error) {
     console.error("SEED ERROR:", error);
+
     return NextResponse.json(
-      { message: "Seed gagal", error: String(error) },
+      {
+        message: "Seed gagal",
+        error: String(error),
+      },
       { status: 500 }
     );
   }

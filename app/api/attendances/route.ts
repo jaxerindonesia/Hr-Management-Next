@@ -14,8 +14,6 @@ export async function GET() {
       data: attendances,
     });
   } catch (error) {
-    console.error("GET ATTENDANCES ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to retrieve attendances data" },
       { status: 500 }
@@ -73,7 +71,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("CREATE ATTENDANCE ERROR:", error);
     return NextResponse.json(
       { message: "Failed to create attendance" },
       { status: 500 }

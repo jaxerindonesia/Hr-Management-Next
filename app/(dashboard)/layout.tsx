@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import MobileNavbar from "@/components/MobileNavbar";
 import DesktopNavbar from "@/components/DesktopNavbar";
 import { AbsenceProvider } from "@/lib/absence-context";
+import { Toaster } from "@/components/ui/sonner"
 
 export default function DashboardLayout({
   children,
@@ -36,6 +37,7 @@ export default function DashboardLayout({
             &copy; {new Date().getFullYear()} Jaxer Teknologi Indonesia. 
           </footer>
         </main>
+        <Toaster position="top-right" richColors />
       </div>
     </AbsenceProvider>
   );

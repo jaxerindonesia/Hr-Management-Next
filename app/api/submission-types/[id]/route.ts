@@ -11,9 +11,10 @@ type Params = {
 };
 
 export async function GET(_: Request, { params }: Params) {
+  const p = await params;
   try {
     const submissionType = await prisma.submissionType.findFirst({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     if (!submissionType) {
@@ -25,7 +26,6 @@ export async function GET(_: Request, { params }: Params) {
 
     return NextResponse.json(submissionType);
   } catch (error) {
-    console.error("GET SUBMISSION TYPE ERROR:", error);
     return NextResponse.json(
       { message: "Failed to retrieve submission type" },
       { status: 500 }
@@ -34,6 +34,7 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
+  const p = await params;
   try {
     const body = await req.json();
 
@@ -42,7 +43,7 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.name) updateData.name = body.name;
 
     const submissionType = await prisma.submissionType.update({
-      where: { id: params.id },
+      where: { id: p.id },
       data: updateData,
     });
 
@@ -51,8 +52,6 @@ export async function PUT(req: Request, { params }: Params) {
       data: submissionType,
     });
   } catch (error) {
-    console.error("UPDATE SUBMISSION TYPE ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to update submission type" },
       { status: 500 }
@@ -61,17 +60,16 @@ export async function PUT(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_: Request, { params }: Params) {
+  const p = await params;
   try {
     await prisma.submissionType.delete({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     return NextResponse.json({
       message: "Submission type successfully deleted",
     });
   } catch (error) {
-    console.error("DELETE SUBMISSION TYPE ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to delete submission type" },
       { status: 500 }

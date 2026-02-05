@@ -103,8 +103,6 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("LOGIN_ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to login user" },
       { status: 500 }

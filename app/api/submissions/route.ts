@@ -14,8 +14,6 @@ export async function GET() {
       data: submissions,
     });
   } catch (error) {
-    console.error("GET SUBMISSIONS ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to retrieve submissions data" },
       { status: 500 }
@@ -73,7 +71,6 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("CREATE SUBMISSION ERROR:", error);
     return NextResponse.json(
       { message: "Failed to create submission" },
       { status: 500 }

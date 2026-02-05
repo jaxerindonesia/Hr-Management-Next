@@ -11,9 +11,10 @@ type Params = {
 };
 
 export async function GET(_: Request, { params }: Params) {
+  const p = await params;
   try {
     const submission = await prisma.submission.findFirst({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     if (!submission) {
@@ -25,7 +26,6 @@ export async function GET(_: Request, { params }: Params) {
 
     return NextResponse.json(submission);
   } catch (error) {
-    console.error("GET SUBMISSION ERROR:", error);
     return NextResponse.json(
       { message: "Failed to retrieve submission" },
       { status: 500 }
@@ -34,6 +34,7 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
+  const p = await params;
   try {
     const body = await req.json();
 
@@ -47,7 +48,7 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.status) updateData.status = body.status;
 
     const submission = await prisma.submission.update({
-      where: { id: params.id },
+      where: { id: p.id },
       data: updateData,
     });
 
@@ -56,8 +57,6 @@ export async function PUT(req: Request, { params }: Params) {
       data: submission,
     });
   } catch (error) {
-    console.error("UPDATE SUBMISSION ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to update submission" },
       { status: 500 }
@@ -66,17 +65,16 @@ export async function PUT(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_: Request, { params }: Params) {
+  const p = await params;
   try {
     await prisma.submission.delete({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     return NextResponse.json({
       message: "Submission successfully deleted",
     });
   } catch (error) {
-    console.error("DELETE SUBMISSION ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to delete submission" },
       { status: 500 }

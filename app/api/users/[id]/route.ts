@@ -26,7 +26,6 @@ export async function GET(_: Request, { params }: Params) {
 
     return NextResponse.json(user);
   } catch (error) {
-    console.error("GET USER ERROR:", error);
     return NextResponse.json(
       { message: "Failed to retrieve user" },
       { status: 500 }
@@ -71,8 +70,6 @@ export async function PUT(req: Request, { params }: Params) {
       data: user,
     });
   } catch (error) {
-    console.error("UPDATE USER ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to update user" },
       { status: 500 }
@@ -82,17 +79,16 @@ export async function PUT(req: Request, { params }: Params) {
 
 
 export async function DELETE(_: Request, { params }: Params) {
+  const p = await params;
   try {
     await prisma.user.delete({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     return NextResponse.json({
       message: "User successfully deleted",
     });
   } catch (error) {
-    console.error("DELETE USER ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to delete user" },
       { status: 500 }

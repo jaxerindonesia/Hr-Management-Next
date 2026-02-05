@@ -4,15 +4,14 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 type Params = {
-  params: {
-    id: string;
-  };
+  params: { id: string };
 };
 
 export async function GET(_: Request, { params }: Params) {
+  const p = await params;
   try {
     const role = await prisma.role.findUnique({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     if (!role) {
@@ -34,12 +33,13 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
+  const p = await params;
   try {
     const body = await req.json();
     const { name, permissions } = body;
 
     const role = await prisma.role.update({
-      where: { id: params.id },
+      where: { id: p.id },
       data: {
         name,
         permission: permissions,
@@ -61,17 +61,16 @@ export async function PUT(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_: Request, { params }: Params) {
+  const p = await params;
   try {
     await prisma.role.delete({
-      where: { id: params.id },
+      where: { id: p.id },
     });
 
     return NextResponse.json({
       message: "Role successfully deleted",
     });
   } catch (error) {
-    console.error("DELETE ROLE ERROR:", error);
-
     return NextResponse.json(
       { message: "Failed to delete role" },
       { status: 500 }
