@@ -107,6 +107,12 @@ export default function PerformancePage() {
     setSearchTerm("");
   };
 
+  const activeFilterCount = [
+    filterPeriod !== "all",
+    filterScore !== "all",
+    searchTerm !== "",
+  ].filter(Boolean).length;
+
   // Reset page when search term or filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -331,94 +337,134 @@ export default function PerformancePage() {
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-        {/* Search and Filter Bar */}
-        <div className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Cari nama karyawan atau periode..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => setShowFilterPanel(!showFilterPanel)}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-                  showFilterPanel || filterPeriod !== "all" || filterScore !== "all"
-                    ? "bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                Filter
-              </button>
-
-              <button
-                onClick={() => handleOpenModal()}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Tambah Penilaian
-              </button>
-            </div>
-          </div>
-
-          {/* Filter Panel */}
-          {showFilterPanel && (
-            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-gray-900 dark:text-white">Filter Data</h3>
-                <button 
-                  onClick={clearAllFilters}
-                  className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1"
-                >
-                  <X className="w-4 h-4" /> Reset Filter
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Periode
-                  </label>
-                  <select
-                    value={filterPeriod}
-                    onChange={(e) => setFilterPeriod(e.target.value)}
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Semua Periode</option>
-                    {uniquePeriods.map((period) => (
-                      <option key={period} value={period}>
-                        {period}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Nilai Kinerja
-                  </label>
-                  <select
-                    value={filterScore}
-                    onChange={(e) => setFilterScore(e.target.value)}
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Semua Nilai</option>
-                    <option value="excellent">Sangat Baik (≥ 4.5)</option>
-                    <option value="good">Baik (3.5 - 4.49)</option>
-                    <option value="fair">Cukup (2.5 - 3.49)</option>
-                    <option value="poor">Kurang (&lt; 2.5)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Tambah Penilaian
+          </button>
+          <div className="flex-1" />
+          <button
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              showFilterPanel || activeFilterCount > 0
+                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
+                : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            Filter
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
+
+        {showFilterPanel && (
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                Filter Data Kinerja
+              </h3>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={clearAllFilters}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  Hapus Semua Filter
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Cari
+                </label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Nama karyawan atau periode"
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Periode
+                </label>
+                <select
+                  value={filterPeriod}
+                  onChange={(e) => setFilterPeriod(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Semua Periode</option>
+                  {uniquePeriods.map((period) => (
+                    <option key={period} value={period}>
+                      {period}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                  Nilai Kinerja
+                </label>
+                <select
+                  value={filterScore}
+                  onChange={(e) => setFilterScore(e.target.value)}
+                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Semua Nilai</option>
+                  <option value="excellent">Sangat Baik (≥ 4.5)</option>
+                  <option value="good">Baik (3.5 - 4.49)</option>
+                  <option value="fair">Cukup (2.5 - 3.49)</option>
+                  <option value="poor">Kurang (&lt; 2.5)</option>
+                </select>
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {searchTerm && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Cari: {searchTerm}
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterPeriod !== "all" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Periode: {filterPeriod}
+                    <button
+                      onClick={() => setFilterPeriod("all")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterScore !== "all" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Nilai: {filterScore}
+                    <button
+                      onClick={() => setFilterScore("all")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full">
