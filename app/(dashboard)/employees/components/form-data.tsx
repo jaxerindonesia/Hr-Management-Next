@@ -49,8 +49,8 @@ export default function FormData({
       joinDate: "",
       salary: 0,
       status: "active",
-      password: "", 
-    }
+      password: "",
+    },
   );
 
   const fetchRoles = async () => {
@@ -68,7 +68,7 @@ export default function FormData({
     e.preventDefault();
     setLoading(true);
 
-    if (!formData.id && !formData.password || !formData.id && !rePassword) {
+    if ((!formData.id && !formData.password) || (!formData.id && !rePassword)) {
       toast.error("Password dan konfirmasi password wajib diisi");
       setLoading(false);
       return;
@@ -81,9 +81,7 @@ export default function FormData({
     }
 
     try {
-      const url = formData.id
-        ? `/api/users/${formData.id}`
-        : "/api/users";
+      const url = formData.id ? `/api/users/${formData.id}` : "/api/users";
 
       const method = formData.id ? "PUT" : "POST";
 
@@ -95,13 +93,13 @@ export default function FormData({
 
       if (!res.ok) throw new Error("Gagal menyimpan data");
 
-      toast.success(`Data karyawan berhasil ${formData.id ? 'diupdate' : 'disimpan'}!`);
+      toast.success(
+        `Data karyawan berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
+      );
       onSuccess && onSuccess();
       onClose();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Terjadi kesalahan"
-      );
+      toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
     } finally {
       setLoading(false);
     }
@@ -124,30 +122,34 @@ export default function FormData({
           {/* Role */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-                <Label className="block text-sm font-medium dark:text-gray-300">Role *</Label>
-            
-                <Select
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Role *
+              </Label>
+
+              <Select
                 value={formData.roleId || ""}
                 onValueChange={(val) =>
-                    setFormData({ ...formData, roleId: val })
+                  setFormData({ ...formData, roleId: val })
                 }
-                >
+              >
                 <SelectTrigger className="w-full">
-                    <SelectValue placeholder={"Pilih Role"} />
+                  <SelectValue placeholder={"Pilih Role"} />
                 </SelectTrigger>
-                
+
                 <SelectContent>
-                    {roles.map((role) => (
+                  {roles.map((role) => (
                     <SelectItem key={role.id} value={role.id}>
-                        {role.name}
+                      {role.name}
                     </SelectItem>
-                    ))}
+                  ))}
                 </SelectContent>
-                </Select>
+              </Select>
             </div>
 
             <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">Departemen *</Label>
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Departemen *
+              </Label>
               <Select
                 value={formData.department || ""}
                 onValueChange={(val) =>
@@ -171,7 +173,9 @@ export default function FormData({
           {/* NIK & Name */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">NIK *</Label>
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                NIK *
+              </Label>
               <Input
                 value={formData.nik || ""}
                 onChange={(e) =>
@@ -182,7 +186,9 @@ export default function FormData({
             </div>
 
             <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">Nama Lengkap *</Label>
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Nama Lengkap *
+              </Label>
               <Input
                 value={formData.name}
                 onChange={(e) =>
@@ -196,7 +202,9 @@ export default function FormData({
           {/* Email & Phone */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">Email *</Label>
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Email *
+              </Label>
               <Input
                 type="email"
                 value={formData.email}
@@ -208,7 +216,9 @@ export default function FormData({
             </div>
 
             <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">No. Telepon *</Label>
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                No. Telepon *
+              </Label>
               <Input
                 value={formData.phone || ""}
                 onChange={(e) =>
@@ -222,7 +232,9 @@ export default function FormData({
           {/* Position & Department */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">Posisi *</Label>
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Posisi *
+              </Label>
               <Input
                 value={formData.position || ""}
                 onChange={(e) =>
@@ -236,7 +248,9 @@ export default function FormData({
             </div>
 
             <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">Tanggal Bergabung *</Label>
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Tanggal Bergabung *
+              </Label>
               <Input
                 type="date"
                 value={formData.joinDate || ""}
@@ -254,39 +268,48 @@ export default function FormData({
           {/* Salary & Status */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">Gaji *</Label>
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Gaji *
+              </Label>
               <Input
-                type="number"
-                value={formData.salary || 0}
-                onChange={(e) =>
+                type="text"
+                value={
+                  formData.salary ? formData.salary.toLocaleString("id-ID") : ""
+                }
+                onChange={(e) => {
+                  // Hapus semua karakter non-digit
+                  const numericValue = e.target.value.replace(/\D/g, "");
                   setFormData({
                     ...formData,
-                    salary: Number(e.target.value),
-                  })
-                }
+                    salary: numericValue ? Number(numericValue) : 0,
+                  });
+                }}
+                placeholder="0"
                 required
               />
             </div>
 
             <div className="space-y-1">
-                <Label className="block text-sm font-medium dark:text-gray-300">Status</Label>
-                <Select
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Status
+              </Label>
+              <Select
                 value={formData.status}
                 onValueChange={(val) =>
-                    setFormData({
+                  setFormData({
                     ...formData,
                     status: val as "active" | "inactive",
-                    })
+                  })
                 }
-                >
+              >
                 <SelectTrigger className="w-full">
-                    <SelectValue />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="active">Aktif</SelectItem>
-                    <SelectItem value="inactive">Tidak Aktif</SelectItem>
+                  <SelectItem value="active">Aktif</SelectItem>
+                  <SelectItem value="inactive">Tidak Aktif</SelectItem>
                 </SelectContent>
-                </Select>
+              </Select>
             </div>
           </div>
 
@@ -309,7 +332,7 @@ export default function FormData({
                   required
                 />
               </div>
-              
+
               <div className="space-y-1">
                 <Label className="block text-sm font-medium dark:text-gray-300">
                   Konfirmasi Password *
@@ -326,20 +349,12 @@ export default function FormData({
 
           {/* Buttons */}
           <div className="flex justify-end gap-3 pt-6 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-            >
+            <Button type="button" variant="outline" onClick={onClose}>
               Batal
             </Button>
 
             <Button type="submit" disabled={loading}>
-              {loading
-                ? "Menyimpan..."
-                : formData.id
-                ? "Update"
-                : "Simpan"}
+              {loading ? "Menyimpan..." : formData.id ? "Update" : "Simpan"}
             </Button>
           </div>
         </form>

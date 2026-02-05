@@ -39,7 +39,7 @@ export default function EmployeesPage() {
     password: "",
     status: "active",
   });
-  
+
   // Filter states
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
   const [filterPosition, setFilterPosition] = useState<string>("all");
@@ -48,16 +48,16 @@ export default function EmployeesPage() {
   const [filterNip, setFilterNip] = useState("");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  
+
   const itemsPerPage = 5;
 
   // Get unique departments, positions, and statuses for filter options
   const uniqueDepartments = Array.from(
-    new Set(employees.map((emp) => emp.department))
+    new Set(employees.map((emp) => emp.department)),
   ).sort();
-  
+
   const uniquePositions = Array.from(
-    new Set(employees.map((emp) => emp.position))
+    new Set(employees.map((emp) => emp.position)),
   ).sort();
 
   const handleOpenModal = (data?: UserDto) => {
@@ -117,16 +117,20 @@ export default function EmployeesPage() {
   const filteredEmployees = employees.filter((emp) => {
     // Search filter
     const matchesSearch =
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.nik!.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.position!.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.department!.toLowerCase().includes(searchTerm.toLowerCase());
+      emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.nik?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+      (emp.position?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+      (emp.department?.toLowerCase() ?? "").includes(searchTerm.toLowerCase());
 
     // Specific Name filter
-    const matchesName = emp.name.toLowerCase().includes(filterName.toLowerCase());
+    const matchesName = (emp.name ?? "")
+      .toLowerCase()
+      .includes(filterName.toLowerCase());
 
     // Specific NIK filter
-    const matchesNip = emp.nik!.toLowerCase().includes(filterNip.toLowerCase());
+    const matchesNip = (emp.nik ?? "")
+      .toLowerCase()
+      .includes(filterNip.toLowerCase());
 
     // Department filter
     const matchesDepartment =
@@ -139,7 +143,14 @@ export default function EmployeesPage() {
     // Status filter
     const matchesStatus = filterStatus === "all" || emp.status === filterStatus;
 
-    return matchesSearch && matchesName && matchesNip && matchesDepartment && matchesPosition && matchesStatus;
+    return (
+      matchesSearch &&
+      matchesName &&
+      matchesNip &&
+      matchesDepartment &&
+      matchesPosition &&
+      matchesStatus
+    );
   });
 
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
@@ -162,7 +173,14 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterDepartment, filterPosition, filterStatus, filterName, filterNip]);
+  }, [
+    searchTerm,
+    filterDepartment,
+    filterPosition,
+    filterStatus,
+    filterName,
+    filterNip,
+  ]);
 
   useEffect(() => {
     fetchUsers();
@@ -182,7 +200,7 @@ export default function EmployeesPage() {
 
             {/* Spacer untuk mendorong tombol Filter ke kanan */}
             <div className="flex-1"></div>
-            
+
             {/* Filter Button - Sekarang di kanan */}
             <button
               onClick={() => setShowFilterPanel(!showFilterPanel)}
@@ -353,7 +371,8 @@ export default function EmployeesPage() {
                   )}
                   {filterStatus !== "all" && (
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Status: {filterStatus === "active" ? "Aktif" : "Tidak Aktif"}
+                      Status:{" "}
+                      {filterStatus === "active" ? "Aktif" : "Tidak Aktif"}
                       <button
                         onClick={() => setFilterStatus("all")}
                         className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
@@ -404,8 +423,12 @@ export default function EmployeesPage() {
                       <td className="p-3 font-medium dark:text-white">
                         {emp.nik || "-"}
                       </td>
-                      <td className="p-3 dark:text-gray-300">{emp.name || "-"}</td>
-                      <td className="p-3 dark:text-gray-300">{emp.position || "-"}</td>
+                      <td className="p-3 dark:text-gray-300">
+                        {emp.name || "-"}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
+                        {emp.position || "-"}
+                      </td>
                       <td className="p-3 dark:text-gray-300">
                         {emp.department || "-"}
                       </td>
@@ -438,9 +461,7 @@ export default function EmployeesPage() {
                             }
                           >
                             <PopoverTrigger asChild>
-                              <button
-                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                              >
+                              <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </PopoverTrigger>
@@ -454,7 +475,7 @@ export default function EmployeesPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() =>setOpenPopoverId(null)}
+                                  onClick={() => setOpenPopoverId(null)}
                                 >
                                   Batal
                                 </Button>
@@ -497,8 +518,15 @@ export default function EmployeesPage() {
           {/* Pagination Controls */}
           <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t dark:border-gray-700 gap-4">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Menampilkan <span className="font-semibold text-gray-900 dark:text-white">{filteredEmployees.length}</span> dari{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">{employees.length}</span> karyawan
+              Menampilkan{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {filteredEmployees.length}
+              </span>{" "}
+              dari{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {employees.length}
+              </span>{" "}
+              karyawan
             </div>
 
             {filteredEmployees.length > 0 && (
@@ -550,7 +578,7 @@ export default function EmployeesPage() {
       </div>
 
       {showModal && (
-        <FormData 
+        <FormData
           initialData={formData}
           onClose={handleCloseModal}
           onSuccess={fetchUsers}
