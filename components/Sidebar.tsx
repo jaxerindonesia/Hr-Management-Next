@@ -164,19 +164,17 @@ export default function Sidebar() {
               </div>
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="flex items-center justify-center rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                title="Tutup Sidebar"
+                className="flex items-center justify-center rounded-lg p-2 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:scale-110 active:scale-95"
               >
-                <ChevronLeft className="w-8 h-8 p-[6px]" />
+                <ChevronLeft className="w-8 h-8 p-[6px] transition-transform duration-300" />
               </button>
             </>
           ) : (
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="flex items-center justify-center rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-              title="Buka Sidebar"
+              className="flex items-center justify-center rounded-lg p-2 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:scale-110 active:scale-95"
             >
-              <ChevronRight className="w-8 h-8 p-[6px]" />
+              <ChevronRight className="w-8 h-8 p-[6px] transition-transform duration-300" />
             </button>
           )}
         </div>
@@ -200,49 +198,46 @@ export default function Sidebar() {
                       if (!sidebarOpen) setSidebarOpen(true);
                       toggleMenu(item.id);
                     }}
-                    title={!sidebarOpen ? item.name : ""}
-                    className={`flex w-full items-center rounded-lg transition-all duration-200 relative group
+                    className={`flex w-full items-center rounded-lg transition-all duration-300 relative group
                     ${
                       isActive
-                        ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                        ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 shadow-sm"
                         : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                     }
-                    ${sidebarOpen ? "gap-3 px-4 py-3" : "justify-center py-3"}`}
+                    ${sidebarOpen ? "gap-3 px-4 py-3" : "justify-center py-3"}
+                    hover:scale-[1.02] active:scale-[0.98]`}
                   >
-                    <Icon className="w-5 h-5 shrink-0" />
+                    {/* Animated Icon */}
+                    <Icon className={`w-5 h-5 shrink-0 transition-all duration-300 ${
+                      isActive ? "scale-110" : "group-hover:scale-110 group-hover:rotate-3"
+                    }`} />
+
                     {sidebarOpen && (
                       <>
                         <span className="font-medium truncate flex-1 text-left">
                           {item.name}
                         </span>
+                        
                         <ChevronDown
-                          className={`w-4 h-4 transition-transform duration-200 ${
+                          className={`w-4 h-4 transition-all duration-300 ${
                             isExpanded ? "rotate-180" : ""
                           }`}
                         />
                       </>
                     )}
-
-                    {/* Tooltip for collapsed sidebar */}
-                    {!sidebarOpen && (
-                      <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
-                        {item.name}
-                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-700"></div>
-                      </div>
-                    )}
                   </button>
 
-                  {/* Submenu */}
+                  {/* Submenu with smooth animation */}
                   {sidebarOpen && (
                     <div
-                      className={`transition-all duration-300 ease-in-out ${
+                      className={`transition-all duration-500 ease-in-out overflow-hidden ${
                         isExpanded
-                          ? "max-h-[60vh] opacity-100 overflow-y-auto custom-scrollbar"
-                          : "max-h-0 opacity-0 overflow-hidden"
+                          ? "max-h-[60vh] opacity-100 mt-1"
+                          : "max-h-0 opacity-0"
                       }`}
                     >
                       <div className="pl-12 pr-4 py-1 space-y-1">
-                        {item.subItems.map((sub) => {
+                        {item.subItems.map((sub, index) => {
                           const isSubActive =
                             (pathname === item.path &&
                               currentType === sub.name) ||
@@ -257,12 +252,17 @@ export default function Sidebar() {
                               key={sub.name}
                               href={sub.path}
                               prefetch={false}
-                              className={`block text-sm py-2 px-3 rounded-md transition-all ${
+                              style={{
+                                animationDelay: `${index * 50}ms`,
+                              }}
+                              className={`block text-sm py-2 px-3 rounded-md transition-all duration-300
+                                ${isExpanded ? "animate-in slide-in-from-left-2 fade-in" : ""}
+                                ${
                                 isFormPengajuan
-                                  ? "font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-l-4 border-green-500"
+                                  ? "font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-l-4 border-green-500 hover:scale-[1.02] hover:shadow-md"
                                   : isSubActive
-                                  ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 font-medium"
-                                  : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                  ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 font-medium shadow-sm"
+                                  : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:translate-x-1"
                               }`}
                             >
                               {sub.name}
@@ -280,26 +280,24 @@ export default function Sidebar() {
               <Link
                 key={item.id}
                 href={item.path}
-                title={!sidebarOpen ? item.name : ""}
-                className={`flex w-full items-center rounded-lg transition-all duration-200 relative group
+                className={`flex w-full items-center rounded-lg transition-all duration-300 relative group
                 ${
                   isActive
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                    ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 shadow-sm"
                     : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 }
-                ${sidebarOpen ? "gap-3 px-4 py-3" : "justify-center py-3"}`}
+                ${sidebarOpen ? "gap-3 px-4 py-3" : "justify-center py-3"}
+                hover:scale-[1.02] active:scale-[0.98]`}
               >
-                <Icon className="w-5 h-5 shrink-0" />
-                {sidebarOpen && (
-                  <span className="font-medium truncate">{item.name}</span>
-                )}
+                {/* Animated Icon */}
+                <Icon className={`w-5 h-5 shrink-0 transition-all duration-300 ${
+                  isActive ? "scale-110" : "group-hover:scale-110 group-hover:rotate-3"
+                }`} />
 
-                {/* Tooltip saat sidebar tertutup */}
-                {!sidebarOpen && (
-                  <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+                {sidebarOpen && (
+                  <span className="font-medium truncate flex-1">
                     {item.name}
-                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-700"></div>
-                  </div>
+                  </span>
                 )}
               </Link>
             );
@@ -312,58 +310,37 @@ export default function Sidebar() {
           <button
             onClick={toggleTheme}
             className={`flex w-full items-center rounded-lg px-4 py-3
-    transition-all duration-200 relative group
-    hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
-    ${sidebarOpen ? "gap-3" : "justify-center"}`}
+              transition-all duration-300 relative group
+              hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
+              hover:scale-[1.02] active:scale-[0.98]
+              ${sidebarOpen ? "gap-3" : "justify-center"}`}
           >
-            {theme === "light" ? (
-              <Moon className="w-5 h-5" />
-            ) : (
-              <Sun className="w-5 h-5" />
-            )}
+          {theme === "light" ? (
+  <Moon className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
+) : (
+  <Sun className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
+)}
 
             {sidebarOpen && (
               <span className="font-medium">
                 {theme === "light" ? "Mode Gelap" : "Mode Terang"}
               </span>
             )}
-
-            {/* Tooltip */}
-            {!sidebarOpen && (
-              <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
-                {theme === "light" ? "Mode Gelap" : "Mode Terang"}
-                <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-700"></div>
-              </div>
-            )}
           </button>
 
           {/* Logout Button */}
           <button
             onClick={() => setShowLogoutModal(true)}
-            title={!sidebarOpen ? "Logout" : ""}
             className={`flex w-full items-center rounded-lg px-4 py-3
-      transition-all duration-200 relative group
-      hover:bg-red-50 dark:hover:bg-red-900/20
-      text-red-600 dark:text-red-400
-      ${sidebarOpen ? "gap-3" : "justify-center"}`}
+              transition-all duration-300 relative group
+              hover:bg-red-50 dark:hover:bg-red-900/20
+              text-red-600 dark:text-red-400
+              hover:scale-[1.02] active:scale-[0.98]
+              ${sidebarOpen ? "gap-3" : "justify-center"}`}
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-5 h-5 transition-all duration-300 group-hover:translate-x-1" />
 
             {sidebarOpen && <span className="font-medium">Logout</span>}
-
-            {!sidebarOpen && (
-              <div
-                className="absolute left-full ml-2 px-3 py-2 bg-gray-900 dark:bg-gray-700
-        text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition
-        whitespace-nowrap pointer-events-none z-50"
-              >
-                Logout
-                <div
-                  className="absolute right-full top-1/2 -translate-y-1/2
-          border-4 border-transparent border-r-gray-900 dark:border-r-gray-700"
-                />
-              </div>
-            )}
           </button>
         </div>
       </aside>
@@ -373,29 +350,29 @@ export default function Sidebar() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setShowLogoutModal(false)}
           />
 
           {/* Modal */}
-          <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 transform transition-all animate-in zoom-in-95 duration-200">
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
             {/* Close Button */}
             <button
               onClick={() => setShowLogoutModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300 hover:rotate-90 hover:scale-110"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Icon */}
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
+              <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center animate-in zoom-in duration-500">
+                <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400 animate-pulse" />
               </div>
             </div>
 
             {/* Content */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-6 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-100">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                 Konfirmasi Logout
               </h3>
@@ -404,24 +381,24 @@ export default function Sidebar() {
               </p>
             </div>
 
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowLogoutModal(false)}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors shadow-lg shadow-red-500/25 hover:shadow-red-500/40"
-              >
-                Ya, Logout
-              </button>
+              {/* Buttons */}
+              <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
+                <button
+                  onClick={() => setShowLogoutModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-105 active:scale-95"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-300 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 hover:scale-105 active:scale-95"
+                >
+                  Ya, Logout
+                </button>
+              </div>
             </div>
           </div>
-        </div>
       )}
     </>
   );
-}
+} 
