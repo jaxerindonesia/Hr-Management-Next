@@ -9,9 +9,19 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    const payrollWithUser = await Promise.all(
+      payroll.map(async (p) => {
+        const user = await prisma.user.findUnique({
+          where: { id: p.userId },
+          select: { id: true, name: true },
+        });
+        return { ...p, user };
+      })
+    );
+
     return NextResponse.json({
       message: "Payroll retrieved successfully",
-      data: payroll,
+      data: payrollWithUser,
     });
   } catch (error) {
     return NextResponse.json(
@@ -32,12 +42,11 @@ export async function POST(req: NextRequest) {
         basicSalary,
         allowances,
         deductions,
-        totalSalary,
         status,
         paidAt,
      } = body;
 
-    if (!userId || !month || !year || !basicSalary || !allowances || !deductions || !totalSalary || !status) {
+    if (!userId || !month || !year || !basicSalary || !status) {
         return NextResponse.json(
             { message: "All payroll fields are required fields" },
             { status: 400 }
@@ -45,7 +54,7 @@ export async function POST(req: NextRequest) {
     }
 
     const existing = await prisma.payroll.findFirst({
-      where: { userId: userId },
+      where: { userId: userId, month: month, year: year },
     });
 
     if (existing) {
@@ -54,6 +63,8 @@ export async function POST(req: NextRequest) {
         { status: 409 }
       );
     }
+
+    const totalSalary = basicSalary + allowances - deductions;
     const payroll = await prisma.payroll.create({
       data: {
         userId,
@@ -76,6 +87,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    console.error(error);
     return NextResponse.json(
       { message: "Failed to create payroll" },
       { status: 500 }

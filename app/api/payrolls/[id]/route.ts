@@ -77,6 +77,7 @@ export async function DELETE(_: Request, { params }: Params) {
       message: "Payroll successfully deleted",
     });
   } catch (error) {
+    console.error("Error deleting payroll:", error);
     return NextResponse.json(
       { message: "Failed to delete payroll" },
       { status: 500 }
