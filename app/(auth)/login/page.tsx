@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,8 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [passwordShake, setPasswordShake] = useState(false);
+  const prevErrorRef = useRef("");
 
   const [formData, setFormData] = useState({
     email: "",
@@ -44,6 +46,7 @@ export default function LoginPage() {
 
       if (!res.ok) {
         setError(data.message || "Login failed");
+        setPasswordShake(true);
         setIsLoading(false);
         return;
       }
@@ -54,12 +57,26 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
+      setPasswordShake(true);
       setIsLoading(false);
     }
   };
 
+  // Trigger password shake animation when error appears
+  useEffect(() => {
+    if (error && error !== prevErrorRef.current) {
+      prevErrorRef.current = error;
+      setPasswordShake(true);
+      const t = setTimeout(() => setPasswordShake(false), 600);
+      return () => clearTimeout(t);
+    }
+    if (!error) prevErrorRef.current = "";
+  }, [error]);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (error) setError("");
+    if (passwordShake) setPasswordShake(false);
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -92,7 +109,10 @@ export default function LoginPage() {
         <div className="flex-1 flex items-center justify-center p-8 relative z-10">
           <div className="w-full max-w-md">
             {/* Glass Card */}
-            <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8 space-y-8">
+            <div 
+              className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8 space-y-8"
+              style={{ animation: "fadeInUp 0.6s ease-out" }}
+            >
               {/* Logo & Title */}
               <div className="text-center space-y-4">
                 <div className="flex justify-center mb-6 transform hover:scale-105 transition-transform duration-300">
@@ -121,8 +141,11 @@ export default function LoginPage() {
 
               {/* Error Message with Animation */}
               {error && (
-                <div className="flex items-center gap-3 p-4 bg-red-500/10 backdrop-blur-sm border border-red-500/30 rounded-xl text-red-400 animate-[shake_0.5s_ease-in-out]">
-                  <AlertCircle className="w-5 h-5 shrink-0" />
+                <div 
+                  className="flex items-center gap-3 p-4 bg-red-500/10 backdrop-blur-sm border border-red-500/30 rounded-xl text-red-400"
+                  style={{ animation: "slideInFade 0.3s ease-out, shake 0.5s ease-in-out 0.15s, errorPulse 1.5s ease-out 0.5s 2" }}
+                >
+                  <AlertCircle className="w-5 h-5 shrink-0 animate-pulse" />
                   <span className="text-sm font-medium">{error}</span>
                 </div>
               )}
@@ -167,7 +190,10 @@ export default function LoginPage() {
                   >
                     Password
                   </label>
-                  <div className="relative">
+                  <div 
+                    className={`relative transition-all duration-300 rounded-xl ${passwordShake ? "ring-2 ring-red-500/60" : ""}`}
+                    style={passwordShake ? { animation: "shake 0.6s ease-in-out" } : undefined}
+                  >
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
                     </div>
