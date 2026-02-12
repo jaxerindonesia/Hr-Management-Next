@@ -29,6 +29,7 @@ export default function DesktopNavbar() {
       attendance: "Kehadiran",
       payroll: "Payroll",
       performance: "Penilaian Kinerja",
+      roles: "Roles",
     };
     return titles[path || "dashboard"] || "Dashboard";
   };

@@ -1,9 +1,10 @@
- "use client";
- 
- import { useEffect, useState } from "react";
- import { Shield } from "lucide-react";
- 
- export default function RolesPage() {
+"use client";
+
+import { useEffect, useState } from "react";
+import { Plus, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+export default function RolesPage() {
    const [roles, setRoles] = useState<any[]>([]);
    const [loading, setLoading] = useState(true);
    const [error, setError] = useState<string | null>(null);
@@ -52,6 +53,11 @@
    useEffect(() => {
      loadRoles();
    }, [userRole]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(roles.length / itemsPerPage));
+    if (currentPage > maxPage) setCurrentPage(1);
+  }, [roles.length]);
  
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [editingRole, setEditingRole] = useState<any | null>(null);
@@ -65,6 +71,13 @@
   const [rwPermissions, setRwPermissions] = useState<Record<string, { read: boolean; write: boolean }>>({});
   const [newModel, setNewModel] = useState("");
   const API_BASE = typeof window !== "undefined" ? `${window.location.origin}/api` : "/api";
+
+  // Pagination
+  const itemsPerPage = 5;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(roles.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRoles = roles.slice(startIndex, startIndex + itemsPerPage);
 
   const openEditRole = (role: any) => {
     setEditingRole(role);
@@ -251,118 +264,140 @@
      );
    };
  
-   return (
+return (
      <div className="space-y-6">
-       <div className="flex items-center gap-3">
-         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white">
-           <Shield className="w-6 h-6" />
+       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
+         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+           {userRole === "Super Admin" && (
+             <button
+               onClick={openCreateRole}
+               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+             >
+               <Plus className="w-4 h-4" /> Tambah Role
+             </button>
+           )}
+           <div className="flex-1" />
          </div>
-         <div>
-           <h2 className="text-2xl font-bold">
-             {userRole && userRole !== "Super Admin" ? "Role Saya" : "Roles"}
-           </h2>
-           <p className="text-sm text-gray-600 dark:text-gray-400">
-             {userRole && userRole !== "Super Admin"
-               ? `Role aktif: ${userRole}`
-               : "Daftar role dan permissions."}
-           </p>
-         </div>
-       </div>
- 
-       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700">
-         <div className="p-4 border-b dark:border-gray-700 flex items-center justify-between">
-           <div className="text-sm text-gray-600 dark:text-gray-400">
-             {loading ? "Memuat..." : `${roles.length} roles`}
-           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={loadRoles}
-              className="px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
-              disabled={loading}
-            >
-              Refresh
-            </button>
-            {userRole === "Super Admin" && (
-              <button
-                onClick={openCreateRole}
-                className="px-3 py-1.5 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
-              >
-                Tambah Role
-              </button>
-            )}
-          </div>
-         </div>
- 
+
          {error ? (
            <div className="p-4 text-red-600 dark:text-red-400">{error}</div>
          ) : (
-           <div className="overflow-x-auto">
-             <table className="min-w-full text-sm">
-               <thead className="bg-gray-50 dark:bg-gray-700/50">
-                 <tr>
-                   <th className="text-left p-3 font-semibold text-gray-700 dark:text-gray-300">
-                     Nama Role
-                   </th>
-                   <th className="text-left p-3 font-semibold text-gray-700 dark:text-gray-300">
-                     Permissions
-                   </th>
-                   {userRole === "Super Admin" && (
-                     <th className="text-right p-3 font-semibold text-gray-700 dark:text-gray-300">
-                       Dibuat
+           <>
+             <div className="overflow-x-auto">
+               <table className="w-full">
+                 <thead>
+                   <tr className="border-b dark:border-gray-700">
+                     <th className="text-left p-3 font-semibold dark:text-gray-300">
+                       Nama Role
                      </th>
-                   )}
-                  {userRole === "Super Admin" && (
-                    <th className="text-right p-3 font-semibold text-gray-700 dark:text-gray-300">
-                      Aksi
-                    </th>
-                  )}
-                 </tr>
-               </thead>
-               <tbody>
-                 {!loading && roles.length === 0 && (
-                   <tr>
-                     <td colSpan={3} className="p-4 text-center text-gray-600 dark:text-gray-400">
-                       Tidak ada data
-                     </td>
-                   </tr>
-                 )}
-                 {roles.map((role) => (
-                   <tr
-                     key={role.id}
-                     className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40"
-                   >
-                     <td className="p-3 font-medium">{role.name}</td>
-                     <td className="p-3">{renderPermissions(role.permission)}</td>
+                     <th className="text-left p-3 font-semibold dark:text-gray-300">
+                       Permissions
+                     </th>
                      {userRole === "Super Admin" && (
-                       <td className="p-3 text-right">
-                         <span className="text-gray-600 dark:text-gray-400">
-                           {role.createdAt ? new Date(role.createdAt).toLocaleString("id-ID") : "-"}
-                         </span>
-                       </td>
+                       <th className="text-left p-3 font-semibold dark:text-gray-300">
+                         Dibuat
+                       </th>
                      )}
-                    {userRole === "Super Admin" && (
-                      <td className="p-3 text-right">
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={() => openEditRole(role)}
-                            className="px-3 py-1 text-xs rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => deleteRole(role)}
-                            className="px-3 py-1 text-xs rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                      </td>
-                    )}
+                     {userRole === "Super Admin" && (
+                       <th className="text-right p-3 font-semibold dark:text-gray-300">
+                         Aksi
+                       </th>
+                     )}
                    </tr>
-                 ))}
-               </tbody>
-             </table>
-           </div>
+                 </thead>
+                 <tbody>
+                   {!loading && roles.length === 0 ? (
+                     <tr>
+                       <td
+                         colSpan={userRole === "Super Admin" ? 4 : 2}
+                         className="p-8 text-center text-gray-500 dark:text-gray-400"
+                       >
+                         Tidak ada data
+                       </td>
+                     </tr>
+                   ) : (
+                     paginatedRoles.map((role) => (
+                       <tr
+                         key={role.id}
+                         className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                       >
+                         <td className="p-3 font-medium dark:text-white">{role.name}</td>
+                         <td className="p-3 dark:text-gray-300">{renderPermissions(role.permission)}</td>
+                         {userRole === "Super Admin" && (
+                           <td className="p-3 dark:text-gray-300">
+                             {role.createdAt ? new Date(role.createdAt).toLocaleString("id-ID") : "-"}
+                           </td>
+                         )}
+                         {userRole === "Super Admin" && (
+                           <td className="p-3 text-right">
+                             <div className="flex justify-end gap-2">
+                               <button
+                                 onClick={() => openEditRole(role)}
+                                 className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                 title="Edit"
+                               >
+                                 <Edit className="w-4 h-4" />
+                               </button>
+                               <button
+                                 onClick={() => deleteRole(role)}
+                                 className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                 title="Hapus"
+                               >
+                                 <Trash2 className="w-4 h-4" />
+                               </button>
+                             </div>
+                           </td>
+                         )}
+                       </tr>
+                     ))
+                   )}
+                 </tbody>
+               </table>
+             </div>
+
+             {/* Pagination Controls */}
+             <div className="flex items-center justify-between mt-4 pt-4 border-t dark:border-gray-700">
+               <p className="text-sm text-gray-600 dark:text-gray-400">
+                 Menampilkan{" "}
+                 {loading ? "0" : Math.min(startIndex + itemsPerPage, roles.length)} dari {roles.length} data
+               </p>
+               <div className="flex items-center gap-2">
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                   disabled={currentPage === 1 || loading}
+                   className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                 >
+                   <ChevronLeft className="w-4 h-4" />
+                 </Button>
+                 <div className="flex items-center gap-1">
+                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                     <button
+                       key={page}
+                       onClick={() => setCurrentPage(page)}
+                       className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                         currentPage === page
+                           ? "bg-blue-600 text-white"
+                           : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                       }`}
+                     >
+                       {page}
+                     </button>
+                   ))}
+                 </div>
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                   disabled={currentPage === totalPages || loading}
+                   className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                 >
+                   <ChevronRight className="w-4 h-4" />
+                 </Button>
+               </div>
+             </div>
+           </>
          )}
        </div>
       {showRoleModal && (
@@ -391,13 +426,13 @@
                 <div className="flex gap-2">
                   <button
                     onClick={() => setEditorMode("array")}
-                    className={`px-3 py-1.5 text-sm rounded-lg ${editorMode === "array" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"}`}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${editorMode === "array" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"}`}
                   >
                     Model & Action
                   </button>
                   <button
                     onClick={() => setEditorMode("object")}
-                    className={`px-3 py-1.5 text-sm rounded-lg ${editorMode === "object" ? "bg-blue-600 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"}`}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${editorMode === "object" ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"}`}
                   >
                     Read/Write
                   </button>
