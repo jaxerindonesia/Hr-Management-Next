@@ -111,7 +111,7 @@ export default function FormData({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Karyawan" : "Tambah Karyawan"}

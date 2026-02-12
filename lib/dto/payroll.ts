@@ -1,5 +1,5 @@
 export interface PayrollDto {
-    id: string;
+    id?: string | null;
     userId: string;
     month: number;
     year: number;
@@ -9,7 +9,11 @@ export interface PayrollDto {
     totalSalary: number;
     status: string;
     paidAt?: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
     deletedAt?: Date | null;
+    user?: {
+        id: string;
+        name: string;
+    } | null;
 }
