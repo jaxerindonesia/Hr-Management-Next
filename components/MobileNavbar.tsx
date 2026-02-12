@@ -17,6 +17,7 @@ import {
   Moon,
   LogOut,
   Home,
+  ClipboardCheck,
 } from "lucide-react";
 
 /**
@@ -49,6 +50,12 @@ export default function MobileNavbar() {
       name: "Ketidakhadiran",
       icon: Calendar,
       path: "/leaves",
+    },
+    {
+      id: "attendance",
+      name: "Kehadiran",
+      icon: ClipboardCheck,
+      path: "/attendance",
     },
     {
       id: "payroll",
@@ -164,11 +171,10 @@ export default function MobileNavbar() {
                       key={item.id}
                       href={item.path}
                       onClick={closeMenu}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                        isActive
-                          ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
+                        ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
                     >
                       <Icon className="w-5 h-5" />
                       <span className="font-medium">{item.name}</span>
@@ -207,11 +213,10 @@ export default function MobileNavbar() {
               <Link
                 key={item.path}
                 href={item.path}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 min-w-[60px] ${
-                  isActive
-                    ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                }`}
+                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 min-w-[60px] ${isActive
+                  ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  }`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`} />
                 <span className={`text-[10px] mt-1 ${isActive ? "font-semibold" : "font-medium"}`}>

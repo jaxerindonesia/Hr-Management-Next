@@ -20,6 +20,8 @@ import {
   AlertTriangle,
   X,
   Shield,
+  ClipboardCheck,
+  Settings,
 } from "lucide-react";
 import { useAbsenceTypes } from "@/lib/absence-context";
 
@@ -101,12 +103,18 @@ export default function Sidebar() {
             path: `/leaves?type=${encodeURIComponent(type)}`,
             isSpecial: false,
           })),
-          { 
-            name: "✨ Form Pengajuan Baru", 
+          {
+            name: "✨ Form Pengajuan Baru",
             path: "/leaves?action=new",
             isSpecial: true
           },
         ],
+      },
+      {
+        id: "attendance",
+        name: "Kehadiran",
+        icon: ClipboardCheck,
+        path: "/attendance",
       },
       {
         id: "payroll",
@@ -199,29 +207,26 @@ export default function Sidebar() {
                       toggleMenu(item.id);
                     }}
                     className={`flex w-full items-center rounded-lg transition-all duration-300 relative group
-                    ${
-                      isActive
+                    ${isActive
                         ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 shadow-sm"
                         : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    }
+                      }
                     ${sidebarOpen ? "gap-3 px-4 py-3" : "justify-center py-3"}
                     hover:scale-[1.02] active:scale-[0.98]`}
                   >
                     {/* Animated Icon */}
-                    <Icon className={`w-5 h-5 shrink-0 transition-all duration-300 ${
-                      isActive ? "scale-110" : "group-hover:scale-110 group-hover:rotate-3"
-                    }`} />
+                    <Icon className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive ? "scale-110" : "group-hover:scale-110 group-hover:rotate-3"
+                      }`} />
 
                     {sidebarOpen && (
                       <>
                         <span className="font-medium truncate flex-1 text-left">
                           {item.name}
                         </span>
-                        
+
                         <ChevronDown
-                          className={`w-4 h-4 transition-all duration-300 ${
-                            isExpanded ? "rotate-180" : ""
-                          }`}
+                          className={`w-4 h-4 transition-all duration-300 ${isExpanded ? "rotate-180" : ""
+                            }`}
                         />
                       </>
                     )}
@@ -230,11 +235,10 @@ export default function Sidebar() {
                   {/* Submenu with smooth animation */}
                   {sidebarOpen && (
                     <div
-                      className={`transition-all duration-500 ease-in-out overflow-hidden ${
-                        isExpanded
-                          ? "max-h-[60vh] opacity-100 mt-1"
-                          : "max-h-0 opacity-0"
-                      }`}
+                      className={`transition-all duration-500 ease-in-out overflow-hidden ${isExpanded
+                        ? "max-h-[60vh] opacity-100 mt-1"
+                        : "max-h-0 opacity-0"
+                        }`}
                     >
                       <div className="pl-12 pr-4 py-1 space-y-1">
                         {item.subItems.map((sub, index) => {
@@ -244,9 +248,9 @@ export default function Sidebar() {
                             (pathname === item.path &&
                               currentAction === "new" &&
                               sub.name.includes("Form Pengajuan"));
-                          
+
                           const isFormPengajuan = "isSpecial" in sub ? sub.isSpecial : false;
-                          
+
                           return (
                             <Link
                               key={sub.name}
@@ -257,13 +261,12 @@ export default function Sidebar() {
                               }}
                               className={`block text-sm py-2 px-3 rounded-md transition-all duration-300
                                 ${isExpanded ? "animate-in slide-in-from-left-2 fade-in" : ""}
-                                ${
-                                isFormPengajuan
+                                ${isFormPengajuan
                                   ? "font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-l-4 border-green-500 hover:scale-[1.02] hover:shadow-md"
                                   : isSubActive
-                                  ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 font-medium shadow-sm"
-                                  : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:translate-x-1"
-                              }`}
+                                    ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 font-medium shadow-sm"
+                                    : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:translate-x-1"
+                                }`}
                             >
                               {sub.name}
                             </Link>
@@ -281,18 +284,16 @@ export default function Sidebar() {
                 key={item.id}
                 href={item.path}
                 className={`flex w-full items-center rounded-lg transition-all duration-300 relative group
-                ${
-                  isActive
+                ${isActive
                     ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 shadow-sm"
                     : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                }
+                  }
                 ${sidebarOpen ? "gap-3 px-4 py-3" : "justify-center py-3"}
                 hover:scale-[1.02] active:scale-[0.98]`}
               >
                 {/* Animated Icon */}
-                <Icon className={`w-5 h-5 shrink-0 transition-all duration-300 ${
-                  isActive ? "scale-110" : "group-hover:scale-110 group-hover:rotate-3"
-                }`} />
+                <Icon className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive ? "scale-110" : "group-hover:scale-110 group-hover:rotate-3"
+                  }`} />
 
                 {sidebarOpen && (
                   <span className="font-medium truncate flex-1">
@@ -315,11 +316,11 @@ export default function Sidebar() {
               hover:scale-[1.02] active:scale-[0.98]
               ${sidebarOpen ? "gap-3" : "justify-center"}`}
           >
-          {theme === "light" ? (
-  <Moon className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
-) : (
-  <Sun className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
-)}
+            {theme === "light" ? (
+              <Moon className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
+            ) : (
+              <Sun className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
+            )}
 
             {sidebarOpen && (
               <span className="font-medium">
@@ -381,23 +382,23 @@ export default function Sidebar() {
               </p>
             </div>
 
-              {/* Buttons */}
-              <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
-                <button
-                  onClick={() => setShowLogoutModal(false)}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-105 active:scale-95"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-300 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 hover:scale-105 active:scale-95"
-                >
-                  Ya, Logout
-                </button>
-              </div>
+            {/* Buttons */}
+            <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-105 active:scale-95"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-300 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 hover:scale-105 active:scale-95"
+              >
+                Ya, Logout
+              </button>
             </div>
           </div>
+        </div>
       )}
     </>
   );

@@ -26,6 +26,7 @@ export default function DesktopNavbar() {
       dashboard: "Dashboard",
       employees: "Data Karyawan",
       leaves: "Pengajuan Ketidakhadiran",
+      attendance: "Kehadiran",
       payroll: "Payroll",
       performance: "Penilaian Kinerja",
     };
