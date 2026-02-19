@@ -119,6 +119,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -126,14 +127,38 @@
 
 /* Login error & entrance animations */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
-  20%, 40%, 60%, 80% { transform: translateX(6px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-6px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(6px);
+  }
 }
 
 @keyframes errorPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
 }
 
 @keyframes fadeInUp {
@@ -141,6 +166,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -152,6 +178,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -160,6 +187,7 @@
 
 /* Make phone displays sticky on mobile screens */
 @media (max-width: 700px) {
+
   [type="tel"],
   input[type="tel"],
   .phone-display,
@@ -188,6 +216,7 @@
     from {
       transform: translateX(100%);
     }
+
     to {
       transform: translateX(0);
     }
@@ -213,5 +242,51 @@
 
   .dark .mobile-menu-scroll::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* ===== PRINT STYLES — Slip Gaji ===== */
+@media print {
+
+  /* Hide EVERYTHING on the page using visibility (not display)
+     so nested elements can still be made visible */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Show only the slip card and all its children */
+  #slip-print-area,
+  #slip-print-area * {
+    visibility: visible !important;
+  }
+
+  /* Position the slip at the very top-left of the printed page */
+  #slip-print-area {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    padding: 24px !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Remove scroll/clip constraints from parent containers */
+  body,
+  html {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Force colors to print correctly */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    margin: 10mm;
+    size: A4;
   }
 }

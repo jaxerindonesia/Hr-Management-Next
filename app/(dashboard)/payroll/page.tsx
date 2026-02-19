@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Filter,
   X,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PayrollDto } from "@/lib/dto/payroll";
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import FormData from "./components/form-data";
+import SlipGajiModal from "./components/slip-gaji-modal";
 import { months } from "@/lib/helper/date";
 
 export default function PayrollPage() {
@@ -40,6 +42,7 @@ export default function PayrollPage() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [selectedSlip, setSelectedSlip] = useState<PayrollDto | null>(null);
 
   const itemsPerPage = 5;
 
@@ -127,7 +130,7 @@ export default function PayrollPage() {
 
     return matchesSearch && matchesMonth && matchesYear && matchesStatus;
   });
-  
+
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedPayrolls = filtered.slice(
@@ -232,11 +235,10 @@ export default function PayrollPage() {
             <div className="flex-1" />
             <button
               onClick={() => setShowFilterPanel(!showFilterPanel)}
-              className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-                showFilterPanel || activeFilterCount > 0
+              className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${showFilterPanel || activeFilterCount > 0
                   ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
                   : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-              }`}
+                }`}
             >
               <Filter className="w-4 h-4" />
               Filter
@@ -434,26 +436,24 @@ export default function PayrollPage() {
                       </td>
                       <td className="p-3">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            emp.status === "paid"
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === "paid"
                               ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                               : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                          }`}
+                            }`}
                         >
                           {emp.status === "paid" ? "Dibayar" : "Pending"}
                         </span>
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
-                          {/* {emp.status === "pending" && (
-                            <button
-                              onClick={() => handleMarkAsPaid(emp.id)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                              title="Tandai Sudah Dibayar"
-                            >
-                              <span className="font-bold text-xs">BAYAR</span>
-                            </button>
-                          )} */}
+                          {/* Slip Gaji Button */}
+                          <button
+                            onClick={() => setSelectedSlip(emp)}
+                            className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                            title="Cetak Slip Gaji"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => handleOpenModal(emp)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
@@ -461,40 +461,40 @@ export default function PayrollPage() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <Popover
-                              open={openPopoverId === emp.id}
-                              onOpenChange={(isOpen) =>
-                                setOpenPopoverId(isOpen ? emp.id! : null)
-                              }
-                            >
-                              <PopoverTrigger asChild>
-                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </PopoverTrigger>
+                            open={openPopoverId === emp.id}
+                            onOpenChange={(isOpen) =>
+                              setOpenPopoverId(isOpen ? emp.id! : null)
+                            }
+                          >
+                            <PopoverTrigger asChild>
+                              <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </PopoverTrigger>
 
-                              <PopoverContent className="w-56 space-y-3">
-                                <p className="text-sm">
-                                  Yakin ingin menghapus gaji ini?
-                                </p>
+                            <PopoverContent className="w-56 space-y-3">
+                              <p className="text-sm">
+                                Yakin ingin menghapus gaji ini?
+                              </p>
 
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setOpenPopoverId(null)}
-                                  >
-                                    Batal
-                                  </Button>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setOpenPopoverId(null)}
+                                >
+                                  Batal
+                                </Button>
 
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => handleDelete(emp.id!)}
-                                  >
-                                    Hapus
-                                  </Button>
-                                </div>
-                              </PopoverContent>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDelete(emp.id!)}
+                                >
+                                  Hapus
+                                </Button>
+                              </div>
+                            </PopoverContent>
                           </Popover>
                         </div>
                       </td>
@@ -536,11 +536,10 @@ export default function PayrollPage() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page
                           ? "bg-blue-600 text-white"
                           : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
+                        }`}
                     >
                       {page}
                     </button>
@@ -562,12 +561,19 @@ export default function PayrollPage() {
           </div>
         </div>
       </div>
-      
+
       {showModal && (
         <FormData
           initialData={formData}
           onClose={handleCloseModal}
           onSuccess={fetchPayrolls}
+        />
+      )}
+
+      {selectedSlip && (
+        <SlipGajiModal
+          payroll={selectedSlip}
+          onClose={() => setSelectedSlip(null)}
         />
       )}
     </>
