@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import type { Performance as PerformanceModel } from "@prisma/client";
 
 export async function GET() {
   try {
@@ -10,7 +11,7 @@ export async function GET() {
     });
 
     const performanceWithUser = await Promise.all(
-      performance.map(async (p) => {
+      performance.map(async (p: PerformanceModel) => {
         const user = await prisma.user.findUnique({
           where: { id: p.userId },
           select: { id: true, name: true },

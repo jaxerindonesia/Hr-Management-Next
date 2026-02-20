@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import type { Payroll } from "@prisma/client";
 
 export async function GET() {
   try {
@@ -10,7 +11,7 @@ export async function GET() {
     });
 
     const payrollWithUser = await Promise.all(
-      payroll.map(async (p) => {
+      payroll.map(async (p: Payroll) => {
         const user = await prisma.user.findUnique({
           where: { id: p.userId },
           select: { id: true, name: true },
