@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus,
   CheckCircle,
@@ -28,9 +27,6 @@ import { Button } from "@/components/ui/button";
 import ModalType from "./components/modal-type";
 
 export default function SubmissionsPage() {
-  const searchParams = useSearchParams();
-  const typeParam = searchParams.get("type");
-
   const [submissions, setSubmissions] = useState<SubmissionDto[]>([]);
   const [submissionType, setSubmissionType] = useState<SubmissionTypeDto[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -214,7 +210,6 @@ export default function SubmissionsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [
-    typeParam,
     searchTerm,
     filterName,
     filterType,
