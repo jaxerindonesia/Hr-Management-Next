@@ -138,7 +138,7 @@ export default function FormData({
 
                 <SelectContent>
                   {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
+                    <SelectItem key={role.id} value={role.id ?? ""}>
                       {role.name}
                     </SelectItem>
                   ))}

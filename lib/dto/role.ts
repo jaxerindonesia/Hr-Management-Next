@@ -1,8 +1,8 @@
 export interface RoleDto {
-    id: string;
+    id?: string | null;
     name: string;
     permission: any;
-    createdAt: Date;
-    updatedAt: Date;
-    deletedAt: Date | null;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
+    deletedAt?: Date | null;
 }

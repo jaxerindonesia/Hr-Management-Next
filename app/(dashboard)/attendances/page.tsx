@@ -1,0 +1,527 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Search,
+  Filter,
+  Trash2,
+  Edit,
+  ChevronRight,
+  ChevronLeft,
+  Eye,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { AttendanceDto } from "@/lib/dto/attendance";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import DetailData from "./components/detail-data";
+
+export default function AttendancePage() {
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceDto | null>(
+    null,
+  );
+  const [userData, setUserData] = useState({ id: "", role: "" });
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceDto[]>(
+    [],
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [currentTime, setCurrentTime] = useState("");
+  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [todayAttendance, setTodayAttendance] = useState<AttendanceDto | null>(
+    null,
+  );
+
+  const filteredRecords = attendanceRecords.filter((record) => {
+    const matchesSearch = record.date
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+
+    const matchesFilter =
+      filterStatus === "all" || record.status === filterStatus;
+
+    return matchesSearch && matchesFilter;
+  });
+
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRecords = filteredRecords.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
+
+  const fetchAttendance = async () => {
+    try {
+      const res = await fetch("/api/attendances");
+      if (!res.ok) throw new Error("Gagal mengambil data attendance");
+
+      const json = await res.json();
+      const data = json.data || [];
+
+      setAttendanceRecords(data);
+
+      // cek attendance hari ini
+      const todayStr = new Date().toISOString().split("T")[0];
+
+      const today = data.find((item: AttendanceDto) => {
+        const itemDate = new Date(item.date).toISOString().split("T")[0];
+        return itemDate === todayStr;
+      });
+      setTodayAttendance(today || null);
+    } catch (err) {
+      toast.error("Gagal memuat data attendance");
+    }
+  };
+
+  const handleCheckIn = async () => {
+    try {
+      if (!navigator.geolocation) {
+        toast.error("Geolocation tidak didukung browser");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+
+          const userId = userData.id;
+          const res = await fetch("/api/attendances/check-in", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId,
+              checkInLocation: {
+                latitude,
+                longitude,
+              },
+            }),
+          });
+
+          if (!res.ok) throw new Error();
+
+          toast.success("Berhasil Check In");
+          fetchAttendance();
+        },
+        () => {
+          toast.error("Gagal mendapatkan lokasi");
+        },
+      );
+    } catch (err) {
+      toast.error("Gagal Check In");
+    }
+  };
+
+  const handleCheckOut = async () => {
+    try {
+      if (!navigator.geolocation) {
+        toast.error("Geolocation tidak didukung browser");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+
+          const userId = userData.id;
+          const res = await fetch("/api/attendances/check-out", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId,
+              checkOutLocation: {
+                latitude,
+                longitude,
+              },
+            }),
+          });
+
+          if (!res.ok) throw new Error();
+
+          toast.success("Berhasil Check Out");
+          fetchAttendance();
+        },
+        () => {
+          toast.error("Gagal mendapatkan lokasi");
+        },
+      );
+    } catch (err) {
+      toast.error("Gagal Check Out");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/attendances/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Data berhasil dihapus");
+      fetchAttendance();
+    } catch (err) {
+      toast.error("Gagal menghapus data");
+    } finally {
+      setOpenPopoverId(null);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Present":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      case "Late":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+      case "Absent":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      case "Half Day":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+      default:
+        return "";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "Present":
+        return <CheckCircle className="w-4 h-4" />;
+      case "Late":
+        return <Clock className="w-4 h-4" />;
+      case "Absent":
+        return <XCircle className="w-4 h-4" />;
+      case "Half Day":
+        return <Clock className="w-4 h-4" />;
+      default:
+        return null;
+    }
+  };
+
+  useEffect(() => {
+    fetchAttendance();
+
+    const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
+    setUserData(data);
+  }, []);
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(
+        now.toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+      );
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <>
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+            {/* LIVE TIME */}
+            <div className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 border dark:border-gray-600">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {new Date().toLocaleDateString("id-ID", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </div>
+              <div className="text-lg font-semibold text-gray-800 dark:text-white tracking-wide">
+                {currentTime}
+              </div>
+            </div>
+
+            {/* AUTO SWITCH BUTTON */}
+            <div className="flex gap-2">
+              {!todayAttendance ? (
+                <Button
+                  onClick={handleCheckIn}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  Check In
+                </Button>
+              ) : todayAttendance && !todayAttendance.checkOut ? (
+                <Button
+                  onClick={handleCheckOut}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  Check Out
+                </Button>
+              ) : (
+                <Button
+                  disabled
+                  className="bg-gray-400 text-white cursor-not-allowed"
+                >
+                  Sudah Absen Hari Ini
+                </Button>
+              )}
+            </div>
+
+            <div className="flex-1" />
+
+            {/* Search */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Cari tanggal..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+
+            {/* Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="pl-10 pr-8 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value="all">Semua</option>
+                <option value="Present">Hadir</option>
+                <option value="Late">Terlambat</option>
+                <option value="Absent">Tidak Hadir</option>
+                <option value="Half Day">Setengah Hari</option>
+              </select>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b dark:border-gray-700">
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Tanggal
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Check In
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Check Out
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Jam Kerja
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Status
+                  </th>
+                  <th className="text-right p-3 font-semibold dark:text-gray-300">
+                    Aksi
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedRecords.length > 0 ? (
+                  filteredRecords.map((record) => (
+                    <tr
+                      key={record.id}
+                      className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      <td className="p-3 font-medium dark:text-white">
+                        {new Date(record.date).toLocaleDateString("id-ID", {
+                          weekday: "short",
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
+                        {record.checkIn
+                          ? new Date(record.checkIn).toLocaleDateString(
+                              "id-ID",
+                              {
+                                minute: "2-digit",
+                                hour: "2-digit",
+                              },
+                            )
+                          : "-"}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
+                        {record.checkOut
+                          ? new Date(record.checkOut).toLocaleDateString(
+                              "id-ID",
+                              {
+                                minute: "2-digit",
+                                hour: "2-digit",
+                              },
+                            )
+                          : "-"}
+                      </td>
+                      <td className="p-3 dark:text-gray-300 font-medium">
+                        {record.workHours}
+                      </td>
+
+                      <td className="p-3 dark:text-gray-300">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                            record.status,
+                          )}`}
+                        >
+                          {getStatusIcon(record.status)}
+                          {record.status}
+                        </span>
+                      </td>
+
+                      <td className="p-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setSelectedRecord(record)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+
+                          <Popover
+                            open={openPopoverId === record.id}
+                            onOpenChange={(open) =>
+                              setOpenPopoverId(open ? record.id : null)
+                            }
+                          >
+                            <PopoverTrigger asChild>
+                              <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </PopoverTrigger>
+
+                            <PopoverContent className="w-56 space-y-3">
+                              <p className="text-sm">
+                                Yakin ingin menghapus data ini?
+                              </p>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setOpenPopoverId(null)}
+                                >
+                                  Batal
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDelete(record.id)}
+                                >
+                                  Hapus
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="p-8 text-center text-gray-500 dark:text-gray-400"
+                    >
+                      Tidak ada data kehadiran yang ditemukan
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 dark:border-gray-700 gap-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Menampilkan{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {filteredRecords.length}
+              </span>{" "}
+              dari{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {attendanceRecords.length}
+              </span>{" "}
+              kehadiran
+            </div>
+
+            {filteredRecords.length > 0 && (
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Halaman {currentPage} dari {totalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                            currentPage === page
+                              ? "bg-blue-600 text-white"
+                              : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {selectedRecord && (
+        <DetailData
+          initialData={selectedRecord}
+          onClose={() => setSelectedRecord(null)}
+        />
+      )}
+    </>
+  );
+}

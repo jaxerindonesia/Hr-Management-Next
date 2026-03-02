@@ -40,12 +40,14 @@ export async function PUT(req: Request, { params }: Params) {
 
     const updateData: any = {};
 
+    const totalSalary = body.basicSalary + body.allowances - body.deductions;
+    updateData.totalSalary = totalSalary;
+
     if (body.month) updateData.month = body.month;
     if (body.year) updateData.year = body.year;
     if (body.basicSalary) updateData.basicSalary = body.basicSalary;
     if (body.allowances) updateData.allowances = body.allowances;
     if (body.deductions) updateData.deductions = body.deductions;
-    if (body.totalSalary) updateData.totalSalary = body.totalSalary;
     if (body.status) updateData.status = body.status;
     if (body.paidAt) updateData.paidAt = new Date(body.paidAt);
 

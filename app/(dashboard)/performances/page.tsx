@@ -82,15 +82,6 @@ export default function PerformancePage() {
     startIndex + itemsPerPage,
   );
 
-  const calculateTotalScore = (
-    prod: number,
-    qual: number,
-    team: number,
-    disc: number,
-  ) => {
-    return ((prod + qual + team + disc) / 4).toFixed(2);
-  };
-
   const handleOpenModal = (data?: PerformanceDto) => {
     if (data) setFormData(data);
     setShowModal(true);

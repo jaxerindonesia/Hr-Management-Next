@@ -490,13 +490,6 @@ export default function EmployeesPage() {
                               </div>
                             </PopoverContent>
                           </Popover>
-                          {/* <button
-                            hidden={emp.id === undefined}
-                            onClick={() => handleDelete(emp.id!)}
-                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button> */}
                         </div>
                       </td>
                     </tr>
@@ -516,7 +509,7 @@ export default function EmployeesPage() {
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 border-t dark:border-gray-700 gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 dark:border-gray-700 gap-4">
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Menampilkan{" "}
               <span className="font-semibold text-gray-900 dark:text-white">

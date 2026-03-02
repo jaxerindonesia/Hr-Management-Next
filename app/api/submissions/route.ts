@@ -9,9 +9,23 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    const submissionsWithDetails = await Promise.all(
+      submissions.map(async (s) => {
+        const user = await prisma.user.findUnique({
+          where: { id: s.userId },
+          select: { id: true, name: true },
+        });
+        const submissionType = await prisma.submissionType.findUnique({
+          where: { id: s.submissionTypeId },
+          select: { id: true, name: true },
+        });
+        return { ...s, user, submissionType };
+      })
+    );
+
     return NextResponse.json({
       message: "Submissions retrieved successfully",
-      data: submissions,
+      data: submissionsWithDetails,
     });
   } catch (error) {
     return NextResponse.json(

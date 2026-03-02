@@ -100,6 +100,11 @@ model Attendance {
   status String
   notes  String?
 
+  workHours String? @map("work_hours")
+
+  checkInLocation  Json? @map("check_in_location")
+  checkOutLocation Json? @map("check_out_location")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

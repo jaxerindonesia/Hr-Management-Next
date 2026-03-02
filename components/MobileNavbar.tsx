@@ -46,37 +46,37 @@ export default function MobileNavbar() {
       path: "/employees",
     },
     {
-      id: "leaves",
+      id: "submissions",
       name: "Ketidakhadiran",
       icon: Calendar,
-      path: "/leaves",
+      path: "/submissions",
     },
     {
-      id: "attendance",
+      id: "attendances",
       name: "Kehadiran",
       icon: ClipboardCheck,
-      path: "/attendance",
+      path: "/attendances",
     },
     {
-      id: "payroll",
+      id: "payrolls",
       name: "Payroll",
       icon: Wallet,
-      path: "/payroll",
+      path: "/payrolls",
     },
     {
-      id: "performance",
+      id: "performances",
       name: "Penilaian Kinerja",
       icon: TrendingUp,
-      path: "/performance",
+      path: "/performances",
     },
   ];
 
   const bottomNavItems = [
     { icon: Home, path: "/dashboard", label: "Home" },
     { icon: Users, path: "/employees", label: "Karyawan" },
-    { icon: Calendar, path: "/leaves", label: "Cuti" },
-    { icon: Wallet, path: "/payroll", label: "Payroll" },
-    { icon: TrendingUp, path: "/performance", label: "Kinerja" },
+    { icon: Calendar, path: "/submissions", label: "Cuti" },
+    { icon: Wallet, path: "/payrolls", label: "Payroll" },
+    { icon: TrendingUp, path: "/performances", label: "Kinerja" },
   ];
 
   const handleLogout = () => {
@@ -164,17 +164,19 @@ export default function MobileNavbar() {
               <nav className="flex-1 p-4 space-y-1">
                 {menuItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = pathname === item.path || pathname.startsWith(item.path);
+                  const isActive =
+                    pathname === item.path || pathname.startsWith(item.path);
 
                   return (
                     <Link
                       key={item.id}
                       href={item.path}
                       onClick={closeMenu}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
-                        ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                        isActive
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
                     >
                       <Icon className="w-5 h-5" />
                       <span className="font-medium">{item.name}</span>
@@ -207,19 +209,25 @@ export default function MobileNavbar() {
         <div className="flex items-center justify-around px-2 py-2">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.path || pathname.startsWith(item.path);
+            const isActive =
+              pathname === item.path || pathname.startsWith(item.path);
 
             return (
               <Link
                 key={item.path}
                 href={item.path}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 min-w-[60px] ${isActive
-                  ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                  }`}
+                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 min-w-[60px] ${
+                  isActive
+                    ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`} />
-                <span className={`text-[10px] mt-1 ${isActive ? "font-semibold" : "font-medium"}`}>
+                <Icon
+                  className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`}
+                />
+                <span
+                  className={`text-[10px] mt-1 ${isActive ? "font-semibold" : "font-medium"}`}
+                >
                   {item.label}
                 </span>
               </Link>

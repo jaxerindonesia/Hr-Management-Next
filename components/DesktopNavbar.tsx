@@ -25,10 +25,10 @@ export default function DesktopNavbar() {
     const titles: { [key: string]: string } = {
       dashboard: "Dashboard",
       employees: "Data Karyawan",
-      leaves: "Pengajuan Ketidakhadiran",
-      attendance: "Kehadiran",
-      payroll: "Payroll",
-      performance: "Penilaian Kinerja",
+      submissions: "Pengajuan Ketidakhadiran",
+      attendances: "Kehadiran",
+      payrolls: "Payroll",
+      performances: "Penilaian Kinerja",
       roles: "Roles",
     };
     return titles[path || "dashboard"] || "Dashboard";
@@ -47,7 +47,7 @@ export default function DesktopNavbar() {
   };
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("hr_user_data") || '{}');
+    const user = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     if (user?.name) setUser(user);
   }, []);
 

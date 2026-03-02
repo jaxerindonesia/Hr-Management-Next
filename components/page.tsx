@@ -24,18 +24,23 @@ export default function Sidebar() {
       path: "/dashboard",
     },
     { id: "employees", name: "Data Karyawan", icon: Users, path: "/employees" },
-    { id: "leaves", name: "Cuti/Izin", icon: Calendar, path: "/leaves" },
     {
-      id: "payroll",
-      name: "Payroll",
-      icon: () => <span className="text-lg font-bold">Rp</span>,
-      path: "/payroll",
+      id: "submissions",
+      name: "Cuti/Izin",
+      icon: Calendar,
+      path: "/submissions",
     },
     {
-      id: "performance",
+      id: "payrolls",
+      name: "Payroll",
+      icon: () => <span className="text-lg font-bold">Rp</span>,
+      path: "/payrolls",
+    },
+    {
+      id: "performances",
       name: "Penilaian Kinerja",
       icon: TrendingUp,
-      path: "/performance",
+      path: "/performances",
     },
   ];
 

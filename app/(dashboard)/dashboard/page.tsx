@@ -11,39 +11,6 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const defaultLeaves = [
-  {
-    id: "1",
-    employeeName: "Budi Santoso",
-    type: "Cuti",
-    startDate: "2024-02-01",
-    status: "pending",
-  },
-  {
-    id: "2",
-    employeeName: "Siti Nurhaliza",
-    type: "Sakit",
-    startDate: "2024-01-28",
-    status: "approved",
-  },
-];
-
-const defaultPerformances = [
-  {
-    id: "1",
-    employeeName: "Budi Santoso",
-    period: "Q1 2024",
-    totalScore: 4.75,
-  },
-  {
-    id: "2",
-    employeeName: "Siti Nurhaliza",
-    period: "Q1 2024",
-    totalScore: 4.75,
-  },
-];
-
-// Function untuk generate hari libur berdasarkan tahun berjalan
 const generateHolidays = (year: number) => [
   { date: `${year}-01-01`, name: `Tahun Baru ${year}`, type: "holiday" },
   {
@@ -86,11 +53,7 @@ const generateHolidays = (year: number) => [
 
 export default function DashboardPage() {
   const [employees, setEmployees] = useState<any[]>([]);
-  const [leaves, setLeaves] = useState<typeof defaultLeaves>([]);
   const [payrolls, setPayrolls] = useState<any[]>([]);
-  const [performances, setPerformances] = useState<typeof defaultPerformances>(
-    [],
-  );
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -114,26 +77,10 @@ export default function DashboardPage() {
         setEmployees(JSON.parse(savedEmployees));
       }
 
-      // Load leaves dari localStorage
-      const savedLeaves = localStorage.getItem("hr_leaves");
-      if (savedLeaves) {
-        setLeaves(JSON.parse(savedLeaves));
-      } else {
-        setLeaves(defaultLeaves);
-      }
-
       // Load payrolls dari localStorage
       const savedPayrolls = localStorage.getItem("hr_payrolls");
       if (savedPayrolls) {
         setPayrolls(JSON.parse(savedPayrolls));
-      }
-
-      // Load performances dari localStorage
-      const savedPerformances = localStorage.getItem("hr_performances");
-      if (savedPerformances) {
-        setPerformances(JSON.parse(savedPerformances));
-      } else {
-        setPerformances(defaultPerformances);
       }
     }
   };
@@ -264,23 +211,6 @@ export default function DashboardPage() {
           </>
         )}
 
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-yellow-100 text-sm font-medium">
-                {userRole === "Super Admin" ? "Pengajuan Cuti" : "Cuti Saya (Pending)"}
-              </p>
-              <p className="text-4xl font-bold mt-2">
-                {leaves.filter((l: any) => {
-                  if (userRole === "Super Admin") return l.status === "pending";
-                  return l.status === "pending" && l.employeeName === userName;
-                }).length}
-              </p>
-            </div>
-            <Clock className="w-12 h-12 text-yellow-200" />
-          </div>
-        </div>
-
         {userRole === "Super Admin" && (
           <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl">
             <div className="flex items-center justify-between">
@@ -373,102 +303,6 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Card Pada Pengajuan Cuti */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <h3 className="text-lg font-semibold mb-4 dark:text-white">
-            {userRole === "Super Admin" ? "Pengajuan Cuti Terbaru" : "Riwayat Cuti Saya"}
-          </h3>
-          <div className="space-y-3">
-            {leaves.filter(l => userRole === "Super Admin" || l.employeeName === userName).length > 0 ? (
-              leaves
-                .filter(l => userRole === "Super Admin" || l.employeeName === userName)
-                .slice(0, 5)
-                .map((leave: any) => (
-                  <div
-                    key={leave.id}
-                    className="flex items-center justify-between border-b dark:border-gray-700 pb-3 last:border-0"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {leave.employeeName}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {leave.type} - {leave.startDate}
-                      </p>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        leave.status === "approved"
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                          : leave.status === "rejected"
-                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                      }`}
-                    >
-                      {leave.status === "pending"
-                        ? "Menunggu"
-                        : leave.status === "approved"
-                          ? "Disetujui"
-                          : "Ditolak"}
-                    </span>
-                  </div>
-                ))
-            ) : (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <p>Tidak ada data cuti</p>
-              </div>
-            )}
-          </div>
-        </div>
-        {/* Card Karyawan Terbaik */}
-        {userRole === "Super Admin" && (
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-            <h3 className="text-lg font-semibold mb-4 dark:text-white">
-              Karyawan Terbaik
-            </h3>
-            <div className="space-y-3">
-              {performances.length > 0 ? (
-                performances
-                  .sort((a, b) => b.totalScore - a.totalScore)
-                  .slice(0, 5)
-                  .map((perf) => (
-                    <div
-                      key={perf.id}
-                      className="flex items-center justify-between border-b dark:border-gray-700 pb-3 last:border-0"
-                    >
-                      <div className="flex items-center">
-                        <Award className="w-8 h-8 text-yellow-500 mr-3" />
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {perf.employeeName}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {perf.period}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                          {perf.totalScore}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Score
-                        </p>
-                      </div>
-                    </div>
-                  ))
-              ) : (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  <Award className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Belum ada data penilaian kinerja</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
