@@ -125,6 +125,16 @@
   }
 }
 
+/* Hide browser native password reveal button (Edge & Chrome) */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none;
+}
+
 /* Login error & entrance animations */
 @keyframes shake {
 
