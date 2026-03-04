@@ -122,14 +122,20 @@ export default function FormData({
 
       const initialPermissionState: any = {};
 
-      data.forEach((item: any) => {
-        initialPermissionState[item.model] = new Set(
-          initialData?.permission?.[item.model] || [],
-        );
-      });
+      const existingPermissions = initialData?.permission || [];
 
+      if (initialData?.id) {
+        data.forEach((item: MasterPermission) => {
+          const actionsForModel = existingPermissions
+            .filter((p: any) => p.model === item.model)
+            .map((p: any) => p.action);
+
+          initialPermissionState[item.model] = new Set(actionsForModel);
+        });
+      }
       setPermissions(initialPermissionState);
     } catch (error) {
+      console.log(error);
       toast.error("Gagal memuat daftar permission");
     }
   };

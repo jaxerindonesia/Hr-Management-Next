@@ -21,12 +21,11 @@ import {
   X,
   Shield,
   ClipboardCheck,
-  Settings,
 } from "lucide-react";
 import { usePermission } from "@/lib/helper/check-role";
 
 export default function Sidebar() {
-  const { checkRole } = usePermission();
+  const { checkRoleMulti, permissions } = usePermission();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -119,17 +118,11 @@ export default function Sidebar() {
       },
     ];
 
-    if (userRole.length === 0) return allItems;
-
     return allItems.filter((item) => {
-      if (item.permissions) {
-        return item.permissions.some((permission) =>
-          checkRole(item.id, permission),
-        );
-      }
-      return true;
+      if (!item.permissions) return true;
+      return checkRoleMulti(item.id, item.permissions);
     });
-  }, [userRole]);
+  }, [permissions]);
 
   return (
     <>

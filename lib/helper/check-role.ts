@@ -33,5 +33,5 @@ export function usePermission() {
     );
   }
 
-  return { checkRole, checkRoleMulti };
+  return { checkRole, checkRoleMulti, permissions };
 }
