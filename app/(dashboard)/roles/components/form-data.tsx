@@ -30,13 +30,15 @@ export default function FormData({
 }) {
   const [loading, setLoading] = useState(false);
   const [roleName, setRoleName] = useState(initialData?.name || "");
-  const [masterPermissions, setMasterPermissions] = useState<MasterPermission[]>([]);
+  const [masterPermissions, setMasterPermissions] = useState<
+    MasterPermission[]
+  >([]);
   const [permissions, setPermissions] = useState<PermissionState>({});
 
   const handleCheckboxChange = (
     model: string,
     action: string,
-    checked: boolean
+    checked: boolean,
   ) => {
     setPermissions((prev) => {
       const current = prev[model] ?? new Set<string>();
@@ -52,7 +54,7 @@ export default function FormData({
   const handleSelectAll = (
     model: string,
     actions: string[],
-    checked: boolean
+    checked: boolean,
   ) => {
     setPermissions((prev) => ({
       ...prev,
@@ -72,11 +74,11 @@ export default function FormData({
 
     const payload = {
       name: roleName,
-      permissions: Object.fromEntries(
-        Object.entries(permissions).map(([model, set]) => [
+      permissions: Object.entries(permissions).flatMap(([model, set]) =>
+        Array.from(set).map((action) => ({
           model,
-          Array.from(set),
-        ])
+          action,
+        })),
       ),
     };
 
@@ -96,7 +98,7 @@ export default function FormData({
       if (!res.ok) throw new Error("Gagal menyimpan role");
 
       toast.success(
-        `Role berhasil ${initialData?.id ? "diupdate" : "ditambahkan"}`
+        `Role berhasil ${initialData?.id ? "diupdate" : "ditambahkan"}`,
       );
 
       onSuccess();
@@ -122,7 +124,7 @@ export default function FormData({
 
       data.forEach((item: any) => {
         initialPermissionState[item.model] = new Set(
-          initialData?.permission?.[item.model] || []
+          initialData?.permission?.[item.model] || [],
         );
       });
 
@@ -172,9 +174,7 @@ export default function FormData({
                   className="border rounded-xl p-4 dark:border-gray-700"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-semibold capitalize">
-                      {item.model}
-                    </h4>
+                    <h4 className="font-semibold capitalize">{item.model}</h4>
 
                     <label className="flex items-center gap-2 text-sm">
                       <input
@@ -184,7 +184,7 @@ export default function FormData({
                           handleSelectAll(
                             item.model,
                             item.actions,
-                            e.target.checked
+                            e.target.checked,
                           )
                         }
                       />
@@ -205,7 +205,7 @@ export default function FormData({
                             handleCheckboxChange(
                               item.model,
                               action,
-                              e.target.checked
+                              e.target.checked,
                             )
                           }
                         />

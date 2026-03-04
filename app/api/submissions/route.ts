@@ -20,7 +20,7 @@ export async function GET() {
           select: { id: true, name: true },
         });
         return { ...s, user, submissionType };
-      })
+      }),
     );
 
     return NextResponse.json({
@@ -30,7 +30,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to retrieve submissions data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -39,30 +39,36 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const { 
-      userId,
-      submissionTypeId,
-      startDate,
-      endDate,
-      reason,
-      status,
-     } = body;
+    const { userId, submissionTypeId, startDate, endDate, reason, status } =
+      body;
 
-    if (!userId || !status || !submissionTypeId || !startDate || !endDate || !reason) {
-        return NextResponse.json(
-            { message: "All submission fields are required fields" },
-            { status: 400 }
-        );
+    if (
+      !userId ||
+      !status ||
+      !submissionTypeId ||
+      !startDate ||
+      !endDate ||
+      !reason
+    ) {
+      return NextResponse.json(
+        { message: "All submission fields are required fields" },
+        { status: 400 },
+      );
     }
 
     const existing = await prisma.submission.findFirst({
-      where: { userId: userId, submissionTypeId: submissionTypeId, startDate: new Date(startDate), endDate: new Date(endDate) },
+      where: {
+        userId: userId,
+        submissionTypeId: submissionTypeId,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+      },
     });
 
     if (existing) {
       return NextResponse.json(
         { message: "Submission already exists for this user" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -82,13 +88,12 @@ export async function POST(req: NextRequest) {
         message: "Submission successfully created.",
         data: submission,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to create submission" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
