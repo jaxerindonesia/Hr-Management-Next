@@ -25,8 +25,10 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import ModalType from "./components/modal-type";
+import { usePermission } from "@/lib/helper/check-role";
 
 export default function SubmissionsPage() {
+  const { checkRole, checkRoleMulti } = usePermission();
   const [submissions, setSubmissions] = useState<SubmissionDto[]>([]);
   const [submissionType, setSubmissionType] = useState<SubmissionTypeDto[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -222,21 +224,27 @@ export default function SubmissionsPage() {
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-          <button
-            onClick={() => setShowTypeModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            <Settings className="w-4 h-4" /> Kelola Jenis
-          </button>
+          {checkRole("submission_types", "create") && (
+            <button
+              onClick={() => setShowTypeModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              <Settings className="w-4 h-4" /> Kelola Jenis
+            </button>
+          )}
 
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Tambah
-          </button>
+          {checkRole("submissions", "create") && (
+            <>
+              <button
+                onClick={() => handleOpenModal()}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Tambah
+              </button>
 
-          <div className="flex-1" />
+              <div className="flex-1" />
+            </>
+          )}
           <button
             onClick={() => setShowFilterPanel(!showFilterPanel)}
             className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
@@ -440,9 +448,11 @@ export default function SubmissionsPage() {
                 <th className="text-left p-3 font-semibold dark:text-gray-300">
                   Status
                 </th>
-                <th className="text-right p-3 font-semibold dark:text-gray-300">
-                  Aksi
-                </th>
+                {checkRoleMulti("submissions", ["update", "delete"]) && (
+                  <th className="text-right p-3 font-semibold dark:text-gray-300">
+                    Aksi
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -494,10 +504,11 @@ export default function SubmissionsPage() {
                             : "MENUNGGU"}
                       </span>
                     </td>
+
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-2">
                         {emp.status === "PENDING" &&
-                          userData?.role === "Super Admin" && (
+                          checkRole("submissions", "update") && (
                             <>
                               <button
                                 onClick={() => handleApprove(emp.id!)}
@@ -515,16 +526,17 @@ export default function SubmissionsPage() {
                               </button>
                             </>
                           )}
-                        {emp.status === "PENDING" && (
-                          <button
-                            onClick={() => handleOpenModal(emp)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
-                            title="Edit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                        )}
-                        {userData?.role === "Super Admin" && (
+                        {emp.status === "PENDING" &&
+                          checkRole("submissions", "update") && (
+                            <button
+                              onClick={() => handleOpenModal(emp)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+                              title="Edit"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
+                        {checkRole("submissions", "delete") && (
                           <Popover
                             open={openPopoverId === emp.id}
                             onOpenChange={(isOpen) =>

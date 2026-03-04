@@ -6,35 +6,35 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
 type Params = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export async function GET(_: Request, { params }: Params) {
   try {
+    const { id } = await params;
+
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { message: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json(user);
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to retrieve user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PUT(req: Request, { params }: Params) {
   try {
+    const { id } = await params;
     const body = await req.json();
 
     const updateData: any = {};
@@ -61,7 +61,7 @@ export async function PUT(req: Request, { params }: Params) {
     }
 
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     });
 
@@ -72,17 +72,16 @@ export async function PUT(req: Request, { params }: Params) {
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to update user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-
 export async function DELETE(_: Request, { params }: Params) {
-  const p = await params;
+  const { id } = await params;
   try {
     await prisma.user.delete({
-      where: { id: p.id },
+      where: { id },
     });
 
     return NextResponse.json({
@@ -91,7 +90,7 @@ export async function DELETE(_: Request, { params }: Params) {
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to delete user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

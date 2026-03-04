@@ -14,9 +14,15 @@ import { Button } from "@/components/ui/button";
 import { PerformanceDto } from "@/lib/dto/performance";
 import { toast } from "sonner";
 import FormData from "./components/form-data";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { usePermission } from "@/lib/helper/check-role";
 
 export default function PerformancePage() {
+  const { checkRole, checkRoleMulti } = usePermission();
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,12 +44,12 @@ export default function PerformancePage() {
   const [filterScore, setFilterScore] = useState<string>("all");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  
+
   const itemsPerPage = 5;
 
   // Get unique periods
   const uniquePeriods = Array.from(
-    new Set(performances.map((p) => p.period))
+    new Set(performances.map((p) => p.period)),
   ).sort();
 
   const clearAllFilters = () => {
@@ -58,22 +64,24 @@ export default function PerformancePage() {
     searchTerm !== "",
   ].filter(Boolean).length;
 
-  const filteredPerformances = performances.filter(
-    (perf) => {
-      const matchesSearch = 
-        perf.period.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesPeriod = filterPeriod === "all" || perf.period === filterPeriod;
-      
-      let matchesScore = true;
-      if (filterScore === "excellent") matchesScore = perf.totalScore >= 4.5;
-      else if (filterScore === "good") matchesScore = perf.totalScore >= 3.5 && perf.totalScore < 4.5;
-      else if (filterScore === "fair") matchesScore = perf.totalScore >= 2.5 && perf.totalScore < 3.5;
-      else if (filterScore === "poor") matchesScore = perf.totalScore < 2.5;
+  const filteredPerformances = performances.filter((perf) => {
+    const matchesSearch = perf.period
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
 
-      return matchesSearch && matchesPeriod && matchesScore;
-    }
-  );
+    const matchesPeriod =
+      filterPeriod === "all" || perf.period === filterPeriod;
+
+    let matchesScore = true;
+    if (filterScore === "excellent") matchesScore = perf.totalScore >= 4.5;
+    else if (filterScore === "good")
+      matchesScore = perf.totalScore >= 3.5 && perf.totalScore < 4.5;
+    else if (filterScore === "fair")
+      matchesScore = perf.totalScore >= 2.5 && perf.totalScore < 3.5;
+    else if (filterScore === "poor") matchesScore = perf.totalScore < 2.5;
+
+    return matchesSearch && matchesPeriod && matchesScore;
+  });
 
   const totalPages = Math.ceil(filteredPerformances.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -141,7 +149,7 @@ export default function PerformancePage() {
     } catch (err) {
       toast.error("Gagal mengambil data kinerja");
     }
-  }
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -156,13 +164,18 @@ export default function PerformancePage() {
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Tambah Penilaian
-            </button>
-            <div className="flex-1" />
+            {checkRole("performances", "create") && (
+              <>
+                <button
+                  onClick={() => handleOpenModal()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Tambah
+                </button>
+
+                <div className="flex-1" />
+              </>
+            )}
             <button
               onClick={() => setShowFilterPanel(!showFilterPanel)}
               className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
@@ -309,9 +322,11 @@ export default function PerformancePage() {
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Total Score
                   </th>
-                  <th className="text-right p-3 font-semibold dark:text-gray-300">
-                    Aksi
-                  </th>
+                  {checkRoleMulti("performances", ["update", "delete"]) && (
+                    <th className="text-right p-3 font-semibold dark:text-gray-300">
+                      Aksi
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -344,13 +359,16 @@ export default function PerformancePage() {
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenModal(perf)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <Popover
+                          {checkRole("performances", "update") && (
+                            <button
+                              onClick={() => handleOpenModal(perf)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
+                          {checkRole("performances", "delete") && (
+                            <Popover
                               open={openPopoverId === perf.id}
                               onOpenChange={(isOpen) =>
                                 setOpenPopoverId(isOpen ? perf.id! : null)
@@ -385,7 +403,8 @@ export default function PerformancePage() {
                                   </Button>
                                 </div>
                               </PopoverContent>
-                          </Popover>
+                            </Popover>
+                          )}
                         </div>
                       </td>
                     </tr>

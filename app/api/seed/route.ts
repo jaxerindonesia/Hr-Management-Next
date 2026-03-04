@@ -24,10 +24,35 @@ export async function GET() {
           { model: "roles", action: "create" },
           { model: "roles", action: "update" },
 
-          { model: "leaves", action: "get-all" },
-          { model: "leaves", action: "get-by-id" },
-          { model: "leaves", action: "create" },
-          { model: "leaves", action: "update" },
+          { model: "submissions", action: "get-all" },
+          { model: "submissions", action: "get-by-id" },
+          { model: "submissions", action: "create" },
+          { model: "submissions", action: "update" },
+
+          { model: "submission_types", action: "get-all" },
+          { model: "submission_types", action: "get-by-id" },
+          { model: "submission_types", action: "create" },
+          { model: "submission_types", action: "update" },
+
+          { model: "attendances", action: "get-all" },
+          { model: "attendances", action: "get-by-id" },
+          { model: "attendances", action: "create" },
+          { model: "attendances", action: "update" },
+
+          { model: "payrolls", action: "get-all" },
+          { model: "payrolls", action: "get-by-id" },
+          { model: "payrolls", action: "create" },
+          { model: "payrolls", action: "update" },
+
+          { model: "payrolls", action: "get-all" },
+          { model: "payrolls", action: "get-by-id" },
+          { model: "payrolls", action: "create" },
+          { model: "payrolls", action: "update" },
+
+          { model: "performances", action: "get-all" },
+          { model: "performances", action: "get-by-id" },
+          { model: "performances", action: "create" },
+          { model: "performances", action: "update" },
         ],
       },
 
@@ -82,7 +107,7 @@ export async function GET() {
     if (!adminRole || !employeeRole) {
       return NextResponse.json(
         { message: "Gagal membuat role" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -148,7 +173,7 @@ export async function GET() {
         message: "Seed gagal",
         error: String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

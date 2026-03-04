@@ -15,12 +15,18 @@ import { Button } from "@/components/ui/button";
 import { PayrollDto } from "@/lib/dto/payroll";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/helper/format-currency";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import FormData from "./components/form-data";
 import SlipGajiModal from "./components/slip-gaji-modal";
 import { months } from "@/lib/helper/date";
+import { usePermission } from "@/lib/helper/check-role";
 
 export default function PayrollPage() {
+  const { checkRole, checkRoleMulti } = usePermission();
   const [payrolls, setPayrolls] = useState<PayrollDto[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -81,9 +87,7 @@ export default function PayrollPage() {
   // Calculate current month totals
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  const currentMonthPayrolls = payrolls.filter(
-    (p) => p.year === currentYear,
-  );
+  const currentMonthPayrolls = payrolls.filter((p) => p.year === currentYear);
   const currentMonthTotal = currentMonthPayrolls.reduce(
     (sum, p) => sum + p.totalSalary,
     0,
@@ -96,7 +100,9 @@ export default function PayrollPage() {
     .reduce((sum, p) => sum + p.totalSalary, 0);
 
   // Get unique years for filter
-  const uniqueYears = Array.from(new Set(payrolls.map(p => p.year))).sort((a, b) => b - a);
+  const uniqueYears = Array.from(new Set(payrolls.map((p) => p.year))).sort(
+    (a, b) => b - a,
+  );
 
   const clearAllFilters = () => {
     setFilterMonth("all");
@@ -122,11 +128,9 @@ export default function PayrollPage() {
     const matchesMonth =
       filterMonth === "all" || pay.month === Number(filterMonth);
 
-    const matchesYear =
-      filterYear === "all" || pay.year === Number(filterYear);
+    const matchesYear = filterYear === "all" || pay.year === Number(filterYear);
 
-    const matchesStatus =
-      filterStatus === "all" || pay.status === filterStatus;
+    const matchesStatus = filterStatus === "all" || pay.status === filterStatus;
 
     return matchesSearch && matchesMonth && matchesYear && matchesStatus;
   });
@@ -226,19 +230,25 @@ export default function PayrollPage() {
         {/* Payroll Table */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Proses Gaji
-            </button>
-            <div className="flex-1" />
+            {checkRole("payrolls", "create") && (
+              <>
+                <button
+                  onClick={() => handleOpenModal()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Proses Gaji
+                </button>
+
+                <div className="flex-1" />
+              </>
+            )}
             <button
               onClick={() => setShowFilterPanel(!showFilterPanel)}
-              className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${showFilterPanel || activeFilterCount > 0
+              className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                showFilterPanel || activeFilterCount > 0
                   ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
                   : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-                }`}
+              }`}
             >
               <Filter className="w-4 h-4" />
               Filter
@@ -404,9 +414,11 @@ export default function PayrollPage() {
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Status
                   </th>
-                  <th className="text-right p-3 font-semibold dark:text-gray-300">
-                    Aksi
-                  </th>
+                  {checkRoleMulti("payrolls", ["update", "delete"]) && (
+                    <th className="text-right p-3 font-semibold dark:text-gray-300">
+                      Aksi
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -420,7 +432,8 @@ export default function PayrollPage() {
                         {emp.user?.name}
                       </td>
                       <td className="p-3 dark:text-gray-300">
-                        {months.find(v => v.value === emp.month)?.label} {emp.year}
+                        {months.find((v) => v.value === emp.month)?.label}{" "}
+                        {emp.year}
                       </td>
                       <td className="p-3 dark:text-gray-300">
                         {formatCurrency(emp.basicSalary)}
@@ -436,10 +449,11 @@ export default function PayrollPage() {
                       </td>
                       <td className="p-3">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === "paid"
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            emp.status === "paid"
                               ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                               : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                            }`}
+                          }`}
                         >
                           {emp.status === "paid" ? "Dibayar" : "Pending"}
                         </span>
@@ -454,48 +468,52 @@ export default function PayrollPage() {
                           >
                             <FileText className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleOpenModal(emp)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <Popover
-                            open={openPopoverId === emp.id}
-                            onOpenChange={(isOpen) =>
-                              setOpenPopoverId(isOpen ? emp.id! : null)
-                            }
-                          >
-                            <PopoverTrigger asChild>
-                              <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </PopoverTrigger>
+                          {checkRole("payrolls", "update") && (
+                            <button
+                              onClick={() => handleOpenModal(emp)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
+                          {checkRole("payrolls", "delete") && (
+                            <Popover
+                              open={openPopoverId === emp.id}
+                              onOpenChange={(isOpen) =>
+                                setOpenPopoverId(isOpen ? emp.id! : null)
+                              }
+                            >
+                              <PopoverTrigger asChild>
+                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </PopoverTrigger>
 
-                            <PopoverContent className="w-56 space-y-3">
-                              <p className="text-sm">
-                                Yakin ingin menghapus gaji ini?
-                              </p>
+                              <PopoverContent className="w-56 space-y-3">
+                                <p className="text-sm">
+                                  Yakin ingin menghapus gaji ini?
+                                </p>
 
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setOpenPopoverId(null)}
-                                >
-                                  Batal
-                                </Button>
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setOpenPopoverId(null)}
+                                  >
+                                    Batal
+                                  </Button>
 
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDelete(emp.id!)}
-                                >
-                                  Hapus
-                                </Button>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDelete(emp.id!)}
+                                  >
+                                    Hapus
+                                  </Button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -536,10 +554,11 @@ export default function PayrollPage() {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === page
                           ? "bg-blue-600 text-white"
                           : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
+                      }`}
                     >
                       {page}
                     </button>

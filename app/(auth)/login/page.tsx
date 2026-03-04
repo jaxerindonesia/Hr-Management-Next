@@ -5,7 +5,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Eye, EyeOff, Mail, Lock, AlertCircle, ArrowRight, Sparkles } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  AlertCircle,
+  ArrowRight,
+  Sparkles,
+} from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,7 +42,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", 
+        credentials: "include",
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
@@ -53,6 +61,10 @@ export default function LoginPage() {
 
       // save to local storage
       localStorage.setItem("hr_user_data", JSON.stringify(data.user));
+      localStorage.setItem(
+        "hr_user_role",
+        JSON.stringify(data.user.permissions),
+      );
 
       router.push("/dashboard");
     } catch (err) {
@@ -73,7 +85,6 @@ export default function LoginPage() {
     if (!error) prevErrorRef.current = "";
   }, [error]);
 
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (error) setError("");
     if (passwordShake) setPasswordShake(false);
@@ -90,15 +101,18 @@ export default function LoginPage() {
         <div className="absolute top-1/4 -left-48 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-1/4 -right-48 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse [animation-delay:1s]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-3xl animate-pulse [animation-delay:0.5s]" />
-        
+
         {/* Grid Pattern Overlay */}
-        <div 
+        <div
           className="absolute inset-0"
           style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px)',
-            backgroundSize: '100px 100px',
-            maskImage: 'radial-gradient(ellipse 80% 50% at 50% 50%, black, transparent)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 50% at 50% 50%, black, transparent)'
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px)",
+            backgroundSize: "100px 100px",
+            maskImage:
+              "radial-gradient(ellipse 80% 50% at 50% 50%, black, transparent)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 80% 50% at 50% 50%, black, transparent)",
           }}
         />
       </div>
@@ -109,7 +123,7 @@ export default function LoginPage() {
         <div className="flex-1 flex items-center justify-center p-8 relative z-10">
           <div className="w-full max-w-md">
             {/* Glass Card */}
-            <div 
+            <div
               className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8 space-y-8"
               style={{ animation: "fadeInUp 0.6s ease-out" }}
             >
@@ -130,7 +144,7 @@ export default function LoginPage() {
                 </div>
                 <div className="space-y-2">
                   <h2 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">
-                    Selamat Datang 
+                    Selamat Datang
                   </h2>
                   <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
                     <Sparkles className="w-4 h-4 text-blue-400" />
@@ -141,9 +155,12 @@ export default function LoginPage() {
 
               {/* Error Message with Animation */}
               {error && (
-                <div 
+                <div
                   className="flex items-center gap-3 p-4 bg-red-500/10 backdrop-blur-sm border border-red-500/30 rounded-xl text-red-400"
-                  style={{ animation: "slideInFade 0.3s ease-out, shake 0.5s ease-in-out 0.15s, errorPulse 1.5s ease-out 0.5s 2" }}
+                  style={{
+                    animation:
+                      "slideInFade 0.3s ease-out, shake 0.5s ease-in-out 0.15s, errorPulse 1.5s ease-out 0.5s 2",
+                  }}
                 >
                   <AlertCircle className="w-5 h-5 shrink-0 animate-pulse" />
                   <span className="text-sm font-medium">{error}</span>
@@ -190,9 +207,13 @@ export default function LoginPage() {
                   >
                     Password
                   </label>
-                  <div 
+                  <div
                     className={`relative transition-all duration-300 rounded-xl ${passwordShake ? "ring-2 ring-red-500/60" : ""}`}
-                    style={passwordShake ? { animation: "shake 0.6s ease-in-out" } : undefined}
+                    style={
+                      passwordShake
+                        ? { animation: "shake 0.6s ease-in-out" }
+                        : undefined
+                    }
                   >
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-blue-400 transition-colors" />
@@ -266,9 +287,16 @@ export default function LoginPage() {
                   transition-all duration-300 ease-out
                   shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02]
                   overflow-hidden"
-                  style={{ backgroundSize: '200%', backgroundPosition: '0% center' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundPosition = '100% center'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundPosition = '0% center'}
+                  style={{
+                    backgroundSize: "200%",
+                    backgroundPosition: "0% center",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundPosition = "100% center")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundPosition = "0% center")
+                  }
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                   {isLoading ? (
@@ -289,7 +317,7 @@ export default function LoginPage() {
               <p className="text-center text-sm text-gray-400 pt-2">
                 Belum punya akun?{" "}
                 <button className="font-semibold text-blue-400 hover:text-blue-300 transition-colors relative group">
-                 <Link href="/register">Daftar sekarang</Link>
+                  <Link href="/register">Daftar sekarang</Link>
 
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300" />
                 </button>
@@ -299,14 +327,34 @@ export default function LoginPage() {
             {/* Trust Indicators */}
             <div className="mt-8 flex items-center justify-center gap-8 text-gray-500 text-xs">
               <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-4 h-4 text-green-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
                 <span>SSL Secure</span>
               </div>
               <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                <svg
+                  className="w-4 h-4 text-green-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  />
                 </svg>
                 <span>Data Protected</span>
               </div>
@@ -319,7 +367,7 @@ export default function LoginPage() {
           {/* Gradient Orbs */}
           <div className="absolute top-20 right-20 w-72 h-72 bg-blue-500/30 rounded-full blur-3xl animate-[float_6s_ease-in-out_infinite]" />
           <div className="absolute bottom-20 left-20 w-96 h-96 bg-purple-500/30 rounded-full blur-3xl animate-[float-delayed_8s_ease-in-out_infinite]" />
-          
+
           {/* Content */}
           <div className="relative z-10 text-white p-12 max-w-2xl">
             <div className="space-y-8">
@@ -327,29 +375,47 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/20 backdrop-blur-sm border border-blue-500/30">
                   <Sparkles className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm font-semibold text-blue-300">Platform HR Jaxer Grup Indonesia</span>
+                  <span className="text-sm font-semibold text-blue-300">
+                    Platform HR Jaxer Grup Indonesia
+                  </span>
                 </div>
-                
+
                 <h1 className="text-6xl font-bold leading-tight bg-gradient-to-b from-white to-gray-300 bg-clip-text text-transparent">
                   Kelola HR Anda dengan{" "}
                   <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                     Lebih Mudah
                   </span>
                 </h1>
-                
+
                 <p className="text-xl text-gray-300 leading-relaxed">
-                  Sistem manajemen karyawan yang modern, efisien, dan terintegrasi
-                  untuk membawa perusahaan Anda ke level berikutnya
+                  Sistem manajemen karyawan yang modern, efisien, dan
+                  terintegrasi untuk membawa perusahaan Anda ke level berikutnya
                 </p>
               </div>
 
               {/* Features Grid */}
               <div className="grid grid-cols-2 gap-4 pt-4">
                 {[
-                  { icon: "👥", title: "Manajemen Karyawan", desc: "Database lengkap & terorganisir" },
-                  { icon: "💰", title: "Payroll Otomatis", desc: "Perhitungan akurat & cepat" },
-                  { icon: "📅", title: "Cuti & Absensi", desc: "Tracking real-time" },
-                  { icon: "📊", title: "Laporan Lengkap", desc: "Analytics mendalam" },
+                  {
+                    icon: "👥",
+                    title: "Manajemen Karyawan",
+                    desc: "Database lengkap & terorganisir",
+                  },
+                  {
+                    icon: "💰",
+                    title: "Payroll Otomatis",
+                    desc: "Perhitungan akurat & cepat",
+                  },
+                  {
+                    icon: "📅",
+                    title: "Cuti & Absensi",
+                    desc: "Tracking real-time",
+                  },
+                  {
+                    icon: "📊",
+                    title: "Laporan Lengkap",
+                    desc: "Analytics mendalam",
+                  },
                 ].map((feature, index) => (
                   <div
                     key={index}
@@ -359,13 +425,25 @@ export default function LoginPage() {
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="relative space-y-2">
-                      <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">{feature.icon}</div>
+                      <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+                        {feature.icon}
+                      </div>
                       <h3 className="font-bold text-white">{feature.title}</h3>
                       <p className="text-sm text-gray-400">{feature.desc}</p>
                     </div>
                     <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-5 h-5 text-blue-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     </div>
                   </div>
@@ -394,7 +472,7 @@ export default function LoginPage() {
 
       {/* Footer - Transparant tanpa background */}
       <footer className="relative z-10 py-4 text-center text-xs text-gray-400">
-          &copy; {new Date().getFullYear()} Jaxer Teknologi Indonesia.  
+        &copy; {new Date().getFullYear()} Jaxer Teknologi Indonesia.
       </footer>
     </div>
   );

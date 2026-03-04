@@ -23,30 +23,18 @@ import {
   ClipboardCheck,
   Settings,
 } from "lucide-react";
+import { usePermission } from "@/lib/helper/check-role";
 
 export default function Sidebar() {
+  const { checkRole } = usePermission();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState([]);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const userData = localStorage.getItem("hr_user_data");
-      if (userData) {
-        try {
-          const user = JSON.parse(userData);
-          setUserRole(user.role);
-        } catch (e) {
-          console.error("Error parsing user data", e);
-        }
-      }
-    }
-  }, []);
 
   const toggleMenu = (id: string) => {
     setExpandedMenus((prev) =>
@@ -68,6 +56,10 @@ export default function Sidebar() {
         method: "POST",
         credentials: "include",
       });
+
+      // Clear local storage
+      localStorage.removeItem("hr_user_data");
+      localStorage.removeItem("hr_user_role");
     } catch (err) {
       console.error("LOGOUT ERROR:", err);
     }
@@ -84,52 +76,56 @@ export default function Sidebar() {
         path: "/dashboard",
       },
       {
-        id: "employees",
+        id: "users",
         name: "Data Karyawan",
         icon: Users,
         path: "/employees",
-        roles: ["Super Admin"],
+        permissions: ["get-all", "get-by-id"],
       },
       {
         id: "submissions",
         name: "Pengajuan Ketidakhadiran",
         icon: Calendar,
         path: "/submissions",
+        permissions: ["get-all", "get-by-id"],
       },
       {
         id: "attendances",
         name: "Kehadiran",
         icon: ClipboardCheck,
         path: "/attendances",
+        permissions: ["get-all", "get-by-id"],
       },
       {
         id: "payrolls",
         name: "Payroll",
         icon: Wallet,
         path: "/payrolls",
-        roles: ["Super Admin"],
+        permissions: ["get-all", "get-by-id"],
       },
       {
         id: "performances",
         name: "Penilaian Kinerja",
         icon: TrendingUp,
         path: "/performances",
-        roles: ["Super Admin"],
+        permissions: ["get-all", "get-by-id"],
       },
       {
         id: "roles",
         name: "Roles",
         icon: Shield,
         path: "/roles",
-        roles: ["Super Admin"],
+        permissions: ["get-all", "get-by-id"],
       },
     ];
 
-    if (!userRole) return allItems;
+    if (userRole.length === 0) return allItems;
 
     return allItems.filter((item) => {
-      if (item.roles) {
-        return item.roles.includes(userRole);
+      if (item.permissions) {
+        return item.permissions.some((permission) =>
+          checkRole(item.id, permission),
+        );
       }
       return true;
     });

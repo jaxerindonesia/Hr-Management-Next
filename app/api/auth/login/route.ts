@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     if (!email || !password) {
       return NextResponse.json(
         { message: "Email and password must be filled in" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -26,16 +26,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { message: "Email not found" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Email not found" }, { status: 401 });
     }
 
     if (user.deletedAt) {
       return NextResponse.json(
         { message: "User is no longer active" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -44,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (!isMatch) {
       return NextResponse.json(
         { message: "Password is incorrect" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -58,7 +55,7 @@ export async function POST(req: NextRequest) {
       process.env.JWT_SECRET!,
       {
         expiresIn,
-      }
+      },
     );
 
     // simpan token ke DB
@@ -76,6 +73,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role.name,
+        permissions: user.role.permission,
       },
     });
 
@@ -105,7 +103,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to login user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

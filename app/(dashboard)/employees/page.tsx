@@ -20,8 +20,10 @@ import {
 import { toast } from "sonner";
 import FormData from "./components/form-data";
 import { Button } from "@/components/ui/button";
+import { usePermission } from "@/lib/helper/check-role";
 
 export default function EmployeesPage() {
+  const { checkRole, checkRoleMulti } = usePermission();
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -191,17 +193,19 @@ export default function EmployeesPage() {
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Tambah
-            </button>
+            {checkRole("users", "create") && (
+              <>
+                <button
+                  onClick={() => handleOpenModal()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Tambah
+                </button>
 
-            {/* Spacer untuk mendorong tombol Filter ke kanan */}
-            <div className="flex-1"></div>
+                <div className="flex-1"></div>
+              </>
+            )}
 
-            {/* Filter Button - Sekarang di kanan */}
             <button
               onClick={() => setShowFilterPanel(!showFilterPanel)}
               className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
@@ -408,9 +412,11 @@ export default function EmployeesPage() {
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Status
                   </th>
-                  <th className="text-right p-3 font-semibold dark:text-gray-300">
-                    Aksi
-                  </th>
+                  {checkRoleMulti("users", ["update", "delete"]) && (
+                    <th className="text-right p-3 font-semibold dark:text-gray-300">
+                      Aksi
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -448,48 +454,52 @@ export default function EmployeesPage() {
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenModal(emp)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <Popover
-                            open={openPopoverId === emp.id}
-                            onOpenChange={(isOpen) =>
-                              setOpenPopoverId(isOpen ? emp.id! : null)
-                            }
-                          >
-                            <PopoverTrigger asChild>
-                              <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </PopoverTrigger>
+                          {checkRole("users", "update") && (
+                            <button
+                              onClick={() => handleOpenModal(emp)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
+                          {checkRole("users", "delete") && (
+                            <Popover
+                              open={openPopoverId === emp.id}
+                              onOpenChange={(isOpen) =>
+                                setOpenPopoverId(isOpen ? emp.id! : null)
+                              }
+                            >
+                              <PopoverTrigger asChild>
+                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </PopoverTrigger>
 
-                            <PopoverContent className="w-56 space-y-3">
-                              <p className="text-sm">
-                                Yakin ingin menghapus karyawan ini?
-                              </p>
+                              <PopoverContent className="w-56 space-y-3">
+                                <p className="text-sm">
+                                  Yakin ingin menghapus karyawan ini?
+                                </p>
 
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setOpenPopoverId(null)}
-                                >
-                                  Batal
-                                </Button>
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setOpenPopoverId(null)}
+                                  >
+                                    Batal
+                                  </Button>
 
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDelete(emp.id!)}
-                                >
-                                  Hapus
-                                </Button>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDelete(emp.id!)}
+                                  >
+                                    Hapus
+                                  </Button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
                         </div>
                       </td>
                     </tr>

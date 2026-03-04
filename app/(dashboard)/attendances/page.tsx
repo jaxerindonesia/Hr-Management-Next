@@ -21,15 +21,11 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { AttendanceDto } from "@/lib/dto/attendance";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import DetailData from "./components/detail-data";
+import { usePermission } from "@/lib/helper/check-role";
 
 export default function AttendancePage() {
+  const { checkRole, checkRoleMulti } = usePermission();
   const [selectedRecord, setSelectedRecord] = useState<AttendanceDto | null>(
     null,
   );
@@ -259,35 +255,39 @@ export default function AttendancePage() {
               </div>
             </div>
 
-            {/* AUTO SWITCH BUTTON */}
-            <div className="flex gap-2">
-              {!todayAttendance ? (
-                <Button
-                  onClick={handleCheckIn}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Clock className="w-4 h-4 mr-2" />
-                  Check In
-                </Button>
-              ) : todayAttendance && !todayAttendance.checkOut ? (
-                <Button
-                  onClick={handleCheckOut}
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  <Clock className="w-4 h-4 mr-2" />
-                  Check Out
-                </Button>
-              ) : (
-                <Button
-                  disabled
-                  className="bg-gray-400 text-white cursor-not-allowed"
-                >
-                  Sudah Absen Hari Ini
-                </Button>
-              )}
-            </div>
+            {checkRole("attendances", "create") && (
+              <>
+                {/* AUTO SWITCH BUTTON */}
+                <div className="flex gap-2">
+                  {!todayAttendance ? (
+                    <Button
+                      onClick={handleCheckIn}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Clock className="w-4 h-4 mr-2" />
+                      Check In
+                    </Button>
+                  ) : todayAttendance && !todayAttendance.checkOut ? (
+                    <Button
+                      onClick={handleCheckOut}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Clock className="w-4 h-4 mr-2" />
+                      Check Out
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled
+                      className="bg-gray-400 text-white cursor-not-allowed"
+                    >
+                      Sudah Absen Hari Ini
+                    </Button>
+                  )}
+                </div>
 
-            <div className="flex-1" />
+                <div className="flex-1" />
+              </>
+            )}
 
             {/* Search */}
             <div className="relative w-full sm:w-64">
@@ -336,9 +336,11 @@ export default function AttendancePage() {
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Status
                   </th>
-                  <th className="text-right p-3 font-semibold dark:text-gray-300">
-                    Aksi
-                  </th>
+                  {checkRoleMulti("attendances", ["get-by-id", "delete"]) && (
+                    <th className="text-right p-3 font-semibold dark:text-gray-300">
+                      Aksi
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -395,47 +397,51 @@ export default function AttendancePage() {
 
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => setSelectedRecord(record)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          {checkRole("attendances", "get-by-id") && (
+                            <button
+                              onClick={() => setSelectedRecord(record)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
 
-                          <Popover
-                            open={openPopoverId === record.id}
-                            onOpenChange={(open) =>
-                              setOpenPopoverId(open ? record.id : null)
-                            }
-                          >
-                            <PopoverTrigger asChild>
-                              <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </PopoverTrigger>
+                          {checkRole("attendances", "delete") && (
+                            <Popover
+                              open={openPopoverId === record.id}
+                              onOpenChange={(open) =>
+                                setOpenPopoverId(open ? record.id : null)
+                              }
+                            >
+                              <PopoverTrigger asChild>
+                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </PopoverTrigger>
 
-                            <PopoverContent className="w-56 space-y-3">
-                              <p className="text-sm">
-                                Yakin ingin menghapus data ini?
-                              </p>
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setOpenPopoverId(null)}
-                                >
-                                  Batal
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => handleDelete(record.id)}
-                                >
-                                  Hapus
-                                </Button>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
+                              <PopoverContent className="w-56 space-y-3">
+                                <p className="text-sm">
+                                  Yakin ingin menghapus data ini?
+                                </p>
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setOpenPopoverId(null)}
+                                  >
+                                    Batal
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleDelete(record.id)}
+                                  >
+                                    Hapus
+                                  </Button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
                         </div>
                       </td>
                     </tr>
