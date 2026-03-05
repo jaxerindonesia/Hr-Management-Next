@@ -9,14 +9,24 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    const attendancesWithUser = await Promise.all(
+      attendances.map(async (a) => {
+        const user = await prisma.user.findUnique({
+          where: { id: a.userId },
+          select: { id: true, name: true },
+        });
+        return { ...a, user };
+      }),
+    );
+
     return NextResponse.json({
       message: "Attendances retrieved successfully",
-      data: attendances,
+      data: attendancesWithUser,
     });
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to retrieve attendances data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -25,20 +35,13 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const { 
-      userId,
-      date,
-      checkIn,
-      checkOut,
-      status,
-      notes,
-     } = body;
+    const { userId, date, checkIn, checkOut, status, notes } = body;
 
     if (!userId || !date || !checkIn || !checkOut || !status) {
-        return NextResponse.json(
-            { message: "All attendance fields are required fields" },
-            { status: 400 }
-        );
+      return NextResponse.json(
+        { message: "All attendance fields are required fields" },
+        { status: 400 },
+      );
     }
 
     const existing = await prisma.attendance.findFirst({
@@ -48,7 +51,7 @@ export async function POST(req: NextRequest) {
     if (existing) {
       return NextResponse.json(
         { message: "Attendance already exists for this user" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -68,13 +71,12 @@ export async function POST(req: NextRequest) {
         message: "Attendance successfully created.",
         data: attendance,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to create attendance" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

@@ -1,7 +1,6 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 
 import prisma from "@/lib/prisma";
 
@@ -21,7 +20,7 @@ export async function GET(_: Request, { params }: Params) {
     if (!attendance) {
       return NextResponse.json(
         { message: "Attendance not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -32,7 +31,7 @@ export async function GET(_: Request, { params }: Params) {
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to retrieve attendance" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -63,11 +62,10 @@ export async function PUT(req: Request, { params }: Params) {
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to update attendance" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
 
 export async function DELETE(_: Request, { params }: Params) {
   const p = await params;
@@ -82,7 +80,7 @@ export async function DELETE(_: Request, { params }: Params) {
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to delete attendance" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

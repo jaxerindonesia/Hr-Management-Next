@@ -11,6 +11,10 @@ export interface AttendanceDto {
   checkOutLocation?: LocationData;
   createdAt?: string | null;
   updatedAt?: string | null;
+  user?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface LocationData {
