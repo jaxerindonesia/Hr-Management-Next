@@ -24,6 +24,7 @@ import { usePermission } from "@/lib/helper/check-role";
 
 export default function EmployeesPage() {
   const { checkRole, checkRoleMulti } = usePermission();
+  const [userData, setUserData] = useState({ id: "", role: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -185,6 +186,8 @@ export default function EmployeesPage() {
   ]);
 
   useEffect(() => {
+    const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
+    setUserData(data);
     fetchUsers();
   }, []);
 
@@ -406,9 +409,11 @@ export default function EmployeesPage() {
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Departemen
                   </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Gaji
-                  </th>
+                  {userData.role === "Super Admin" && (
+                    <th className="text-left p-3 font-semibold dark:text-gray-300">
+                      Gaji
+                    </th>
+                  )}
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Status
                   </th>
@@ -438,9 +443,11 @@ export default function EmployeesPage() {
                       <td className="p-3 dark:text-gray-300">
                         {emp.department || "-"}
                       </td>
-                      <td className="p-3 dark:text-gray-300">
-                        {formatCurrency(emp.salary || 0)}
-                      </td>
+                      {userData.role === "Super Admin" && (
+                        <td className="p-3 dark:text-gray-300">
+                          {formatCurrency(emp.salary || 0)}
+                        </td>
+                      )}
                       <td className="p-3">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
