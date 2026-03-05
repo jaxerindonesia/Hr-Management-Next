@@ -266,12 +266,15 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 
   /* Show only the slip card and all its children */
   #slip-print-area,
-  #slip-print-area * {
+  #slip-print-area *,
+  #reimburse-print-area,
+  #reimburse-print-area * {
     visibility: visible !important;
   }
 
   /* Position the slip at the very top-left of the printed page */
-  #slip-print-area {
+  #slip-print-area,
+  #reimburse-print-area {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
