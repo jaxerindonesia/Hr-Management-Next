@@ -44,7 +44,7 @@ export async function GET() {
         const [totalKaryawan, karyawanAktif, pendingSubmissions] = await Promise.all([
             prisma.user.count(),
             prisma.user.count({ where: { status: "active" } }),
-            prisma.submission.count({ where: { status: "pending" } }),
+            prisma.submission.count({ where: { status: "PENDING" } }),
         ]);
 
         // Total gaji bulan ini (paid) — month is stored as Int
