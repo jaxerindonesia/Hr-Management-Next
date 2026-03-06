@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Clock,
   CheckCircle,
@@ -8,7 +8,6 @@ import {
   Search,
   Filter,
   Trash2,
-  Edit,
   ChevronRight,
   ChevronLeft,
   Eye,
@@ -60,10 +59,14 @@ export default function AttendancePage() {
     startIndex,
     startIndex + itemsPerPage,
   );
-
-  const fetchAttendance = async () => {
+  const fetchAttendance = async (user: any) => {
     try {
-      const res = await fetch("/api/attendances");
+      const url =
+        user.role === "Super Admin"
+          ? "/api/attendances"
+          : `/api/attendances/user/${user.id}`;
+
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Gagal mengambil data attendance");
 
       const json = await res.json();
@@ -113,7 +116,7 @@ export default function AttendancePage() {
           if (!res.ok) throw new Error();
 
           toast.success("Berhasil Check In");
-          fetchAttendance();
+          fetchAttendance(userData);
         },
         () => {
           toast.error("Gagal mendapatkan lokasi");
@@ -153,7 +156,7 @@ export default function AttendancePage() {
           if (!res.ok) throw new Error();
 
           toast.success("Berhasil Check Out");
-          fetchAttendance();
+          fetchAttendance(userData);
         },
         () => {
           toast.error("Gagal mendapatkan lokasi");
@@ -173,7 +176,7 @@ export default function AttendancePage() {
       if (!res.ok) throw new Error();
 
       toast.success("Data berhasil dihapus");
-      fetchAttendance();
+      fetchAttendance(userData);
     } catch (err) {
       toast.error("Gagal menghapus data");
     } finally {
@@ -212,10 +215,9 @@ export default function AttendancePage() {
   };
 
   useEffect(() => {
-    fetchAttendance();
-
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
+    fetchAttendance(data);
   }, []);
 
   useEffect(() => {
@@ -321,6 +323,11 @@ export default function AttendancePage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b dark:border-gray-700">
+                  {userData.role === "Super Admin" && (
+                    <th className="text-left p-3 font-semibold dark:text-gray-300">
+                      Nama Karyawan
+                    </th>
+                  )}
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Tanggal
                   </th>
@@ -350,6 +357,11 @@ export default function AttendancePage() {
                       key={record.id}
                       className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
+                      {userData.role === "Super Admin" && (
+                        <td className="p-3 dark:text-gray-300">
+                          {record?.user?.name}
+                        </td>
+                      )}
                       <td className="p-3 font-medium dark:text-white">
                         {new Date(record.date).toLocaleDateString("id-ID", {
                           weekday: "short",

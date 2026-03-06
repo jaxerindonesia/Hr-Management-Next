@@ -44,10 +44,11 @@ export async function GET() {
           { model: "payrolls", action: "create" },
           { model: "payrolls", action: "update" },
 
-          { model: "payrolls", action: "get-all" },
-          { model: "payrolls", action: "get-by-id" },
-          { model: "payrolls", action: "create" },
-          { model: "payrolls", action: "update" },
+          { model: "reimbursements", action: "get-all" },
+          { model: "reimbursements", action: "get-by-id" },
+          { model: "reimbursements", action: "create" },
+          { model: "reimbursements", action: "update" },
+          { model: "reimbursements", action: "delete" },
 
           { model: "performances", action: "get-all" },
           { model: "performances", action: "get-by-id" },

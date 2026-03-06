@@ -30,6 +30,7 @@ export default function DesktopNavbar() {
       payrolls: "Payroll",
       performances: "Penilaian Kinerja",
       roles: "Roles",
+      reimbursements: "Reimbursement",
     };
     return titles[path || "dashboard"] || "Dashboard";
   };
