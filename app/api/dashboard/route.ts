@@ -44,11 +44,12 @@ export async function GET() {
       });
     }
 
+    // Stat cards
     const [totalKaryawan, karyawanAktif, pendingSubmissions] =
       await Promise.all([
         prisma.user.count(),
         prisma.user.count({ where: { status: "active" } }),
-        prisma.submission.count({ where: { status: "pending" } }),
+        prisma.submission.count({ where: { status: "PENDING" } }),
       ]);
 
     const gajiAggregate = await prisma.payroll.aggregate({
