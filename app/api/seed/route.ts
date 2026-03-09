@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     // ===============================
-    // ROLE PERMISSIONS (STANDARD)
+    // ROLE PERMISSIONS
     // ===============================
 
     const roles = [
@@ -56,7 +56,6 @@ export async function GET() {
           { model: "performances", action: "update" },
         ],
       },
-
       {
         name: "Karyawan",
         permission: [
@@ -86,7 +85,6 @@ export async function GET() {
           data: roleData,
         });
       } else {
-        // 🔥 update permission kalau sudah ada
         role = await prisma.role.update({
           where: { id: existingRole.id },
           data: {
@@ -99,7 +97,35 @@ export async function GET() {
     }
 
     // ===============================
-    // USERS SEED
+    // DEPARTMENTS
+    // ===============================
+
+    const departmentNames = ["Management", "IT"];
+
+    const createdDepartments = [];
+
+    for (const name of departmentNames) {
+      let department = await prisma.department.findUnique({
+        where: { name },
+      });
+
+      if (!department) {
+        department = await prisma.department.create({
+          data: { name },
+        });
+      }
+
+      createdDepartments.push(department);
+    }
+
+    const managementDept = createdDepartments.find(
+      (d) => d.name === "Management",
+    );
+
+    const itDept = createdDepartments.find((d) => d.name === "IT");
+
+    // ===============================
+    // USERS
     // ===============================
 
     const adminRole = createdRoles.find((r) => r.name === "Super Admin");
@@ -107,7 +133,7 @@ export async function GET() {
 
     if (!adminRole || !employeeRole) {
       return NextResponse.json(
-        { message: "Gagal membuat role" },
+        { message: "Role tidak ditemukan" },
         { status: 500 },
       );
     }
@@ -125,7 +151,7 @@ export async function GET() {
         currentToken: "",
         nik: "ADM001",
         position: "Head of IT",
-        department: "Management",
+        departmentId: managementDept?.id,
         joinDate: new Date(),
       },
       {
@@ -137,7 +163,7 @@ export async function GET() {
         currentToken: "",
         nik: "EMP001",
         position: "Staff",
-        department: "IT",
+        departmentId: itDept?.id,
         joinDate: new Date(),
       },
     ];
@@ -153,6 +179,7 @@ export async function GET() {
         user = await prisma.user.create({
           data: userData,
         });
+
         createdUsers.push(user);
       }
     }
@@ -160,10 +187,17 @@ export async function GET() {
     return NextResponse.json({
       message: "Seed berhasil",
       roles: createdRoles,
+      departments: createdDepartments,
       newUsers: createdUsers,
       credentials: {
-        admin: { email: "admin@company.com", password: "password" },
-        employee: { email: "karyawan@company.com", password: "password" },
+        admin: {
+          email: "admin@company.com",
+          password: "password",
+        },
+        employee: {
+          email: "karyawan@company.com",
+          password: "password",
+        },
       },
     });
   } catch (error) {

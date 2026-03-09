@@ -45,6 +45,7 @@ interface AttendancePoint {
 interface DeptDist {
   name: string;
   value: number;
+  [key: string]: string | number;
 }
 
 interface RecentSubmission {
@@ -79,8 +80,14 @@ interface DashboardData {
 // Helpers
 // ──────────────────────────────────
 const PIE_COLORS = [
-  "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444",
-  "#06b6d4", "#ec4899", "#84cc16",
+  "#3b82f6",
+  "#8b5cf6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#06b6d4",
+  "#ec4899",
+  "#84cc16",
 ];
 
 const generateHolidays = (year: number) => [
@@ -110,7 +117,9 @@ const getNextHolidays = () => {
       const [y, m, d] = h.date.split("-").map(Number);
       const target = new Date(y, m - 1, d);
       target.setHours(0, 0, 0, 0);
-      const daysLeft = Math.ceil((target.getTime() - today.getTime()) / 86400000);
+      const daysLeft = Math.ceil(
+        (target.getTime() - today.getTime()) / 86400000,
+      );
       return { ...h, daysLeft };
     })
     .filter((h) => h.daysLeft >= 0)
@@ -189,7 +198,7 @@ export default function DashboardPage() {
         const u = JSON.parse(userData);
         setUserRole(u.role);
         setUserName(u.name);
-      } catch (_) { }
+      } catch (_) {}
     }
 
     setCurrentTime(new Date());
@@ -231,8 +240,13 @@ export default function DashboardPage() {
     );
   }
 
-  const { stats, attendanceChart, departmentDist, recentSubmissions, newEmployees } =
-    data!;
+  const {
+    stats,
+    attendanceChart,
+    departmentDist,
+    recentSubmissions,
+    newEmployees,
+  } = data!;
 
   return (
     <div className="space-y-6">
@@ -316,7 +330,10 @@ export default function DashboardPage() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={attendanceChart} barSize={18} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(150,150,150,0.15)" />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="rgba(150,150,150,0.15)"
+                />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 11, fill: "#9ca3af" }}
@@ -340,12 +357,20 @@ export default function DashboardPage() {
                 />
                 <Legend
                   wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-                  formatter={(v) =>
-                    v === "hadir" ? "Hadir" : "Tidak Hadir"
-                  }
+                  formatter={(v) => (v === "hadir" ? "Hadir" : "Tidak Hadir")}
                 />
-                <Bar dataKey="hadir" fill="#3b82f6" radius={[4, 4, 0, 0]} name="hadir" />
-                <Bar dataKey="absen" fill="#f87171" radius={[4, 4, 0, 0]} name="absen" />
+                <Bar
+                  dataKey="hadir"
+                  fill="#3b82f6"
+                  radius={[4, 4, 0, 0]}
+                  name="hadir"
+                />
+                <Bar
+                  dataKey="absen"
+                  fill="#f87171"
+                  radius={[4, 4, 0, 0]}
+                  name="absen"
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -376,10 +401,7 @@ export default function DashboardPage() {
                   dataKey="value"
                 >
                   {departmentDist.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={PIE_COLORS[i % PIE_COLORS.length]}
-                    />
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -419,15 +441,26 @@ export default function DashboardPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 text-left dark:border-gray-700">
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Karyawan</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Jenis</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Periode</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">
+                      Karyawan
+                    </th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">
+                      Jenis
+                    </th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">
+                      Periode
+                    </th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {recentSubmissions.map((s) => (
-                    <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <tr
+                      key={s.id}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
                       <td className="py-3 font-medium dark:text-white">
                         {s.user?.name ?? "-"}
                       </td>
@@ -435,14 +468,23 @@ export default function DashboardPage() {
                         {s.submissionType?.name ?? "-"}
                       </td>
                       <td className="py-3 text-gray-500 dark:text-gray-400 text-xs">
-                        {new Date(s.startDate).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                        {new Date(s.startDate).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                        })}
                         {" – "}
-                        {new Date(s.endDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                        {new Date(s.endDate).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </td>
                       <td className="py-3">
                         <span
-                          className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColor[s.status] ?? "bg-gray-500/20 text-gray-400"
-                            }`}
+                          className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                            statusColor[s.status] ??
+                            "bg-gray-500/20 text-gray-400"
+                          }`}
                         >
                           {statusLabel[s.status] ?? s.status}
                         </span>
@@ -461,7 +503,9 @@ export default function DashboardPage() {
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-4 flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-emerald-500" />
-              <h3 className="font-semibold dark:text-white">Karyawan Terbaru</h3>
+              <h3 className="font-semibold dark:text-white">
+                Karyawan Terbaru
+              </h3>
             </div>
             {newEmployees.length === 0 ? (
               <p className="text-center text-sm text-gray-400 py-4">
@@ -483,10 +527,11 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <span
-                      className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${e.status === "active"
+                      className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                        e.status === "active"
                           ? "bg-emerald-500/20 text-emerald-400"
                           : "bg-gray-500/20 text-gray-400"
-                        }`}
+                      }`}
                     >
                       {e.status === "active" ? "Aktif" : "Nonaktif"}
                     </span>
