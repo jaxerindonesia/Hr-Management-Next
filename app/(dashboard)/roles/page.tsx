@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -16,22 +16,19 @@ import { usePermission } from "@/lib/helper/check-role";
 export default function RolesPage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [roles, setRoles] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [userData, setUserData] = useState({ role: "" });
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState<RoleDto>({
     name: "",
     permission: {},
   });
 
-  const itemsPerPage = 5;
-
-  // Pagination
+  const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
-
-  const totalPages = Math.ceil(roles.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedRoles = roles.slice(startIndex, startIndex + itemsPerPage);
+  const totalPages = Math.ceil(total / itemsPerPage);
 
   const handleOpenModal = (data?: RoleDto) => {
     if (data) setFormData(data);
@@ -59,16 +56,22 @@ export default function RolesPage() {
     }
   };
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     try {
-      const res = await fetch("/api/roles");
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(itemsPerPage));
+      if (searchTerm) params.set("search", searchTerm);
+
+      const res = await fetch(`/api/roles?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal mengambil data role");
       const json = await res.json();
       setRoles(json.data || []);
+      setTotal(json.total || 0);
     } catch (err) {
       toast.error("Gagal mengambil data role");
     }
-  };
+  }, [currentPage, searchTerm]);
 
   const renderPermissions = (permission: any) => {
     if (Array.isArray(permission)) {
@@ -136,9 +139,17 @@ export default function RolesPage() {
     );
   };
 
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Fetch data when page or search changes
   useEffect(() => {
     fetchRoles();
+  }, [fetchRoles]);
 
+  useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
   }, []);
@@ -160,6 +171,25 @@ export default function RolesPage() {
                 <div className="flex-1" />
               </>
             )}
+
+            {/* Search */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Cari nama role..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="px-4 py-2 pl-4 pr-10 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -190,7 +220,7 @@ export default function RolesPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedRoles.map((role) => (
+                  roles.map((role) => (
                     <tr
                       key={role.id}
                       className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -255,52 +285,69 @@ export default function RolesPage() {
               </tbody>
             </table>
           </div>
+
           {/* Pagination Controls */}
           <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Menampilkan{" "}
-              {Math.min(startIndex + itemsPerPage, paginatedRoles.length)} dari{" "}
-              {paginatedRoles.length} data
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {roles.length}
+              </span>{" "}
+              dari{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {total}
+              </span>{" "}
+              data
+              {totalPages > 0 && (
+                <span>
+                  {" "}
+                  — Halaman {currentPage} dari {totalPages}
+                </span>
+              )}
             </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page
-                          ? "bg-blue-600 text-white"
-                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ),
-                )}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === page
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
+            )}
           </div>
         </div>
       </div>

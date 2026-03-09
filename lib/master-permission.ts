@@ -8,6 +8,10 @@ export const MASTER_PERMISSIONS = [
     actions: ["get-all", "get-by-id", "create", "update", "delete"],
   },
   {
+    model: "departments",
+    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+  },
+  {
     model: "submissions",
     actions: ["get-all", "get-by-id", "create", "update", "delete"],
   },

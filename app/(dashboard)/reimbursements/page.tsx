@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   CheckCircle,
@@ -59,6 +59,7 @@ const ITEMS_PER_PAGE = 10;
 export default function ReimbursementsPage() {
   const { checkRole } = usePermission();
   const [reimbursements, setReimbursements] = useState<ReimbursementDto[]>([]);
+  const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,46 +76,42 @@ export default function ReimbursementsPage() {
   });
 
   // Filters
-  const [filterName, setFilterName] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
 
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+
   const activeFilterCount = [
-    filterName !== "",
+    searchTerm !== "",
     filterCategory !== "all",
     filterStatus !== "all",
   ].filter(Boolean).length;
 
   const clearFilters = () => {
-    setFilterName("");
+    setSearchTerm("");
     setFilterCategory("all");
     setFilterStatus("all");
   };
 
-  const filtered = reimbursements.filter((r) => {
-    const matchName =
-      r.user?.name?.toLowerCase().includes(filterName.toLowerCase()) ?? true;
-    const matchCat = filterCategory === "all" || r.category === filterCategory;
-    const matchStatus = filterStatus === "all" || r.status === filterStatus;
-    return matchName && matchCat && matchStatus;
-  });
-
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginated = filtered.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/reimbursements");
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(ITEMS_PER_PAGE));
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterCategory !== "all") params.set("category", filterCategory);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+
+      const res = await fetch(`/api/reimbursements?${params.toString()}`);
       if (!res.ok) throw new Error();
       const json = await res.json();
       setReimbursements(json.data || []);
+      setTotal(json.total || 0);
     } catch {
       toast.error("Gagal memuat data reimbursement");
     }
-  };
+  }, [currentPage, searchTerm, filterCategory, filterStatus]);
 
   const handleOpenModal = (data?: ReimbursementDto) => {
     setFormData(
@@ -186,15 +183,20 @@ export default function ReimbursementsPage() {
     }
   };
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterCategory, filterStatus]);
+
+  // Fetch data when page or filters change
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
   }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterName, filterCategory, filterStatus]);
 
   return (
     <div className="space-y-6">
@@ -250,13 +252,13 @@ export default function ReimbursementsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  Nama Karyawan
+                  Cari
                 </label>
                 <input
                   type="text"
-                  value={filterName}
-                  onChange={(e) => setFilterName(e.target.value)}
-                  placeholder="Filter nama..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Nama karyawan atau judul..."
                   className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -295,6 +297,44 @@ export default function ReimbursementsPage() {
                 </select>
               </div>
             </div>
+
+            {activeFilterCount > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {searchTerm && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Cari: {searchTerm}
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterCategory !== "all" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Kategori: {filterCategory}
+                    <button
+                      onClick={() => setFilterCategory("all")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+                {filterStatus !== "all" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                    Status: {STATUS_LABEL[filterStatus] || filterStatus}
+                    <button
+                      onClick={() => setFilterStatus("all")}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -326,8 +366,8 @@ export default function ReimbursementsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginated.length > 0 ? (
-                paginated.map((r) => (
+              {reimbursements.length > 0 ? (
+                reimbursements.map((r) => (
                   <tr
                     key={r.id}
                     className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -459,20 +499,23 @@ export default function ReimbursementsPage() {
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Menampilkan{" "}
             <span className="font-semibold text-gray-900 dark:text-white">
-              {filtered.length}
+              {reimbursements.length}
             </span>{" "}
             dari{" "}
             <span className="font-semibold text-gray-900 dark:text-white">
-              {reimbursements.length}
+              {total}
             </span>{" "}
             data
+            {totalPages > 0 && (
+              <span>
+                {" "}
+                — Halaman {currentPage} dari {totalPages}
+              </span>
+            )}
           </div>
 
-          {filtered.length > 0 && (
+          {totalPages > 1 && (
             <div className="flex items-center gap-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Halaman {currentPage} dari {totalPages}
-              </p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}

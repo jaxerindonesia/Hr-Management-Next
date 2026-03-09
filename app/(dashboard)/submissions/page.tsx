@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   CheckCircle,
   XCircle,
   Trash2,
-  Search,
   Edit,
   ChevronLeft,
   ChevronRight,
@@ -30,6 +29,7 @@ import { usePermission } from "@/lib/helper/check-role";
 export default function SubmissionsPage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [submissions, setSubmissions] = useState<SubmissionDto[]>([]);
+  const [total, setTotal] = useState(0);
   const [submissionType, setSubmissionType] = useState<SubmissionTypeDto[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -39,14 +39,12 @@ export default function SubmissionsPage() {
   const [userData, setUserData] = useState({ id: "", role: "" });
 
   // Filter states
-  const [filterName, setFilterName] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterStartDate, setFilterStartDate] = useState("");
-  const [filterEndDate, setFilterEndDate] = useState("");
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(total / itemsPerPage);
 
   const [formData, setFormData] = useState<SubmissionDto>({
     userId: "",
@@ -60,76 +58,44 @@ export default function SubmissionsPage() {
   });
 
   const clearAllFilters = () => {
-    setFilterName("");
     setFilterType("all");
     setFilterStatus("all");
-    setFilterStartDate("");
-    setFilterEndDate("");
     setSearchTerm("");
   };
 
   const activeFilterCount = [
-    filterName !== "",
     filterType !== "all",
     filterStatus !== "all",
-    filterStartDate !== "",
-    filterEndDate !== "",
+    searchTerm !== "",
   ].filter(Boolean).length;
 
-  const filtered = submissions.filter((emp) => {
-    // const matchesSearch =
-    //   emp.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    //   emp.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    //   emp.startDate.includes(searchTerm);
-
-    // const matchesName = emp.employeeName.toLowerCase().includes(filterName.toLowerCase());
-    // const matchesType = filterType === "all" || emp.type === filterType;
-    // const matchesStatus = filterStatus === "all" || emp.status === filterStatus;
-
-    // let matchesStartDate = true;
-    // if (filterStartDate) {
-    //   matchesStartDate = emp.startDate >= filterStartDate;
-    // }
-
-    // let matchesEndDate = true;
-    // if (filterEndDate) {
-    //   matchesEndDate = emp.endDate <= filterEndDate;
-    // }
-
-    // const matchesTypeParam = typeParam
-    //   ? emp.type.toLowerCase().includes(typeParam.toLowerCase())
-    //   : true;
-
-    // const matchesUser = userData?.role === "Super Admin" || emp.employeeName === userName;
-
-    // return matchesSearch && matchesName && matchesType && matchesStatus &&
-    //        matchesStartDate && matchesEndDate && matchesTypeParam && matchesUser;
-    return true;
-  });
-
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedLeaves = filtered.slice(startIndex, startIndex + itemsPerPage);
-
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = useCallback(async () => {
     try {
-      const res = await fetch("/api/submissions");
-      if (!res.ok) throw new Error("Gagal mengambil data cuti");
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(itemsPerPage));
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+      if (filterType !== "all") params.set("submissionTypeId", filterType);
+
+      const res = await fetch(`/api/submissions?${params.toString()}`);
+      if (!res.ok) throw new Error("Gagal mengambil data pengajuan");
       const json = await res.json();
       setSubmissions(json.data || []);
+      setTotal(json.total || 0);
     } catch (error) {
-      toast.error("Gagal memuat data cuti");
+      toast.error("Gagal memuat data pengajuan");
     }
-  };
+  }, [currentPage, searchTerm, filterStatus, filterType]);
 
   const fetchSubmissionType = async () => {
     try {
       const res = await fetch("/api/submission-types");
-      if (!res.ok) throw new Error("Gagal mengambil data cuti");
+      if (!res.ok) throw new Error("Gagal mengambil data jenis pengajuan");
       const json = await res.json();
       setSubmissionType(json.data || []);
     } catch (error) {
-      toast.error("Gagal memuat data cuti");
+      toast.error("Gagal memuat data jenis pengajuan");
     }
   };
 
@@ -162,11 +128,11 @@ export default function SubmissionsPage() {
           approvedAt: new Date(),
         }),
       });
-      if (!res.ok) throw new Error("Gagal menyetujui pengajuan cuti");
-      toast.success("Pengajuan cuti berhasil disetujui!");
+      if (!res.ok) throw new Error("Gagal menyetujui pengajuan");
+      toast.success("Pengajuan berhasil disetujui!");
       fetchSubmissions();
     } catch (error) {
-      toast.error("Gagal menyetujui pengajuan cuti");
+      toast.error("Gagal menyetujui pengajuan");
     }
   };
 
@@ -180,11 +146,11 @@ export default function SubmissionsPage() {
           approvedAt: new Date(),
         }),
       });
-      if (!res.ok) throw new Error("Gagal menolak pengajuan cuti");
-      toast.success("Pengajuan cuti berhasil ditolak!");
+      if (!res.ok) throw new Error("Gagal menolak pengajuan");
+      toast.success("Pengajuan berhasil ditolak!");
       fetchSubmissions();
     } catch (error) {
-      toast.error("Gagal menolak pengajuan cuti");
+      toast.error("Gagal menolak pengajuan");
     }
   };
 
@@ -193,32 +159,29 @@ export default function SubmissionsPage() {
       const res = await fetch(`/api/submissions/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Gagal menghapus pengajuan cuti");
-      toast.success("Pengajuan cuti berhasil dihapus!");
+      if (!res.ok) throw new Error("Gagal menghapus pengajuan");
+      toast.success("Pengajuan berhasil dihapus!");
       fetchSubmissions();
     } catch (error) {
-      toast.error("Gagal menghapus pengajuan cuti");
+      toast.error("Gagal menghapus pengajuan");
     }
   };
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType, filterStatus]);
+
+  // Fetch data when page or filters change
   useEffect(() => {
     fetchSubmissions();
-    fetchSubmissionType();
+  }, [fetchSubmissions]);
 
+  useEffect(() => {
+    fetchSubmissionType();
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
   }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    searchTerm,
-    filterName,
-    filterType,
-    filterStatus,
-    filterStartDate,
-    filterEndDate,
-  ]);
 
   return (
     <div className="space-y-6">
@@ -245,6 +208,26 @@ export default function SubmissionsPage() {
               <div className="flex-1" />
             </>
           )}
+
+          {/* Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Cari nama karyawan..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 py-2 pl-4 pr-10 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
           <button
             onClick={() => setShowFilterPanel(!showFilterPanel)}
             className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
@@ -267,7 +250,7 @@ export default function SubmissionsPage() {
           <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900 dark:text-white">
-                Filter Data Cuti/Izin
+                Filter Data Pengajuan
               </h3>
               {activeFilterCount > 0 && (
                 <button
@@ -281,24 +264,10 @@ export default function SubmissionsPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Name Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  Nama Karyawan
-                </label>
-                <input
-                  type="text"
-                  value={filterName}
-                  onChange={(e) => setFilterName(e.target.value)}
-                  placeholder="Filter nama..."
-                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
               {/* Type Filter */}
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  Jenis Cuti
+                  Jenis Pengajuan
                 </label>
                 <select
                   value={filterType}
@@ -330,42 +299,16 @@ export default function SubmissionsPage() {
                   <option value="REJECTED">Ditolak</option>
                 </select>
               </div>
-
-              {/* Start Date Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  Dari Tanggal
-                </label>
-                <input
-                  type="date"
-                  value={filterStartDate}
-                  onChange={(e) => setFilterStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* End Date Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  Sampai Tanggal
-                </label>
-                <input
-                  type="date"
-                  value={filterEndDate}
-                  onChange={(e) => setFilterEndDate(e.target.value)}
-                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
             </div>
 
             {/* Active Filters Display */}
             {activeFilterCount > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
-                {filterName && (
+                {searchTerm && (
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                    Nama: {filterName}
+                    Pencarian: {searchTerm}
                     <button
-                      onClick={() => setFilterName("")}
+                      onClick={() => setSearchTerm("")}
                       className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
                     >
                       <X className="w-3 h-3" />
@@ -374,7 +317,9 @@ export default function SubmissionsPage() {
                 )}
                 {filterType !== "all" && (
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                    Jenis: {filterType}
+                    Jenis:{" "}
+                    {submissionType.find((t) => t.id === filterType)?.name ||
+                      filterType}
                     <button
                       onClick={() => setFilterType("all")}
                       className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
@@ -393,28 +338,6 @@ export default function SubmissionsPage() {
                         : "Ditolak"}
                     <button
                       onClick={() => setFilterStatus("all")}
-                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
-                {filterStartDate && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                    Dari: {filterStartDate}
-                    <button
-                      onClick={() => setFilterStartDate("")}
-                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
-                {filterEndDate && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                    Sampai: {filterEndDate}
-                    <button
-                      onClick={() => setFilterEndDate("")}
                       className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
                     >
                       <X className="w-3 h-3" />
@@ -456,8 +379,8 @@ export default function SubmissionsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedLeaves.length > 0 ? (
-                paginatedLeaves.map((emp) => (
+              {submissions.length > 0 ? (
+                submissions.map((emp) => (
                   <tr
                     key={emp.id}
                     className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -584,7 +507,7 @@ export default function SubmissionsPage() {
                     colSpan={7}
                     className="p-8 text-center text-gray-500 dark:text-gray-400"
                   >
-                    Tidak ada data cuti/izin yang ditemukan
+                    Tidak ada data pengajuan yang ditemukan
                   </td>
                 </tr>
               )}
@@ -597,57 +520,56 @@ export default function SubmissionsPage() {
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Menampilkan{" "}
             <span className="font-semibold text-gray-900 dark:text-white">
-              {filtered.length}
+              {submissions.length}
             </span>{" "}
             dari{" "}
             <span className="font-semibold text-gray-900 dark:text-white">
-              {submissions.length}
+              {total}
             </span>{" "}
             data
+            {totalPages > 0 && (
+              <span>
+                {" "}
+                — Halaman {currentPage} dari {totalPages}
+              </span>
+            )}
           </div>
 
-          {filtered.length > 0 && (
-            <div className="flex items-center gap-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Halaman {currentPage} dari {totalPages}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                          currentPage === page
-                            ? "bg-blue-600 text-white"
-                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    ),
-                  )}
-                </div>
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === page
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ),
+                )}
               </div>
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           )}
         </div>

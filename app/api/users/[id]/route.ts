@@ -42,10 +42,10 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.email) updateData.email = body.email;
     if (body.name) updateData.name = body.name;
     if (body.roleId) updateData.roleId = body.roleId;
+    if (body.departmentId) updateData.departmentId = body.departmentId;
     if (body.nik) updateData.nik = body.nik;
     if (body.phone) updateData.phone = body.phone;
     if (body.position) updateData.position = body.position;
-    if (body.department) updateData.department = body.department;
     if (body.salary !== undefined) updateData.salary = body.salary;
 
     if (body.joinDate) {

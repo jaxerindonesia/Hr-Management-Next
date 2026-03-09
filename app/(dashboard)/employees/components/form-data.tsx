@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DepartmentDto } from "@/lib/dto/department";
 
 export default function FormData({
   initialData,
@@ -36,16 +37,18 @@ export default function FormData({
 }) {
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<RoleDto[]>([]);
+  const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [rePassword, setRePassword] = useState("");
   const [formData, setFormData] = useState<UserDto>(
     initialData || {
       roleId: "",
+      departmentId: "",
+      department: null,
       nik: "",
       name: "",
       email: "",
       phone: "",
       position: "",
-      department: "",
       joinDate: "",
       salary: 0,
       status: "active",
@@ -61,6 +64,17 @@ export default function FormData({
       setRoles(json.data || []);
     } catch (err) {
       toast.error("Gagal memuat role");
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch("/api/departments");
+      if (!res.ok) throw new Error("Gagal mengambil data departemen");
+      const json = await res.json();
+      setDepartments(json.data || []);
+    } catch (err) {
+      toast.error("Gagal memuat departemen");
     }
   };
 
@@ -107,6 +121,7 @@ export default function FormData({
 
   useEffect(() => {
     fetchRoles();
+    fetchDepartments();
   }, []);
 
   return (
@@ -150,21 +165,23 @@ export default function FormData({
               <Label className="block text-sm font-medium dark:text-gray-300">
                 Departemen *
               </Label>
+
               <Select
-                value={formData.department || ""}
+                value={formData.departmentId || ""}
                 onValueChange={(val) =>
-                  setFormData({ ...formData, department: val })
+                  setFormData({ ...formData, departmentId: val })
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Pilih Departemen" />
+                  <SelectValue placeholder={"Pilih Departemen"} />
                 </SelectTrigger>
+
                 <SelectContent>
-                  <SelectItem value="IT">IT</SelectItem>
-                  <SelectItem value="HR">HR</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Finance">Finance</SelectItem>
-                  <SelectItem value="Operations">Operations</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id ?? ""}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -253,7 +270,7 @@ export default function FormData({
               </Label>
               <Input
                 type="date"
-                value={formData.joinDate || ""}
+                value={formData.joinDate ? formData.joinDate.split("T")[0] : ""}
                 onChange={(e) =>
                   setFormData({
                     ...formData,

@@ -3,25 +3,55 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const attendances = await prisma.attendance.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "";
+    const startDate = searchParams.get("startDate") || "";
+    const endDate = searchParams.get("endDate") || "";
 
-    const attendancesWithUser = await Promise.all(
-      attendances.map(async (a) => {
-        const user = await prisma.user.findUnique({
-          where: { id: a.userId },
-          select: { id: true, name: true },
-        });
-        return { ...a, user };
+    const where: any = {};
+
+    if (search) {
+      where.user = {
+        name: { contains: search, mode: "insensitive" },
+      };
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) where.date.gte = new Date(startDate);
+      if (endDate) where.date.lte = new Date(endDate);
+    }
+
+    const [attendances, total] = await Promise.all([
+      prisma.attendance.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          user: {
+            select: { id: true, name: true },
+          },
+        },
       }),
-    );
+      prisma.attendance.count({ where }),
+    ]);
 
     return NextResponse.json({
       message: "Attendances retrieved successfully",
-      data: attendancesWithUser,
+      data: attendances,
+      total,
+      page,
+      limit,
     });
   } catch (error) {
     return NextResponse.json(

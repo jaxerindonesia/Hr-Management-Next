@@ -9,12 +9,13 @@ export async function GET() {
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
-    // Last 7 days for attendance chart
     const last7Days: { date: string; hadir: number; absen: number }[] = [];
+
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
+
       const nextD = new Date(d);
       nextD.setDate(nextD.getDate() + 1);
 
@@ -43,7 +44,6 @@ export async function GET() {
       });
     }
 
-    // Stat cards
     const [totalKaryawan, karyawanAktif, pendingSubmissions] =
       await Promise.all([
         prisma.user.count(),
@@ -51,50 +51,73 @@ export async function GET() {
         prisma.submission.count({ where: { status: "pending" } }),
       ]);
 
-    // Total gaji bulan ini (paid) — month is stored as Int
     const gajiAggregate = await prisma.payroll.aggregate({
       _sum: { totalSalary: true },
-      where: { month: currentMonth, year: currentYear, status: "paid" },
+      where: {
+        month: currentMonth,
+        year: currentYear,
+        status: "paid",
+      },
     });
+
     const totalGajiBulanIni = gajiAggregate._sum.totalSalary ?? 0;
 
-    // Department distribution
     const users = await prisma.user.findMany({
-      select: { department: true },
+      select: {
+        department: {
+          select: {
+            name: true,
+          },
+        },
+      },
     });
+
     const deptMap: Record<string, number> = {};
+
     for (const u of users) {
-      const dept = u.department ?? "Lainnya";
+      const dept = u.department?.name ?? "Lainnya";
       deptMap[dept] = (deptMap[dept] ?? 0) + 1;
     }
+
     const departmentDist = Object.entries(deptMap).map(([name, value]) => ({
       name,
       value,
     }));
 
-    // Recent submissions (latest 5)
     const recentSubmissions = await prisma.submission.findMany({
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 10,
       include: {
         user: { select: { name: true } },
         submissionType: { select: { name: true } },
       },
     });
 
-    // Latest employees joined (latest 5)
-    const newEmployees = await prisma.user.findMany({
+    const newEmployeesRaw = await prisma.user.findMany({
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 10,
       select: {
         id: true,
         name: true,
         position: true,
-        department: true,
         joinDate: true,
         status: true,
+        department: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
+
+    const newEmployees = newEmployeesRaw.map((u) => ({
+      id: u.id,
+      name: u.name,
+      position: u.position,
+      joinDate: u.joinDate,
+      status: u.status,
+      department: u.department?.name ?? null,
+    }));
 
     return NextResponse.json({
       message: "Dashboard data retrieved successfully",
@@ -113,6 +136,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Dashboard API error:", error);
+
     return NextResponse.json(
       { message: "Failed to retrieve dashboard data" },
       { status: 500 },

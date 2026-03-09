@@ -3,29 +3,55 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const submissions = await prisma.submission.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "";
+    const submissionTypeId = searchParams.get("submissionTypeId") || "";
 
-    const submissionsWithDetails = await Promise.all(
-      submissions.map(async (s) => {
-        const user = await prisma.user.findUnique({
-          where: { id: s.userId },
-          select: { id: true, name: true },
-        });
-        const submissionType = await prisma.submissionType.findUnique({
-          where: { id: s.submissionTypeId },
-          select: { id: true, name: true },
-        });
-        return { ...s, user, submissionType };
+    const where: any = {};
+
+    if (search) {
+      where.user = {
+        name: { contains: search, mode: "insensitive" },
+      };
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (submissionTypeId) {
+      where.submissionTypeId = submissionTypeId;
+    }
+
+    const [submissions, total] = await Promise.all([
+      prisma.submission.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          user: {
+            select: { id: true, name: true },
+          },
+          submissionType: {
+            select: { id: true, name: true },
+          },
+        },
       }),
-    );
+      prisma.submission.count({ where }),
+    ]);
 
     return NextResponse.json({
       message: "Submissions retrieved successfully",
-      data: submissionsWithDetails,
+      data: submissions,
+      total,
+      page,
+      limit,
     });
   } catch (error) {
     return NextResponse.json(

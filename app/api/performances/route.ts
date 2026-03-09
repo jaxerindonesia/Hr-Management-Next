@@ -3,32 +3,60 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-type PerformanceItem = Awaited<ReturnType<typeof prisma.performance.findMany>>[number];
-
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const performance = await prisma.performance.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
+    const search = searchParams.get("search") || "";
+    const period = searchParams.get("period") || "";
+    const scoreFilter = searchParams.get("score") || "";
 
-    const performanceWithUser = await Promise.all(
-      performance.map(async (p: PerformanceItem) => {
-        const user = await prisma.user.findUnique({
-          where: { id: p.userId },
-          select: { id: true, name: true },
-        });
-        return { ...p, user };
-      })
-    );
+    const where: any = {};
+
+    if (search) {
+      where.user = {
+        name: { contains: search, mode: "insensitive" },
+      };
+    }
+
+    if (period) {
+      where.period = period;
+    }
+
+    if (scoreFilter) {
+      if (scoreFilter === "excellent") where.totalScore = { gte: 4.5 };
+      else if (scoreFilter === "good") where.totalScore = { gte: 3.5, lt: 4.5 };
+      else if (scoreFilter === "fair") where.totalScore = { gte: 2.5, lt: 3.5 };
+      else if (scoreFilter === "poor") where.totalScore = { lt: 2.5 };
+    }
+
+    const [performances, total] = await Promise.all([
+      prisma.performance.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          user: {
+            select: { id: true, name: true },
+          },
+        },
+      }),
+      prisma.performance.count({ where }),
+    ]);
 
     return NextResponse.json({
       message: "Performance retrieved successfully",
-      data: performanceWithUser,
+      data: performances,
+      total,
+      page,
+      limit,
     });
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to retrieve performance data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -48,11 +76,19 @@ export async function POST(req: NextRequest) {
       evaluatedBy,
     } = body;
 
-    if (!userId || !period || !productivity || !quality || !teamwork || !discipline || !evaluatedBy) {
-        return NextResponse.json(
-            { message: "All performance fields are required fields" },
-            { status: 400 }
-        );
+    if (
+      !userId ||
+      !period ||
+      !productivity ||
+      !quality ||
+      !teamwork ||
+      !discipline ||
+      !evaluatedBy
+    ) {
+      return NextResponse.json(
+        { message: "All performance fields are required fields" },
+        { status: 400 },
+      );
     }
 
     const existing = await prisma.performance.findFirst({
@@ -62,11 +98,11 @@ export async function POST(req: NextRequest) {
     if (existing) {
       return NextResponse.json(
         { message: "Performance already exists for this user" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
-   const totalScore =
+    const totalScore =
       (Number(productivity) +
         Number(quality) +
         Number(teamwork) +
@@ -93,14 +129,13 @@ export async function POST(req: NextRequest) {
         message: "Performance successfully created.",
         data: performance,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error(error);
     return NextResponse.json(
       { message: "Failed to create performance" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

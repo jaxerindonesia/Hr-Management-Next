@@ -5,20 +5,53 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import prisma from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const reimbursements = await prisma.reimbursement.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        user: {
-          select: { id: true, name: true, position: true, department: true },
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
+    const search = searchParams.get("search") || "";
+    const category = searchParams.get("category") || "";
+    const status = searchParams.get("status") || "";
+
+    const where: any = {};
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { user: { name: { contains: search, mode: "insensitive" } } },
+      ];
+    }
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    const [reimbursements, total] = await Promise.all([
+      prisma.reimbursement.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          user: {
+            select: { id: true, name: true, position: true, department: true },
+          },
         },
-      },
-    });
+      }),
+      prisma.reimbursement.count({ where }),
+    ]);
 
     return NextResponse.json({
       message: "Reimbursements retrieved successfully",
       data: reimbursements,
+      total,
+      page,
+      limit,
     });
   } catch (error) {
     return NextResponse.json(

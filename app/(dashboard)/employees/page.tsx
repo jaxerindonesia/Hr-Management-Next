@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   Edit,
@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Filter,
   X,
+  Settings,
 } from "lucide-react";
 import { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
@@ -21,22 +22,27 @@ import { toast } from "sonner";
 import FormData from "./components/form-data";
 import { Button } from "@/components/ui/button";
 import { usePermission } from "@/lib/helper/check-role";
+import ModalDepartment from "./components/modal-department";
+import { DepartmentDto } from "@/lib/dto/department";
 
 export default function EmployeesPage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [userData, setUserData] = useState({ id: "", role: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [employees, setEmployees] = useState<UserDto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [formData, setFormData] = useState<UserDto>({
     roleId: "",
+    departmentId: "",
     nik: "",
     name: "",
     email: "",
     phone: "",
     position: "",
-    department: "",
     joinDate: "",
     salary: 0,
     password: "",
@@ -45,23 +51,12 @@ export default function EmployeesPage() {
 
   // Filter states
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
-  const [filterPosition, setFilterPosition] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterName, setFilterName] = useState("");
-  const [filterNip, setFilterNip] = useState("");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 
-  const itemsPerPage = 5;
-
-  // Get unique departments, positions, and statuses for filter options
-  const uniqueDepartments = Array.from(
-    new Set(employees.map((emp) => emp.department)),
-  ).sort();
-
-  const uniquePositions = Array.from(
-    new Set(employees.map((emp) => emp.position)),
-  ).sort();
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(total / itemsPerPage);
 
   const handleOpenModal = (data?: UserDto) => {
     if (data) setFormData(data);
@@ -72,12 +67,13 @@ export default function EmployeesPage() {
     setShowModal(false);
     setFormData({
       roleId: "",
+      departmentId: "",
+      department: null,
       nik: "",
       name: "",
       email: "",
       phone: "",
       position: "",
-      department: "",
       joinDate: "",
       salary: 0,
       password: "",
@@ -100,95 +96,62 @@ export default function EmployeesPage() {
 
   const clearAllFilters = () => {
     setFilterDepartment("all");
-    setFilterPosition("all");
     setFilterStatus("all");
-    setFilterName("");
-    setFilterNip("");
     setSearchTerm("");
   };
 
   // Count active filters
   const activeFilterCount = [
     filterDepartment !== "all",
-    filterPosition !== "all",
     filterStatus !== "all",
-    filterName !== "",
-    filterNip !== "",
+    searchTerm !== "",
   ].filter(Boolean).length;
 
-  // Apply all filters
-  const filteredEmployees = employees.filter((emp) => {
-    // Search filter
-    const matchesSearch =
-      emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (emp.nik?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
-      (emp.position?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
-      (emp.department?.toLowerCase() ?? "").includes(searchTerm.toLowerCase());
-
-    // Specific Name filter
-    const matchesName = (emp.name ?? "")
-      .toLowerCase()
-      .includes(filterName.toLowerCase());
-
-    // Specific NIK filter
-    const matchesNip = (emp.nik ?? "")
-      .toLowerCase()
-      .includes(filterNip.toLowerCase());
-
-    // Department filter
-    const matchesDepartment =
-      filterDepartment === "all" || emp.department === filterDepartment;
-
-    // Position filter
-    const matchesPosition =
-      filterPosition === "all" || emp.position === filterPosition;
-
-    // Status filter
-    const matchesStatus = filterStatus === "all" || emp.status === filterStatus;
-
-    return (
-      matchesSearch &&
-      matchesName &&
-      matchesNip &&
-      matchesDepartment &&
-      matchesPosition &&
-      matchesStatus
-    );
-  });
-
-  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedEmployees = filteredEmployees.slice(
-    startIndex,
-    startIndex + itemsPerPage,
-  );
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
-      const res = await fetch("/api/users");
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(itemsPerPage));
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+      if (filterDepartment !== "all")
+        params.set("departmentId", filterDepartment);
+
+      const res = await fetch(`/api/users?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal mengambil data karyawan");
       const json = await res.json();
       setEmployees(json.data || []);
+      setTotal(json.total || 0);
     } catch (err) {
       toast.error("Gagal memuat data karyawan");
     }
+  }, [currentPage, searchTerm, filterStatus, filterDepartment]);
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch("/api/departments");
+      if (!res.ok) throw new Error("Gagal mengambil data departemen");
+      const json = await res.json();
+      setDepartments(json.data || []);
+    } catch (err) {
+      toast.error("Gagal memuat departemen");
+    }
   };
 
+  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [
-    searchTerm,
-    filterDepartment,
-    filterPosition,
-    filterStatus,
-    filterName,
-    filterNip,
-  ]);
+  }, [searchTerm, filterDepartment, filterStatus]);
+
+  // Fetch data when page or filters change
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
-    fetchUsers();
+    fetchDepartments();
   }, []);
 
   return (
@@ -196,6 +159,15 @@ export default function EmployeesPage() {
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+            {checkRole("departments", "create") && (
+              <button
+                onClick={() => setShowDepartmentModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <Settings className="w-4 h-4" /> Kelola Departemen
+              </button>
+            )}
+
             {checkRole("users", "create") && (
               <>
                 <button
@@ -208,6 +180,25 @@ export default function EmployeesPage() {
                 <div className="flex-1"></div>
               </>
             )}
+
+            {/* Search */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Cari nama, NIK, posisi..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="px-4 py-2 pl-4 pr-10 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
             <button
               onClick={() => setShowFilterPanel(!showFilterPanel)}
@@ -246,34 +237,6 @@ export default function EmployeesPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Name Filter */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Nama Karyawan
-                  </label>
-                  <input
-                    type="text"
-                    value={filterName}
-                    onChange={(e) => setFilterName(e.target.value)}
-                    placeholder="Filter nama..."
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* NIK Filter */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    NIK
-                  </label>
-                  <input
-                    type="text"
-                    value={filterNip}
-                    onChange={(e) => setFilterNip(e.target.value)}
-                    placeholder="Filter NIK..."
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
                 {/* Department Filter */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
@@ -285,28 +248,9 @@ export default function EmployeesPage() {
                     className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="all">Semua Departemen</option>
-                    {uniqueDepartments.map((dept) => (
-                      <option key={dept} value={dept!}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Position Filter */}
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Posisi
-                  </label>
-                  <select
-                    value={filterPosition}
-                    onChange={(e) => setFilterPosition(e.target.value)}
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Semua Posisi</option>
-                    {uniquePositions.map((pos) => (
-                      <option key={pos} value={pos!}>
-                        {pos}
+                    {departments.map((dept) => (
+                      <option key={dept?.id} value={dept?.id!}>
+                        {dept?.name}
                       </option>
                     ))}
                   </select>
@@ -332,22 +276,11 @@ export default function EmployeesPage() {
               {/* Active Filters Display */}
               {activeFilterCount > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {filterName && (
+                  {searchTerm && (
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Nama: {filterName}
+                      Pencarian: {searchTerm}
                       <button
-                        onClick={() => setFilterName("")}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filterNip && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      NIK: {filterNip}
-                      <button
-                        onClick={() => setFilterNip("")}
+                        onClick={() => setSearchTerm("")}
                         className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
                       >
                         <X className="w-3 h-3" />
@@ -356,20 +289,11 @@ export default function EmployeesPage() {
                   )}
                   {filterDepartment !== "all" && (
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Departemen: {filterDepartment}
+                      Departemen:{" "}
+                      {departments.find((d) => d.id === filterDepartment)
+                        ?.name || filterDepartment}
                       <button
                         onClick={() => setFilterDepartment("all")}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filterPosition !== "all" && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Posisi: {filterPosition}
-                      <button
-                        onClick={() => setFilterPosition("all")}
                         className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
                       >
                         <X className="w-3 h-3" />
@@ -425,8 +349,8 @@ export default function EmployeesPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedEmployees.length > 0 ? (
-                  paginatedEmployees.map((emp) => (
+                {employees.length > 0 ? (
+                  employees.map((emp) => (
                     <tr
                       key={emp.id}
                       className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -441,7 +365,7 @@ export default function EmployeesPage() {
                         {emp.position || "-"}
                       </td>
                       <td className="p-3 dark:text-gray-300">
-                        {emp.department || "-"}
+                        {emp.department?.name || "-"}
                       </td>
                       {userData.role === "Super Admin" && (
                         <td className="p-3 dark:text-gray-300">
@@ -530,57 +454,58 @@ export default function EmployeesPage() {
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Menampilkan{" "}
               <span className="font-semibold text-gray-900 dark:text-white">
-                {filteredEmployees.length}
+                {employees.length}
               </span>{" "}
               dari{" "}
               <span className="font-semibold text-gray-900 dark:text-white">
-                {employees.length}
+                {total}
               </span>{" "}
               karyawan
+              {totalPages > 0 && (
+                <span>
+                  {" "}
+                  — Halaman {currentPage} dari {totalPages}
+                </span>
+              )}
             </div>
 
-            {filteredEmployees.length > 0 && (
-              <div className="flex items-center gap-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Halaman {currentPage} dari {totalPages}
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.max(prev - 1, 1))
-                    }
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (page) => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                            currentPage === page
-                              ? "bg-blue-600 text-white"
-                              : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                  <button
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                    }
-                    disabled={currentPage === totalPages}
-                    className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === page
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
                 </div>
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
@@ -593,6 +518,11 @@ export default function EmployeesPage() {
           onClose={handleCloseModal}
           onSuccess={fetchUsers}
         />
+      )}
+
+      {/* Department Management Modal */}
+      {showDepartmentModal && (
+        <ModalDepartment onClose={() => setShowDepartmentModal(false)} />
       )}
     </>
   );

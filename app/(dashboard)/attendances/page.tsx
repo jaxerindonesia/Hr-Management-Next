@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Clock,
   CheckCircle,
@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Eye,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -32,6 +33,7 @@ export default function AttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceDto[]>(
     [],
   );
+  const [total, setTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [currentTime, setCurrentTime] = useState("");
@@ -41,51 +43,61 @@ export default function AttendancePage() {
     null,
   );
 
-  const filteredRecords = attendanceRecords.filter((record) => {
-    const matchesSearch = record.date
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(total / itemsPerPage);
 
-    const matchesFilter =
-      filterStatus === "all" || record.status === filterStatus;
+  const fetchAttendance = useCallback(
+    async (user: any) => {
+      try {
+        if (!user?.id) return;
 
-    return matchesSearch && matchesFilter;
-  });
+        if (user.role === "Super Admin") {
+          // Server-side pagination for admin
+          const params = new URLSearchParams();
+          params.set("page", String(currentPage));
+          params.set("limit", String(itemsPerPage));
+          if (searchQuery) params.set("search", searchQuery);
+          if (filterStatus !== "all") params.set("status", filterStatus);
 
-  const itemsPerPage = 5;
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedRecords = filteredRecords.slice(
-    startIndex,
-    startIndex + itemsPerPage,
+          const res = await fetch(`/api/attendances?${params.toString()}`);
+          if (!res.ok) throw new Error("Gagal mengambil data attendance");
+
+          const json = await res.json();
+          setAttendanceRecords(json.data || []);
+          setTotal(json.total || 0);
+        } else {
+          // For regular users, fetch their own data (usually small)
+          const res = await fetch(`/api/attendances/user/${user.id}`);
+          if (!res.ok) throw new Error("Gagal mengambil data attendance");
+
+          const json = await res.json();
+          const data = json.data || [];
+          setAttendanceRecords(data);
+          setTotal(data.length);
+        }
+
+        // Check today's attendance (separate call without pagination)
+        const todayRes = await fetch(
+          user.role === "Super Admin"
+            ? `/api/attendances?limit=999`
+            : `/api/attendances/user/${user.id}`,
+        );
+        if (todayRes.ok) {
+          const todayJson = await todayRes.json();
+          const allData = todayJson.data || [];
+          const todayStr = new Date().toISOString().split("T")[0];
+          const today = allData.find((item: AttendanceDto) => {
+            const itemDate = new Date(item.date).toISOString().split("T")[0];
+            return itemDate === todayStr;
+          });
+          setTodayAttendance(today || null);
+        }
+      } catch (err) {
+        toast.error("Gagal memuat data attendance");
+      }
+    },
+    [currentPage, searchQuery, filterStatus],
   );
-  const fetchAttendance = async (user: any) => {
-    try {
-      const url =
-        user.role === "Super Admin"
-          ? "/api/attendances"
-          : `/api/attendances/user/${user.id}`;
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Gagal mengambil data attendance");
-
-      const json = await res.json();
-      const data = json.data || [];
-
-      setAttendanceRecords(data);
-
-      // cek attendance hari ini
-      const todayStr = new Date().toISOString().split("T")[0];
-
-      const today = data.find((item: AttendanceDto) => {
-        const itemDate = new Date(item.date).toISOString().split("T")[0];
-        return itemDate === todayStr;
-      });
-      setTodayAttendance(today || null);
-    } catch (err) {
-      toast.error("Gagal memuat data attendance");
-    }
-  };
 
   const handleCheckIn = async () => {
     try {
@@ -214,10 +226,21 @@ export default function AttendancePage() {
     }
   };
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStatus]);
+
+  // Fetch data when page or filters change
+  useEffect(() => {
+    if (userData.id) {
+      fetchAttendance(userData);
+    }
+  }, [fetchAttendance, userData]);
+
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
-    fetchAttendance(data);
   }, []);
 
   useEffect(() => {
@@ -237,6 +260,7 @@ export default function AttendancePage() {
 
     return () => clearInterval(interval);
   }, []);
+
   return (
     <>
       <div className="space-y-6">
@@ -296,11 +320,19 @@ export default function AttendancePage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Cari tanggal..."
+                placeholder="Cari nama karyawan..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* Filter */}
@@ -351,8 +383,8 @@ export default function AttendancePage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedRecords.length > 0 ? (
-                  filteredRecords.map((record) => (
+                {attendanceRecords.length > 0 ? (
+                  attendanceRecords.map((record) => (
                     <tr
                       key={record.id}
                       className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -477,57 +509,58 @@ export default function AttendancePage() {
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Menampilkan{" "}
               <span className="font-semibold text-gray-900 dark:text-white">
-                {filteredRecords.length}
+                {attendanceRecords.length}
               </span>{" "}
               dari{" "}
               <span className="font-semibold text-gray-900 dark:text-white">
-                {attendanceRecords.length}
+                {total}
               </span>{" "}
               kehadiran
+              {totalPages > 0 && (
+                <span>
+                  {" "}
+                  — Halaman {currentPage} dari {totalPages}
+                </span>
+              )}
             </div>
 
-            {filteredRecords.length > 0 && (
-              <div className="flex items-center gap-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Halaman {currentPage} dari {totalPages}
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.max(prev - 1, 1))
-                    }
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (page) => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                            currentPage === page
-                              ? "bg-blue-600 text-white"
-                              : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                  <button
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                    }
-                    disabled={currentPage === totalPages}
-                    className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === page
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
                 </div>
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>

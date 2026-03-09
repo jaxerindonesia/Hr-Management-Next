@@ -3,23 +3,42 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const roles = await prisma.role.findMany({
-      orderBy: { name: "asc" },
-    });
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
+    const search = searchParams.get("search") || "";
+
+    const where: any = {};
+
+    if (search) {
+      where.name = { contains: search, mode: "insensitive" };
+    }
+
+    const [roles, total] = await Promise.all([
+      prisma.role.findMany({
+        where,
+        orderBy: { name: "asc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.role.count({ where }),
+    ]);
 
     return NextResponse.json({
       message: "Roles retrieved successfully",
       data: roles,
+      total,
+      page,
+      limit,
     });
-
   } catch (error) {
     console.error("GET ROLES ERROR:", error);
 
     return NextResponse.json(
       { message: "Failed to retrieve role data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -33,7 +52,7 @@ export async function POST(req: Request) {
     if (!name || !permissions) {
       return NextResponse.json(
         { message: "Name and permissions must be filled in." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -49,14 +68,14 @@ export async function POST(req: Request) {
         message: "Role successfully created.",
         data: role,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("CREATE ROLE ERROR:", error);
 
     return NextResponse.json(
       { message: "Failed to create role" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

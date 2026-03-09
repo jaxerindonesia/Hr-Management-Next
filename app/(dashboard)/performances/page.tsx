@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   ChevronLeft,
@@ -27,6 +27,7 @@ export default function PerformancePage() {
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [performances, setPerformances] = useState<PerformanceDto[]>([]);
+  const [total, setTotal] = useState(0);
   const [formData, setFormData] = useState<PerformanceDto>({
     userId: "",
     period: "",
@@ -39,18 +40,14 @@ export default function PerformancePage() {
     evaluatedBy: "",
   });
 
-  // Filter states>
+  // Filter states
   const [filterPeriod, setFilterPeriod] = useState<string>("all");
   const [filterScore, setFilterScore] = useState<string>("all");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 
-  const itemsPerPage = 5;
-
-  // Get unique periods
-  const uniquePeriods = Array.from(
-    new Set(performances.map((p) => p.period)),
-  ).sort();
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(total / itemsPerPage);
 
   const clearAllFilters = () => {
     setFilterPeriod("all");
@@ -63,32 +60,6 @@ export default function PerformancePage() {
     filterScore !== "all",
     searchTerm !== "",
   ].filter(Boolean).length;
-
-  const filteredPerformances = performances.filter((perf) => {
-    const matchesSearch = perf.period
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-
-    const matchesPeriod =
-      filterPeriod === "all" || perf.period === filterPeriod;
-
-    let matchesScore = true;
-    if (filterScore === "excellent") matchesScore = perf.totalScore >= 4.5;
-    else if (filterScore === "good")
-      matchesScore = perf.totalScore >= 3.5 && perf.totalScore < 4.5;
-    else if (filterScore === "fair")
-      matchesScore = perf.totalScore >= 2.5 && perf.totalScore < 3.5;
-    else if (filterScore === "poor") matchesScore = perf.totalScore < 2.5;
-
-    return matchesSearch && matchesPeriod && matchesScore;
-  });
-
-  const totalPages = Math.ceil(filteredPerformances.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedPerformances = filteredPerformances.slice(
-    startIndex,
-    startIndex + itemsPerPage,
-  );
 
   const handleOpenModal = (data?: PerformanceDto) => {
     if (data) setFormData(data);
@@ -140,24 +111,34 @@ export default function PerformancePage() {
     </div>
   );
 
-  const fetchPerformances = async () => {
+  const fetchPerformances = useCallback(async () => {
     try {
-      const res = await fetch("/api/performances");
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(itemsPerPage));
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterPeriod !== "all") params.set("period", filterPeriod);
+      if (filterScore !== "all") params.set("score", filterScore);
+
+      const res = await fetch(`/api/performances?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal mengambil data kinerja");
       const json = await res.json();
       setPerformances(json.data || []);
+      setTotal(json.total || 0);
     } catch (err) {
       toast.error("Gagal mengambil data kinerja");
     }
-  };
+  }, [currentPage, searchTerm, filterPeriod, filterScore]);
 
+  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterPeriod, filterScore]);
 
+  // Fetch data when page or filters change
   useEffect(() => {
     fetchPerformances();
-  }, []);
+  }, [fetchPerformances]);
 
   return (
     <>
@@ -227,18 +208,13 @@ export default function PerformancePage() {
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
                     Periode
                   </label>
-                  <select
-                    value={filterPeriod}
-                    onChange={(e) => setFilterPeriod(e.target.value)}
+                  <input
+                    type="text"
+                    value={filterPeriod === "all" ? "" : filterPeriod}
+                    onChange={(e) => setFilterPeriod(e.target.value || "all")}
+                    placeholder="Contoh: Q1 2024"
                     className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Semua Periode</option>
-                    {uniquePeriods.map((period) => (
-                      <option key={period} value={period}>
-                        {period}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
@@ -330,8 +306,8 @@ export default function PerformancePage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedPerformances.length > 0 ? (
-                  paginatedPerformances.map((perf) => (
+                {performances.length > 0 ? (
+                  performances.map((perf) => (
                     <tr
                       key={perf.id}
                       className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -427,48 +403,64 @@ export default function PerformancePage() {
           <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Menampilkan{" "}
-              {Math.min(startIndex + itemsPerPage, filteredPerformances.length)}{" "}
-              dari {filteredPerformances.length} data
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {performances.length}
+              </span>{" "}
+              dari{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {total}
+              </span>{" "}
+              data
+              {totalPages > 0 && (
+                <span>
+                  {" "}
+                  — Halaman {currentPage} dari {totalPages}
+                </span>
+              )}
             </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page
-                          ? "bg-blue-600 text-white"
-                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ),
-                )}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === page
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
+            )}
           </div>
         </div>
       </div>

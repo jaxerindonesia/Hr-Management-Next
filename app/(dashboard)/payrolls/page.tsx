@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Edit,
   Plus,
@@ -28,6 +28,7 @@ import { usePermission } from "@/lib/helper/check-role";
 export default function PayrollPage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [payrolls, setPayrolls] = useState<PayrollDto[]>([]);
+  const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState<PayrollDto>({
@@ -50,7 +51,13 @@ export default function PayrollPage() {
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [selectedSlip, setSelectedSlip] = useState<PayrollDto | null>(null);
 
-  const itemsPerPage = 5;
+  // Summary stats (fetched separately without pagination)
+  const [summaryPaid, setSummaryPaid] = useState(0);
+  const [summaryPending, setSummaryPending] = useState(0);
+  const [summaryTotal, setSummaryTotal] = useState(0);
+
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(total / itemsPerPage);
 
   const handleOpenModal = (data?: PayrollDto) => {
     if (data) setFormData(data);
@@ -79,30 +86,14 @@ export default function PayrollPage() {
       if (!res.ok) throw new Error("Gagal menghapus gaji");
       toast.success("Gaji berhasil dihapus!");
       fetchPayrolls();
+      fetchSummary();
     } catch (error) {
       toast.error("Gagal menghapus gaji");
     }
   };
 
-  // Calculate current month totals
-  const currentMonth = new Date().getMonth();
+  const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-  const currentMonthPayrolls = payrolls.filter((p) => p.year === currentYear);
-  const currentMonthTotal = currentMonthPayrolls.reduce(
-    (sum, p) => sum + p.totalSalary,
-    0,
-  );
-  const currentMonthPaid = currentMonthPayrolls
-    .filter((p) => p.status === "paid")
-    .reduce((sum, p) => sum + p.totalSalary, 0);
-  const currentMonthPending = currentMonthPayrolls
-    .filter((p) => p.status === "pending")
-    .reduce((sum, p) => sum + p.totalSalary, 0);
-
-  // Get unique years for filter
-  const uniqueYears = Array.from(new Set(payrolls.map((p) => p.year))).sort(
-    (a, b) => b - a,
-  );
 
   const clearAllFilters = () => {
     setFilterMonth("all");
@@ -118,47 +109,61 @@ export default function PayrollPage() {
     searchTerm !== "",
   ].filter(Boolean).length;
 
-  const filtered = payrolls.filter((pay) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      pay.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pay.year.toString().includes(searchTerm) ||
-      pay.month.toString().includes(searchTerm);
-
-    const matchesMonth =
-      filterMonth === "all" || pay.month === Number(filterMonth);
-
-    const matchesYear = filterYear === "all" || pay.year === Number(filterYear);
-
-    const matchesStatus = filterStatus === "all" || pay.status === filterStatus;
-
-    return matchesSearch && matchesMonth && matchesYear && matchesStatus;
-  });
-
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedPayrolls = filtered.slice(
-    startIndex,
-    startIndex + itemsPerPage,
-  );
-
-  const fetchPayrolls = async () => {
+  const fetchPayrolls = useCallback(async () => {
     try {
-      const res = await fetch("/api/payrolls");
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(itemsPerPage));
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterMonth !== "all") params.set("month", filterMonth);
+      if (filterYear !== "all") params.set("year", filterYear);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+
+      const res = await fetch(`/api/payrolls?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal mengambil data gaji");
       const json = await res.json();
       setPayrolls(json.data || []);
+      setTotal(json.total || 0);
     } catch (err) {
       toast.error("Gagal memuat data gaji");
     }
+  }, [currentPage, searchTerm, filterMonth, filterYear, filterStatus]);
+
+  // Fetch summary stats (all payrolls for current year, no pagination)
+  const fetchSummary = async () => {
+    try {
+      const res = await fetch(`/api/payrolls?limit=9999&year=${currentYear}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      const all: PayrollDto[] = json.data || [];
+      setSummaryPaid(
+        all
+          .filter((p) => p.status === "paid")
+          .reduce((sum, p) => sum + p.totalSalary, 0),
+      );
+      setSummaryPending(
+        all
+          .filter((p) => p.status === "pending")
+          .reduce((sum, p) => sum + p.totalSalary, 0),
+      );
+      setSummaryTotal(all.reduce((sum, p) => sum + p.totalSalary, 0));
+    } catch {
+      // ignore
+    }
   };
 
+  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterMonth, filterYear, filterStatus]);
 
+  // Fetch data when page or filters change
   useEffect(() => {
     fetchPayrolls();
+  }, [fetchPayrolls]);
+
+  useEffect(() => {
+    fetchSummary();
   }, []);
 
   return (
@@ -174,10 +179,10 @@ export default function PayrollPage() {
                   Gaji Dibayar (Paid)
                 </p>
                 <p className="text-2xl font-bold mt-2">
-                  {formatCurrency(currentMonthPaid)}
+                  {formatCurrency(summaryPaid)}
                 </p>
                 <p className="text-green-200 text-xs mt-1">
-                  {currentMonth} {currentYear}
+                  Tahun {currentYear}
                 </p>
               </div>
               <div className="w-12 h-12 flex items-center justify-center bg-green-400 bg-opacity-30 rounded-full">
@@ -194,10 +199,10 @@ export default function PayrollPage() {
                   Gaji Pending
                 </p>
                 <p className="text-2xl font-bold mt-2">
-                  {formatCurrency(currentMonthPending)}
+                  {formatCurrency(summaryPending)}
                 </p>
                 <p className="text-yellow-200 text-xs mt-1">
-                  {currentMonth} {currentYear}
+                  Tahun {currentYear}
                 </p>
               </div>
               <div className="w-12 h-12 flex items-center justify-center bg-yellow-400 bg-opacity-30 rounded-full">
@@ -214,10 +219,10 @@ export default function PayrollPage() {
                   Total Semua Gaji
                 </p>
                 <p className="text-2xl font-bold mt-2">
-                  {formatCurrency(currentMonthTotal)}
+                  {formatCurrency(summaryTotal)}
                 </p>
                 <p className="text-purple-200 text-xs mt-1">
-                  {currentMonth} {currentYear}
+                  Tahun {currentYear}
                 </p>
               </div>
               <div className="w-12 h-12 flex items-center justify-center bg-purple-400 bg-opacity-30 rounded-full">
@@ -285,7 +290,7 @@ export default function PayrollPage() {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Nama, bulan, atau tahun"
+                    placeholder="Nama karyawan..."
                     className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -310,18 +315,13 @@ export default function PayrollPage() {
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
                     Tahun
                   </label>
-                  <select
-                    value={filterYear}
-                    onChange={(e) => setFilterYear(e.target.value)}
+                  <input
+                    type="number"
+                    value={filterYear === "all" ? "" : filterYear}
+                    onChange={(e) => setFilterYear(e.target.value || "all")}
+                    placeholder="Contoh: 2024"
                     className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Semua Tahun</option>
-                    {uniqueYears.map((year) => (
-                      <option key={year} value={year.toString()}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
@@ -353,7 +353,9 @@ export default function PayrollPage() {
                   )}
                   {filterMonth !== "all" && (
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Bulan: {filterMonth}
+                      Bulan:{" "}
+                      {months.find((m) => m.value === Number(filterMonth))
+                        ?.label || filterMonth}
                       <button
                         onClick={() => setFilterMonth("all")}
                         className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
@@ -422,8 +424,8 @@ export default function PayrollPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedPayrolls.length > 0 ? (
-                  paginatedPayrolls.map((emp) => (
+                {payrolls.length > 0 ? (
+                  payrolls.map((emp) => (
                     <tr
                       key={emp.id}
                       className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -535,48 +537,65 @@ export default function PayrollPage() {
           {/* Pagination Controls */}
           <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Menampilkan {Math.min(startIndex + itemsPerPage, filtered.length)}{" "}
-              dari {filtered.length} data
+              Menampilkan{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {payrolls.length}
+              </span>{" "}
+              dari{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {total}
+              </span>{" "}
+              data
+              {totalPages > 0 && (
+                <span>
+                  {" "}
+                  — Halaman {currentPage} dari {totalPages}
+                </span>
+              )}
             </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page
-                          ? "bg-blue-600 text-white"
-                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ),
-                )}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === page
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -585,7 +604,10 @@ export default function PayrollPage() {
         <FormData
           initialData={formData}
           onClose={handleCloseModal}
-          onSuccess={fetchPayrolls}
+          onSuccess={() => {
+            fetchPayrolls();
+            fetchSummary();
+          }}
         />
       )}
 
