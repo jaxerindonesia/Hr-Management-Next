@@ -53,14 +53,14 @@ export default function DesktopNavbar() {
   }, []);
 
   return (
-    <nav className="hidden lg:block sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-      <div className="flex items-center justify-between px-6 py-4">
+    <nav className="hidden h-[69px] lg:block sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between px-6 py-2 h-full">
         {/* Left Section - Page Title & Date */}
         <div className="flex flex-col">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-[20px] font-bold text-gray-900 dark:text-white">
             {getPageTitle()}
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             {getCurrentDateTime()}
           </p>
         </div>
@@ -81,7 +81,7 @@ export default function DesktopNavbar() {
           </button>
 
           {/* Divider */}
-          <div className="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
+          <div className="h-8 bg-gray-300 dark:bg-gray-600"></div>
 
           {/* User Profile */}
           <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">

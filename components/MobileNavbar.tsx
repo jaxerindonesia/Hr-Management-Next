@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ import {
   LogOut,
   Home,
   ClipboardCheck,
+  Receipt,
 } from "lucide-react";
 
 /**
@@ -73,9 +74,9 @@ export default function MobileNavbar() {
 
   const bottomNavItems = [
     { icon: Home, path: "/dashboard", label: "Home" },
-    { icon: Users, path: "/employees", label: "Karyawan" },
+    { icon: ClipboardCheck, path: "/attendances", label: "Kehadiran" },
     { icon: Calendar, path: "/submissions", label: "Cuti" },
-    { icon: Wallet, path: "/payrolls", label: "Payroll" },
+    { icon: Receipt, path: "/reimbursements", label: "Reimbursement" },
     { icon: TrendingUp, path: "/performances", label: "Kinerja" },
   ];
 
@@ -107,13 +108,32 @@ export default function MobileNavbar() {
         <div className="flex items-center justify-between px-4 h-14">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center">
-            <Image
+            {/* <Image
               src="/logo21.png"
               alt="HR System"
               width={80}
               height={16}
               priority
               className="object-contain"
+            /> */}
+            {/* Logo Light */}
+            <Image
+              src="/logo21.png"
+              alt="HR System Logo"
+              width={80}
+              height={16}
+              priority
+              className="object-contain dark:hidden"
+            />
+
+            {/* Logo Dark */}
+            <Image
+              src="/logo22.png"
+              alt="HR System Logo"
+              width={155}
+              height={16}
+              priority
+              className="object-contain hidden dark:block ml-[-1.5rem]"
             />
           </Link>
 

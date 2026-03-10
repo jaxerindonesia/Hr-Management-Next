@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
       nik,
       phone,
       position,
-      department,
       joinDate,
       salary,
     } = body;
@@ -24,7 +23,7 @@ export async function POST(req: NextRequest) {
     if (!email || !name || !password || !roleId) {
       return NextResponse.json(
         { message: "Email, name, password, and role are required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -35,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (existing) {
       return NextResponse.json(
         { message: "Email already registered" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -52,7 +51,6 @@ export async function POST(req: NextRequest) {
         nik,
         phone,
         position,
-        department,
         joinDate: joinDate ? new Date(joinDate) : null,
         salary,
         currentToken: "",
@@ -71,12 +69,12 @@ export async function POST(req: NextRequest) {
         message: "Registration successful",
         data: user,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to register user" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

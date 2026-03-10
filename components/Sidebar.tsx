@@ -30,7 +30,6 @@ export default function Sidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [userRole, setUserRole] = useState([]);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -140,17 +139,28 @@ export default function Sidebar() {
         ${sidebarOpen ? "md:w-72" : "md:w-20"} w-full h-full lg:h-screen md:sticky md:top-0 md:overflow-y-auto`}
       >
         {/* ===== HEADER ===== */}
-        <div className="h-16 flex items-center justify-center border-b dark:border-gray-700 px-4">
+        <div className="h-[69px] flex items-center justify-center border-b dark:border-gray-700 px-4">
           {sidebarOpen ? (
             <>
               <div className="flex-1 flex justify-start items-center">
+                {/* Logo Light */}
                 <Image
                   src="/logo21.png"
                   alt="HR System Logo"
                   width={100}
                   height={20}
                   priority
-                  className="transition-all duration-300 ease-in-out object-contain"
+                  className="object-contain dark:hidden"
+                />
+
+                {/* Logo Dark */}
+                <Image
+                  src="/logo22.png"
+                  alt="HR System Logo"
+                  width={155}
+                  height={20}
+                  priority
+                  className="object-contain hidden dark:block ml-[-1.5rem]"
                 />
               </div>
               <button
