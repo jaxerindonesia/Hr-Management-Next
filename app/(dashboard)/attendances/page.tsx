@@ -327,6 +327,13 @@ export default function AttendancePage() {
     }
   };
 
+  const statusLabel: Record<string, string> = {
+    Present: "Hadir",
+    Late: "Terlambat",
+    Absent: "Tidak Hadir",
+    "Half Day": "Setengah Hari",
+  };
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -555,7 +562,7 @@ export default function AttendancePage() {
                           )}`}
                         >
                           {getStatusIcon(record.status)}
-                          {record.status}
+                          {statusLabel[record.status] || record.status}
                         </span>
                       </td>
 

@@ -14,6 +14,13 @@ export default function DetailData({
   initialData: AttendanceDto;
   onClose: () => void;
 }) {
+  const statusLabel: Record<string, string> = {
+    Present: "Hadir",
+    Late: "Terlambat",
+    Absent: "Tidak Hadir",
+    "Half Day": "Setengah Hari",
+  };
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
@@ -42,13 +49,14 @@ export default function DetailData({
           </div>
 
           <div>
-            <span className="font-medium">Status:</span> {initialData.status}
+            <span className="font-medium">Status:</span>{" "}
+            {statusLabel[initialData.status] || initialData.status}
           </div>
 
-          <div>
+          {/* <div>
             <span className="font-medium">Notes:</span>{" "}
             {initialData.notes || "-"}
-          </div>
+          </div> */}
 
           {/* CHECK IN LOCATION */}
           {initialData.checkInLocation && (

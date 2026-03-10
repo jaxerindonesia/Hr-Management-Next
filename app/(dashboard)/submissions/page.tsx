@@ -211,10 +211,10 @@ export default function SubmissionsPage() {
         Alasan: emp.reason || "-",
         Status:
           emp.status === "APPROVED"
-            ? "DISETUJUI"
+            ? "Disetujui"
             : emp.status === "REJECTED"
-              ? "DITOLAK"
-              : "MENUNGGU",
+              ? "Ditolak"
+              : "Menunggu",
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -513,10 +513,10 @@ export default function SubmissionsPage() {
                         }`}
                       >
                         {emp.status === "APPROVED"
-                          ? "DISETUJUI"
+                          ? "Disetujui"
                           : emp.status === "REJECTED"
-                            ? "DITOLAK"
-                            : "MENUNGGU"}
+                            ? "Ditolak"
+                            : "Menunggu"}
                       </span>
                     </td>
 

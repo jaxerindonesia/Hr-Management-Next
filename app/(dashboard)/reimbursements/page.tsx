@@ -38,9 +38,9 @@ const CATEGORIES = [
 ];
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "MENUNGGU",
-  approved: "DISETUJUI",
-  rejected: "DITOLAK",
+  pending: "Menunggu",
+  approved: "Disetujui",
+  rejected: "Ditolak",
 };
 
 const STATUS_COLOR: Record<string, string> = {
