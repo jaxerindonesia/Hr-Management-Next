@@ -1,7 +1,7 @@
 export const MASTER_PERMISSIONS = [
   {
     model: "users",
-    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
   {
     model: "roles",
@@ -13,7 +13,7 @@ export const MASTER_PERMISSIONS = [
   },
   {
     model: "submissions",
-    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
   {
     model: "submission_types",
@@ -21,18 +21,18 @@ export const MASTER_PERMISSIONS = [
   },
   {
     model: "attendances",
-    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
   {
     model: "payrolls",
-    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
   {
     model: "performances",
-    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
   {
     model: "reimbursements",
-    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
 ];

@@ -23,13 +23,13 @@ export async function GET() {
         prisma.attendance.count({
           where: {
             date: { gte: d, lt: nextD },
-            status: "Present",
+            status: { in: ["Present", "Half Day"] },
           },
         }),
         prisma.attendance.count({
           where: {
             date: { gte: d, lt: nextD },
-            status: { not: "Present" },
+            status: { notIn: ["Present", "Half Day"] },
           },
         }),
       ]);

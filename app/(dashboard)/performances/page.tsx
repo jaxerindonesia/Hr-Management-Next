@@ -9,6 +9,7 @@ import {
   X,
   Edit,
   Trash2,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PerformanceDto } from "@/lib/dto/performance";
@@ -28,6 +29,7 @@ export default function PerformancePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [performances, setPerformances] = useState<PerformanceDto[]>([]);
   const [total, setTotal] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
   const [formData, setFormData] = useState<PerformanceDto>({
     userId: "",
     period: "",
@@ -94,6 +96,61 @@ export default function PerformancePage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+
+      const params = new URLSearchParams();
+      params.set("limit", "999999");
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterPeriod !== "all") params.set("period", filterPeriod);
+      if (filterScore !== "all") params.set("score", filterScore);
+
+      const res = await fetch(`/api/performances?${params.toString()}`);
+      if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+
+      const json = await res.json();
+      const allData: PerformanceDto[] = json.data || [];
+
+      const XLSX = await import("xlsx");
+
+      const rows = allData.map((perf) => ({
+        "Nama Karyawan": perf.user?.name ?? "-",
+        Periode: perf.period ?? "-",
+        Produktivitas: perf.productivity,
+        Kualitas: perf.quality,
+        Kerjasama: perf.teamwork,
+        Disiplin: perf.discipline,
+        "Total Score": perf.totalScore,
+        Catatan: perf.notes ?? "-",
+        "Dievaluasi Oleh": perf.evaluatedBy ?? "-",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Kinerja");
+
+      // Auto column width
+      const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
+        wch:
+          Math.max(
+            key.length,
+            ...rows.map((r) => String((r as any)[key] ?? "").length),
+          ) + 2,
+      }));
+      worksheet["!cols"] = colWidths;
+
+      const fileName = `data-kinerja-${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      toast.success(`Berhasil mengexport ${allData.length} data kinerja`);
+    } catch (err) {
+      toast.error("Gagal mengexport data");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const StarRating = ({ rating }: { rating: number }) => (
     <div className="flex items-center gap-1">
       {[...Array(5)].map((_, i) => (
@@ -144,24 +201,26 @@ export default function PerformancePage() {
     <>
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
             {checkRole("performances", "create") && (
               <>
-                <button
+                <Button
                   onClick={() => handleOpenModal()}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Plus className="w-4 h-4" /> Tambah
-                </button>
+                </Button>
 
                 <div className="flex-1" />
               </>
             )}
-            <button
+
+            <Button
+              variant="outline"
               onClick={() => setShowFilterPanel(!showFilterPanel)}
               className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
                 showFilterPanel || activeFilterCount > 0
-                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
+                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30  "
                   : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
               }`}
             >
@@ -172,7 +231,20 @@ export default function PerformancePage() {
                   {activeFilterCount}
                 </span>
               )}
-            </button>
+            </Button>
+
+            {/* Export Button */}
+            {checkRole("performances", "get-by-id") && (
+              <Button
+                onClick={handleExport}
+                disabled={isExporting}
+                variant="outline"
+                className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+              >
+                <Download className="w-4 h-4" />
+                {isExporting ? "Mengexport..." : "Export Excel"}
+              </Button>
+            )}
           </div>
 
           {showFilterPanel && (

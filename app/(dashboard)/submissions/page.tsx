@@ -12,6 +12,8 @@ import {
   Settings,
   Filter,
   X,
+  Download,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import FormData from "./components/form-data";
@@ -25,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import ModalType from "./components/modal-type";
 import { usePermission } from "@/lib/helper/check-role";
+import { Input } from "@/components/ui/input";
 
 export default function SubmissionsPage() {
   const { checkRole, checkRoleMulti } = usePermission();
@@ -37,6 +40,7 @@ export default function SubmissionsPage() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [userData, setUserData] = useState({ id: "", role: "" });
+  const [isExporting, setIsExporting] = useState(false);
 
   // Filter states
   const [filterType, setFilterType] = useState<string>("all");
@@ -167,6 +171,77 @@ export default function SubmissionsPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+
+      const params = new URLSearchParams();
+      params.set("limit", "999999");
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+      if (filterType !== "all") params.set("submissionTypeId", filterType);
+
+      const res = await fetch(`/api/submissions?${params.toString()}`);
+      if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+
+      const json = await res.json();
+      const allData: SubmissionDto[] = json.data || [];
+
+      const XLSX = await import("xlsx");
+
+      const rows = allData.map((emp) => ({
+        "Nama Karyawan": emp.user?.name ?? "-",
+        "Jenis Pengajuan": emp.submissionType?.name ?? "-",
+        "Tanggal Mulai": emp.startDate
+          ? new Date(emp.startDate).toLocaleDateString("id-ID", {
+              weekday: "short",
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })
+          : "-",
+        "Tanggal Selesai": emp.endDate
+          ? new Date(emp.endDate).toLocaleDateString("id-ID", {
+              weekday: "short",
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })
+          : "-",
+        Alasan: emp.reason || "-",
+        Status:
+          emp.status === "APPROVED"
+            ? "DISETUJUI"
+            : emp.status === "REJECTED"
+              ? "DITOLAK"
+              : "MENUNGGU",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Pengajuan");
+
+      // Auto column width
+      const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
+        wch:
+          Math.max(
+            key.length,
+            ...rows.map((r) => String((r as any)[key] ?? "").length),
+          ) + 2,
+      }));
+      worksheet["!cols"] = colWidths;
+
+      const fileName = `data-pengajuan-${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      toast.success(`Berhasil mengexport ${allData.length} data pengajuan`);
+    } catch (err) {
+      toast.error("Gagal mengexport data");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -186,53 +261,57 @@ export default function SubmissionsPage() {
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
           {checkRole("submission_types", "create") && (
-            <button
+            <Button
               onClick={() => setShowTypeModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               <Settings className="w-4 h-4" /> Kelola Jenis
-            </button>
+            </Button>
           )}
 
           {checkRole("submissions", "create") && (
             <>
-              <button
+              <Button
                 onClick={() => handleOpenModal()}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-4 h-4" /> Tambah
-              </button>
+              </Button>
 
               <div className="flex-1" />
             </>
           )}
 
           {/* Search */}
-          <div className="relative">
-            <input
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
               type="text"
               placeholder="Cari nama karyawan..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 pl-4 pr-10 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
             {searchTerm && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setSearchTerm("")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             )}
           </div>
 
-          <button
+          <Button
+            variant="outline"
             onClick={() => setShowFilterPanel(!showFilterPanel)}
-            className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+            className={`relative flex items-center gap-2 px-4 py-2 ${
               showFilterPanel
-                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
+                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                 : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
             }`}
           >
@@ -243,7 +322,20 @@ export default function SubmissionsPage() {
                 {activeFilterCount}
               </span>
             )}
-          </button>
+          </Button>
+
+          {/* Export Button */}
+          {checkRole("submissions", "get-by-id") && (
+            <Button
+              onClick={handleExport}
+              disabled={isExporting}
+              variant="outline"
+              className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+            >
+              <Download className="w-4 h-4" />
+              {isExporting ? "Mengexport..." : "Export Excel"}
+            </Button>
+          )}
         </div>
 
         {showFilterPanel && (

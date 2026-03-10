@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Eye,
   X,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -23,6 +24,14 @@ import { Button } from "@/components/ui/button";
 import { AttendanceDto } from "@/lib/dto/attendance";
 import DetailData from "./components/detail-data";
 import { usePermission } from "@/lib/helper/check-role";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function AttendancePage() {
   const { checkRole, checkRoleMulti } = usePermission();
@@ -42,6 +51,7 @@ export default function AttendancePage() {
   const [todayAttendance, setTodayAttendance] = useState<AttendanceDto | null>(
     null,
   );
+  const [isExporting, setIsExporting] = useState(false);
 
   const itemsPerPage = 10;
   const totalPages = Math.ceil(total / itemsPerPage);
@@ -98,6 +108,97 @@ export default function AttendancePage() {
     },
     [currentPage, searchQuery, filterStatus],
   );
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+
+      let allData: AttendanceDto[] = [];
+
+      if (userData.role === "Super Admin") {
+        const params = new URLSearchParams();
+        params.set("limit", "999999");
+        if (searchQuery) params.set("search", searchQuery);
+        if (filterStatus !== "all") params.set("status", filterStatus);
+
+        const res = await fetch(`/api/attendances?${params.toString()}`);
+        if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+
+        const json = await res.json();
+        allData = json.data || [];
+      } else {
+        const res = await fetch(`/api/attendances/user/${userData.id}`);
+        if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+
+        const json = await res.json();
+        allData = json.data || [];
+      }
+
+      const XLSX = await import("xlsx");
+
+      const rows = allData.map((record) => {
+        const tanggal = new Date(record.date).toLocaleDateString("id-ID", {
+          weekday: "short",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+        const checkIn = record.checkIn
+          ? new Date(record.checkIn).toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "-";
+        const checkOut = record.checkOut
+          ? new Date(record.checkOut).toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "-";
+
+        if (userData.role === "Super Admin") {
+          return {
+            "Nama Karyawan": record?.user?.name ?? "-",
+            Tanggal: tanggal,
+            "Check In": checkIn,
+            "Check Out": checkOut,
+            "Jam Kerja": record.workHours ?? "-",
+            Status: record.status,
+          };
+        }
+        return {
+          Tanggal: tanggal,
+          "Check In": checkIn,
+          "Check Out": checkOut,
+          "Jam Kerja": record.workHours ?? "-",
+          Status: record.status,
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Kehadiran");
+
+      // Auto column width
+      const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
+        wch:
+          Math.max(
+            key.length,
+            ...rows.map((r) => String((r as any)[key] ?? "").length),
+          ) + 2,
+      }));
+      worksheet["!cols"] = colWidths;
+
+      const fileName = `data-kehadiran-${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      toast.success(`Berhasil mengexport ${allData.length} data kehadiran`);
+    } catch (err) {
+      toast.error("Gagal mengexport data");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleCheckIn = async () => {
     try {
@@ -265,7 +366,7 @@ export default function AttendancePage() {
     <>
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
             {/* LIVE TIME */}
             <div className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 border dark:border-gray-600">
               <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -318,7 +419,7 @@ export default function AttendancePage() {
             {/* Search */}
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
+              <Input
                 type="text"
                 placeholder="Cari nama karyawan..."
                 value={searchQuery}
@@ -326,30 +427,49 @@ export default function AttendancePage() {
                 className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
               {searchQuery && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-4 h-4" />
-                </button>
+                </Button>
               )}
             </div>
 
             {/* Filter */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
+              <Select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="pl-10 pr-8 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                onValueChange={(value) => setFilterStatus(value)}
               >
-                <option value="all">Semua</option>
-                <option value="Present">Hadir</option>
-                <option value="Late">Terlambat</option>
-                <option value="Absent">Tidak Hadir</option>
-                <option value="Half Day">Setengah Hari</option>
-              </select>
+                <SelectTrigger className="pl-4 pr-8 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white w-[180px]">
+                  <SelectValue placeholder="Semua" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="Present">Hadir</SelectItem>
+                  <SelectItem value="Late">Terlambat</SelectItem>
+                  <SelectItem value="Absent">Tidak Hadir</SelectItem>
+                  <SelectItem value="Half Day">Setengah Hari</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {/* Export Button */}
+            {checkRole("attendances", "export") && (
+              <Button
+                onClick={handleExport}
+                disabled={isExporting}
+                variant="outline"
+                className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+              >
+                <Download className="w-4 h-4" />
+                {isExporting ? "Mengexport..." : "Export Excel"}
+              </Button>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">

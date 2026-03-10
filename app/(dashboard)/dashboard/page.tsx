@@ -363,13 +363,13 @@ export default function DashboardPage() {
                   dataKey="hadir"
                   fill="#3b82f6"
                   radius={[4, 4, 0, 0]}
-                  name="hadir"
+                  name="Hadir"
                 />
                 <Bar
                   dataKey="absen"
                   fill="#f87171"
                   radius={[4, 4, 0, 0]}
-                  name="absen"
+                  name="Absen"
                 />
               </BarChart>
             </ResponsiveContainer>

@@ -10,6 +10,7 @@ import {
   Filter,
   X,
   FileText,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PayrollDto } from "@/lib/dto/payroll";
@@ -31,6 +32,7 @@ export default function PayrollPage() {
   const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
   const [formData, setFormData] = useState<PayrollDto>({
     userId: "",
     month: new Date().getMonth() + 1,
@@ -92,7 +94,79 @@ export default function PayrollPage() {
     }
   };
 
-  const currentMonth = new Date().getMonth() + 1;
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+
+      const params = new URLSearchParams();
+      params.set("limit", "999999");
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterMonth !== "all") params.set("month", filterMonth);
+      if (filterYear !== "all") params.set("year", filterYear);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+
+      const res = await fetch(`/api/payrolls?${params.toString()}`);
+      if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+
+      const json = await res.json();
+      const allData: PayrollDto[] = json.data || [];
+
+      const XLSX = await import("xlsx");
+
+      const rows = allData.map((emp) => ({
+        "Nama Karyawan": emp.user?.name ?? "-",
+        Periode: `${months.find((m) => m.value === emp.month)?.label ?? emp.month} ${emp.year}`,
+        "Gaji Pokok": emp.basicSalary,
+        Tunjangan: emp.allowances,
+        Potongan: emp.deductions,
+        "Total Gaji": emp.totalSalary,
+        Status: emp.status === "paid" ? "Dibayar" : "Pending",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Payroll");
+
+      // Auto column width
+      const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
+        wch:
+          Math.max(
+            key.length,
+            ...rows.map((r) => String((r as any)[key] ?? "").length),
+          ) + 2,
+      }));
+      worksheet["!cols"] = colWidths;
+
+      // Format currency columns
+      const currencyCols = [
+        "Gaji Pokok",
+        "Tunjangan",
+        "Potongan",
+        "Total Gaji",
+      ];
+      currencyCols.forEach((colName) => {
+        const colIndex = Object.keys(rows[0] ?? {}).indexOf(colName);
+        if (colIndex < 0) return;
+        const colLetter = XLSX.utils.encode_col(colIndex);
+        for (let i = 2; i <= rows.length + 1; i++) {
+          const cellRef = `${colLetter}${i}`;
+          if (worksheet[cellRef]) {
+            worksheet[cellRef].z = "#,##0";
+          }
+        }
+      });
+
+      const fileName = `data-payroll-${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      toast.success(`Berhasil mengexport ${allData.length} data payroll`);
+    } catch (err) {
+      toast.error("Gagal mengexport data");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const currentYear = new Date().getFullYear();
 
   const clearAllFilters = () => {
@@ -234,24 +308,25 @@ export default function PayrollPage() {
 
         {/* Payroll Table */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
             {checkRole("payrolls", "create") && (
               <>
-                <button
+                <Button
                   onClick={() => handleOpenModal()}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Plus className="w-4 h-4" /> Proses Gaji
-                </button>
+                </Button>
 
                 <div className="flex-1" />
               </>
             )}
-            <button
+            <Button
+              variant="outline"
               onClick={() => setShowFilterPanel(!showFilterPanel)}
               className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
                 showFilterPanel || activeFilterCount > 0
-                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
+                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                   : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
               }`}
             >
@@ -262,7 +337,20 @@ export default function PayrollPage() {
                   {activeFilterCount}
                 </span>
               )}
-            </button>
+            </Button>
+
+            {/* Export Button */}
+            {checkRole("payrolls", "export") && (
+              <Button
+                onClick={handleExport}
+                disabled={isExporting}
+                variant="outline"
+                className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+              >
+                <Download className="w-4 h-4" />
+                {isExporting ? "Mengexport..." : "Export Excel"}
+              </Button>
+            )}
           </div>
 
           {showFilterPanel && (

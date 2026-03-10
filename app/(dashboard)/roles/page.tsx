@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Search,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -12,6 +20,7 @@ import { toast } from "sonner";
 import { RoleDto } from "@/lib/dto/role";
 import FormData from "./components/form-data";
 import { usePermission } from "@/lib/helper/check-role";
+import { Input } from "@/components/ui/input";
 
 export default function RolesPage() {
   const { checkRole, checkRoleMulti } = usePermission();
@@ -161,33 +170,36 @@ export default function RolesPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
             {checkRole("roles", "create") && (
               <>
-                <button
+                <Button
                   onClick={() => handleOpenModal()}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Plus className="w-4 h-4" /> Tambah
-                </button>
+                </Button>
 
                 <div className="flex-1" />
               </>
             )}
 
             {/* Search */}
-            <div className="relative">
-              <input
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
                 type="text"
                 placeholder="Cari nama role..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="px-4 py-2 pl-4 pr-10 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
               {searchTerm && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-4 h-4" />
-                </button>
+                </Button>
               )}
             </div>
           </div>

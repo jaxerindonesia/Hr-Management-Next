@@ -12,6 +12,7 @@ import {
   Filter,
   X,
   Printer,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -24,6 +25,7 @@ import { usePermission } from "@/lib/helper/check-role";
 import { ReimbursementDto } from "@/lib/dto/reimbursement";
 import ReimbursementFormData from "./components/form-data";
 import SlipReimbursementModal from "./components/slip-reimbursement-modal";
+import { formatCurrency } from "@/lib/helper/format-currency";
 
 const CATEGORIES = [
   "Transportasi",
@@ -34,11 +36,6 @@ const CATEGORIES = [
   "Komunikasi",
   "Lainnya",
 ];
-
-const formatRp = (n: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" })
-    .format(n)
-    .replace("IDR", "Rp");
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "MENUNGGU",
@@ -66,6 +63,7 @@ export default function ReimbursementsPage() {
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [slipData, setSlipData] = useState<ReimbursementDto | null>(null);
   const [userData, setUserData] = useState({ id: "", role: "" });
+  const [isExporting, setIsExporting] = useState(false);
   const [formData, setFormData] = useState<ReimbursementDto>({
     userId: "",
     title: "",
@@ -183,6 +181,76 @@ export default function ReimbursementsPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+
+      const params = new URLSearchParams();
+      params.set("limit", "999999");
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterCategory !== "all") params.set("category", filterCategory);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+
+      const res = await fetch(`/api/reimbursements?${params.toString()}`);
+      if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+
+      const json = await res.json();
+      const allData: ReimbursementDto[] = json.data || [];
+
+      const XLSX = await import("xlsx");
+
+      const rows = allData.map((r) => ({
+        "Nama Karyawan": r.user?.name ?? "-",
+        "Judul Klaim": r.title ?? "-",
+        Kategori: r.category ?? "-",
+        Tanggal: r.date
+          ? new Date(r.date).toLocaleDateString("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })
+          : "-",
+        Nominal: r.amount,
+        Status: STATUS_LABEL[r.status] ?? r.status,
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Reimbursement");
+
+      // Auto column width
+      const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
+        wch:
+          Math.max(
+            key.length,
+            ...rows.map((r) => String((r as any)[key] ?? "").length),
+          ) + 2,
+      }));
+      worksheet["!cols"] = colWidths;
+
+      // Format Nominal column as currency
+      const nominalColIndex = Object.keys(rows[0] ?? {}).indexOf("Nominal");
+      if (nominalColIndex >= 0) {
+        const colLetter = XLSX.utils.encode_col(nominalColIndex);
+        for (let i = 2; i <= rows.length + 1; i++) {
+          const cellRef = `${colLetter}${i}`;
+          if (worksheet[cellRef]) {
+            worksheet[cellRef].z = "#,##0";
+          }
+        }
+      }
+
+      const fileName = `data-reimbursement-${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      toast.success(`Berhasil mengexport ${allData.length} data reimbursement`);
+    } catch (err) {
+      toast.error("Gagal mengexport data");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -201,25 +269,26 @@ export default function ReimbursementsPage() {
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
           {checkRole("reimbursements", "create") && (
             <>
-              <button
+              <Button
                 onClick={() => handleOpenModal()}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-4 h-4" /> Tambah
-              </button>
+              </Button>
 
               <div className="flex-1" />
             </>
           )}
 
-          <button
+          <Button
+            variant="outline"
             onClick={() => setShowFilterPanel(!showFilterPanel)}
             className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
               showFilterPanel
-                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400"
+                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                 : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
             }`}
           >
@@ -230,7 +299,20 @@ export default function ReimbursementsPage() {
                 {activeFilterCount}
               </span>
             )}
-          </button>
+          </Button>
+
+          {/* Export Button */}
+          {checkRole("reimbursements", "get-by-id") && (
+            <Button
+              onClick={handleExport}
+              disabled={isExporting}
+              variant="outline"
+              className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+            >
+              <Download className="w-4 h-4" />
+              {isExporting ? "Mengexport..." : "Export Excel"}
+            </Button>
+          )}
         </div>
 
         {showFilterPanel && (
@@ -343,7 +425,7 @@ export default function ReimbursementsPage() {
             <thead>
               <tr className="border-b dark:border-gray-700">
                 <th className="text-left p-3 font-semibold dark:text-gray-300">
-                  Karyawan
+                  Nama Karyawan
                 </th>
                 <th className="text-left p-3 font-semibold dark:text-gray-300">
                   Judul Klaim
@@ -385,7 +467,7 @@ export default function ReimbursementsPage() {
                       })}
                     </td>
                     <td className="p-3 text-right font-medium dark:text-white">
-                      {formatRp(r.amount)}
+                      {formatCurrency(r.amount)}
                     </td>
                     <td className="p-3">
                       <span
