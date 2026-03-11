@@ -325,7 +325,7 @@ export default function SubmissionsPage() {
           </Button>
 
           {/* Export Button */}
-          {checkRole("submissions", "get-by-id") && (
+          {checkRole("submissions", "export") && (
             <Button
               onClick={handleExport}
               disabled={isExporting}

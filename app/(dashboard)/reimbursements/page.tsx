@@ -302,7 +302,7 @@ export default function ReimbursementsPage() {
           </Button>
 
           {/* Export Button */}
-          {checkRole("reimbursements", "get-by-id") && (
+          {checkRole("reimbursements", "export") && (
             <Button
               onClick={handleExport}
               disabled={isExporting}

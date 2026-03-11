@@ -234,7 +234,7 @@ export default function PerformancePage() {
             </Button>
 
             {/* Export Button */}
-            {checkRole("performances", "get-by-id") && (
+            {checkRole("performances", "export") && (
               <Button
                 onClick={handleExport}
                 disabled={isExporting}
