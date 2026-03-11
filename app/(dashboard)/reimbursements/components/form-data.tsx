@@ -43,6 +43,7 @@ export default function ReimbursementFormData({
   onSuccess: () => void;
 }) {
   const [loading, setLoading] = useState(false);
+  const [userData, setUserData] = useState({ id: "", role: "" });
   const [employees, setEmployees] = useState<UserDto[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
@@ -185,6 +186,20 @@ export default function ReimbursementFormData({
     previewUrl === "pdf" ||
     (!selectedFile && formData.receiptUrl?.toLowerCase().endsWith(".pdf"));
 
+  useEffect(() => {
+    const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
+    setUserData(data);
+  }, []);
+
+  useEffect(() => {
+    if (userData.role && userData.role !== "Super Admin") {
+      setFormData((prev) => ({
+        ...prev,
+        userId: userData.id,
+      }));
+    }
+  }, [userData]);
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -200,14 +215,24 @@ export default function ReimbursementFormData({
             <div className="grid gap-2">
               <Label>Nama Karyawan</Label>
               <Select
-                value={formData.userId || ""}
-                onValueChange={(val) =>
-                  setFormData({ ...formData, userId: val })
+                value={
+                  formData.userId ||
+                  (userData.role !== "Super Admin" ? userData.id : "")
                 }
+                onValueChange={(val) => {
+                  if (userData.role === "Super Admin") {
+                    setFormData({
+                      ...formData,
+                      userId: val,
+                    });
+                  }
+                }}
+                disabled={userData.role !== "Super Admin"}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Pilih Karyawan" />
+                  <SelectValue placeholder={"Pilih Karyawan"} />
                 </SelectTrigger>
+
                 <SelectContent>
                   {employees.map((emp) => (
                     <SelectItem key={emp.id} value={emp.id || ""}>

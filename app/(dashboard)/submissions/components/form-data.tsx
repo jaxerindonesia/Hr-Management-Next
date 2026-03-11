@@ -33,6 +33,7 @@ export default function FormData({
   onSuccess: () => void;
 }) {
   const [loading, setLoading] = useState(false);
+  const [userData, setUserData] = useState({ id: "", role: "" });
   const [submissionType, setSubmissionType] = useState<SubmissionTypeDto[]>([]);
   const [employees, setEmployees] = useState<UserDto[]>([]);
   const [formData, setFormData] = useState<SubmissionDto>(
@@ -102,7 +103,18 @@ export default function FormData({
   useEffect(() => {
     fetchSubmissionTypes();
     fetchEmployees();
+    const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
+    setUserData(data);
   }, []);
+
+  useEffect(() => {
+    if (userData.role && userData.role !== "Super Admin") {
+      setFormData((prev) => ({
+        ...prev,
+        userId: userData.id,
+      }));
+    }
+  }, [userData]);
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -117,17 +129,19 @@ export default function FormData({
           <div className="grid gap-2">
             <Label htmlFor="employeeName">Nama Karyawan</Label>
             <Select
-              value={formData.userId || ""}
+              value={
+                formData.userId ||
+                (userData.role !== "Super Admin" ? userData.id : "")
+              }
               onValueChange={(val) => {
-                const selectedEmployee = employees.find(
-                  (emp) => emp.id === val,
-                );
-
-                setFormData({
-                  ...formData,
-                  userId: val,
-                });
+                if (userData.role === "Super Admin") {
+                  setFormData({
+                    ...formData,
+                    userId: val,
+                  });
+                }
               }}
+              disabled={userData.role !== "Super Admin"}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={"Pilih Karyawan"} />
