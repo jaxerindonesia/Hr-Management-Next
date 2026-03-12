@@ -85,7 +85,7 @@ function SlipContent({ reimbursement }: { reimbursement: ReimbursementDto }) {
             className="bg-white rounded-xl overflow-hidden border border-gray-200 text-gray-800"
         >
             {/* ---- Header ---- */}
-            <div className="bg-gradient-to-r from-emerald-700 to-emerald-500 text-white px-8 py-6">
+            <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white px-8 py-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center">
@@ -93,11 +93,11 @@ function SlipContent({ reimbursement }: { reimbursement: ReimbursementDto }) {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold tracking-wide">JAXER GRUP INDONESIA</h1>
-                            <p className="text-emerald-200 text-sm">Human Resources Department</p>
+                            <p className="text-blue-200 text-sm">Human Resources Department</p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <p className="text-emerald-200 text-xs uppercase tracking-widest font-semibold">
+                        <p className="text-blue-200 text-xs uppercase tracking-widest font-semibold">
                             Bukti Reimbursement
                         </p>
                         <p className="text-lg font-bold">
@@ -112,7 +112,7 @@ function SlipContent({ reimbursement }: { reimbursement: ReimbursementDto }) {
             </div>
 
             {/* ---- Info Karyawan ---- */}
-            <div className="px-8 py-5 bg-emerald-50 border-b border-emerald-100 grid grid-cols-2 gap-4">
+            <div className="px-8 py-5 bg-blue-50 border-b border-blue-100 grid grid-cols-2 gap-4">
                 <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">
                         Nama Karyawan
@@ -206,11 +206,11 @@ function SlipContent({ reimbursement }: { reimbursement: ReimbursementDto }) {
                 </table>
 
                 {/* Total Klaim */}
-                <div className="mt-4 p-4 bg-gradient-to-r from-emerald-600 to-emerald-500 rounded-xl">
+                <div className="mt-4 p-4 bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl">
                     <div className="flex items-center justify-between text-white">
                         <div>
-                            <p className="text-sm text-emerald-100 font-medium">Total Klaim</p>
-                            <p className="text-xs text-emerald-200 mt-0.5">Jumlah yang diklaim karyawan</p>
+                            <p className="text-sm text-blue-100 font-medium">Total Klaim</p>
+                            <p className="text-xs text-blue-200 mt-0.5">Jumlah yang diklaim karyawan</p>
                         </div>
                         <p className="text-2xl font-bold">{formatCurrency(reimbursement.amount)}</p>
                     </div>

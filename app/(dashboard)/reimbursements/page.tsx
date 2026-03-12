@@ -483,7 +483,7 @@ export default function ReimbursementsPage() {
                         {/* Print */}
                         <button
                           onClick={() => setSlipData(r)}
-                          className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg"
+                          className="p-2 text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
                           title="Cetak / Download PDF"
                         >
                           <Printer className="w-4 h-4" />

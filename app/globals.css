@@ -285,11 +285,13 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
     overflow: visible !important;
   }
 
-  /* Remove scroll/clip constraints from parent containers */
+  /* Fix: white background to prevent dark/black bleed-through */
+  /* Fix: height 0 + overflow hidden to collapse body = no blank page 2 */
   body,
   html {
-    overflow: visible !important;
-    height: auto !important;
+    background: white !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
 
   /* Force colors to print correctly */
