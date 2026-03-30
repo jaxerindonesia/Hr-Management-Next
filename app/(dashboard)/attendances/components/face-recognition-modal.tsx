@@ -21,6 +21,7 @@ type ScanStatus =
   | "match"
   | "no-match"
   | "no-face"
+  | "no-reference"
   | "error"
   | "no-camera";
 
@@ -108,7 +109,7 @@ export default function FaceRecognitionModal({
             .withFaceDescriptor();
 
           if (!detection) {
-            // Reference photo has no detectable face → fallback
+            // Foto referensi tidak terdeteksi wajahnya → BLOKIR, jangan auto-pass
             referenceDescriptorRef.current = null;
           } else {
             referenceDescriptorRef.current = detection.descriptor;
@@ -119,6 +120,19 @@ export default function FaceRecognitionModal({
       }
 
       if (cancelled) return;
+
+      // Jika tidak ada referenceImageUrl atau gagal detect wajah dari foto referensi
+      // → tampilkan status "no-reference", JANGAN lanjut ke kamera
+      if (!referenceImageUrl) {
+        setStatus("no-reference");
+        return;
+      }
+
+      // Jika referenceImageUrl ada tapi wajahnya tidak terdeteksi di foto
+      if (!referenceDescriptorRef.current) {
+        setStatus("no-reference");
+        return;
+      }
 
       // ── 2. Start Camera ─────────────────────────────────────────────────
       setStatus("scanning");
@@ -169,15 +183,9 @@ export default function FaceRecognitionModal({
         }
 
         // ── 4. Match ────────────────────────────────────────────────────────
+        // Tidak ada referensi → BLOKIR (tidak pernah seharusnya sampai sini)
         if (!referenceDescriptorRef.current) {
-          // No reference photo detected → auto-pass (match by presence)
-          if (!cancelled && !successCalledRef.current) {
-            successCalledRef.current = true;
-            setStatus("match");
-            setMatchScore(1);
-            stopCamera();
-            setTimeout(() => onSuccess(), 1200);
-          }
+          if (!cancelled) setStatus("no-reference");
           return;
         }
 
@@ -188,7 +196,9 @@ export default function FaceRecognitionModal({
         const score = Math.max(0, 1 - distance);
         setMatchScore(score);
 
-        if (score >= 0.45) {
+        // Threshold ketat: distance <= 0.45 (direkomendasikan face-api.js)
+        // Semakin kecil angkanya, semakin ketat / susah lolos
+        if (distance <= 0.45) {
           if (!cancelled && !successCalledRef.current) {
             successCalledRef.current = true;
             setStatus("match");
@@ -235,6 +245,11 @@ export default function FaceRecognitionModal({
       color: "text-orange-400",
       icon: <Camera className="w-5 h-5" />,
     },
+    "no-reference": {
+      label: "Foto referensi tidak ada — hubungi admin untuk mendaftarkan wajah",
+      color: "text-red-400",
+      icon: <XCircle className="w-5 h-5" />,
+    },
     "no-match": {
       label: "Wajah tidak cocok, coba lagi",
       color: "text-red-400",
@@ -262,6 +277,7 @@ export default function FaceRecognitionModal({
   const showSkip =
     status === "no-camera" ||
     status === "error" ||
+    status === "no-reference" ||
     status === "no-match";
 
   return (
