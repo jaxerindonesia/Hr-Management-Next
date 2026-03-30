@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
           position: true,
           joinDate: true,
           salary: true,
+          avatarUrl: true,
           department: {
             select: {
               name: true,
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
       department,
       joinDate,
       salary,
+      avatarUrl,
     } = body;
 
     if (!email || !name || !password || !roleId) {
@@ -134,6 +136,7 @@ export async function POST(req: NextRequest) {
         position,
         joinDate: joinDate ? new Date(joinDate) : null,
         salary,
+        avatarUrl: avatarUrl || null,
         currentToken: "",
       },
       select: {

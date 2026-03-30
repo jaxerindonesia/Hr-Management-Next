@@ -47,6 +47,8 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.phone) updateData.phone = body.phone;
     if (body.position) updateData.position = body.position;
     if (body.salary !== undefined) updateData.salary = body.salary;
+    if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl || null;
+    if (body.status) updateData.status = body.status;
 
     if (body.joinDate) {
       updateData.joinDate = new Date(body.joinDate);
