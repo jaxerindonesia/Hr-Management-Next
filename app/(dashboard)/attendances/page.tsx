@@ -6,7 +6,6 @@ import {
   CheckCircle,
   XCircle,
   Search,
-  Filter,
   Trash2,
   ChevronRight,
   ChevronLeft,
@@ -32,13 +31,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import FaceRecognitionModal from "./components/face-recognition-modal";
 
 export default function AttendancePage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [selectedRecord, setSelectedRecord] = useState<AttendanceDto | null>(
     null,
   );
-  const [userData, setUserData] = useState({ id: "", role: "" });
+  const [userData, setUserData] = useState({ id: "", role: "", avatarUrl: "" });
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceDto[]>(
     [],
   );
@@ -52,6 +52,10 @@ export default function AttendancePage() {
     null,
   );
   const [isExporting, setIsExporting] = useState(false);
+
+  // Face recognition modal state
+  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+  const [faceModalMode, setFaceModalMode] = useState<"check-in" | "check-out">("check-in");
 
   const itemsPerPage = 10;
   const totalPages = Math.ceil(total / itemsPerPage);
@@ -200,85 +204,91 @@ export default function AttendancePage() {
     }
   };
 
-  const handleCheckIn = async () => {
+  // ── Raw check-in / check-out (called after face verified) ──────────────
+  const doCheckIn = useCallback(async () => {
     try {
       if (!navigator.geolocation) {
         toast.error("Geolocation tidak didukung browser");
         return;
       }
-
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-
-          const userId = userData.id;
           const res = await fetch("/api/attendances/check-in", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              userId,
-              checkInLocation: {
-                latitude,
-                longitude,
-              },
+              userId: userData.id,
+              checkInLocation: { latitude, longitude },
             }),
           });
-
           if (!res.ok) throw new Error();
-
           toast.success("Berhasil Check In");
           fetchAttendance(userData);
         },
-        () => {
-          toast.error("Gagal mendapatkan lokasi");
-        },
+        () => toast.error("Gagal mendapatkan lokasi"),
       );
-    } catch (err) {
+    } catch {
       toast.error("Gagal Check In");
     }
-  };
+  }, [userData, fetchAttendance]);
 
-  const handleCheckOut = async () => {
+  const doCheckOut = useCallback(async () => {
     try {
       if (!navigator.geolocation) {
         toast.error("Geolocation tidak didukung browser");
         return;
       }
-
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-
-          const userId = userData.id;
           const res = await fetch("/api/attendances/check-out", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              userId,
-              checkOutLocation: {
-                latitude,
-                longitude,
-              },
+              userId: userData.id,
+              checkOutLocation: { latitude, longitude },
             }),
           });
-
           if (!res.ok) throw new Error();
-
           toast.success("Berhasil Check Out");
           fetchAttendance(userData);
         },
-        () => {
-          toast.error("Gagal mendapatkan lokasi");
-        },
+        () => toast.error("Gagal mendapatkan lokasi"),
       );
-    } catch (err) {
+    } catch {
       toast.error("Gagal Check Out");
     }
+  }, [userData, fetchAttendance]);
+
+  // ── Open face-recognition modal first ──────────────────────────────────
+  const handleCheckIn = () => {
+    setFaceModalMode("check-in");
+    setIsFaceModalOpen(true);
   };
+
+  const handleCheckOut = () => {
+    setFaceModalMode("check-out");
+    setIsFaceModalOpen(true);
+  };
+
+  const handleFaceSuccess = useCallback(() => {
+    setIsFaceModalOpen(false);
+    if (faceModalMode === "check-in") {
+      doCheckIn();
+    } else {
+      doCheckOut();
+    }
+  }, [faceModalMode, doCheckIn, doCheckOut]);
+
+  const handleFaceSkip = useCallback(() => {
+    setIsFaceModalOpen(false);
+    if (faceModalMode === "check-in") {
+      doCheckIn();
+    } else {
+      doCheckOut();
+    }
+  }, [faceModalMode, doCheckIn, doCheckOut]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -348,7 +358,11 @@ export default function AttendancePage() {
 
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
-    setUserData(data);
+    setUserData({
+      id: data.id || "",
+      role: data.role || "",
+      avatarUrl: data.avatarUrl || data.avatar_url || "",
+    });
   }, []);
 
   useEffect(() => {
@@ -700,6 +714,15 @@ export default function AttendancePage() {
           onClose={() => setSelectedRecord(null)}
         />
       )}
+
+      <FaceRecognitionModal
+        isOpen={isFaceModalOpen}
+        mode={faceModalMode}
+        referenceImageUrl={userData.avatarUrl || null}
+        onSuccess={handleFaceSuccess}
+        onSkip={handleFaceSkip}
+        onClose={() => setIsFaceModalOpen(false)}
+      />
     </>
   );
 }
