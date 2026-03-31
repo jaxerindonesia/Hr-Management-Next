@@ -39,7 +39,7 @@ export default function FaceRecognitionModal({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const referenceDescriptorRef = useRef<Float32Array | null>(null);
   const successCalledRef = useRef(false);
 
@@ -51,9 +51,9 @@ export default function FaceRecognitionModal({
   const [isMouthOpen, setIsMouthOpen] = useState(false);
 
   const stopCamera = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
@@ -163,13 +163,13 @@ export default function FaceRecognitionModal({
       }
 
       // ── 3. Real-time scan loop ───────────────────────────────────────────
-      intervalRef.current = setInterval(async () => {
+      const detectFrame = async () => {
         if (!videoRef.current || cancelled || successCalledRef.current) return;
 
         const detection = await faceapi
           .detectSingleFace(
             videoRef.current,
-            new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 }),
+            new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 }),
           )
           .withFaceLandmarks()
           .withFaceDescriptor();
@@ -188,6 +188,7 @@ export default function FaceRecognitionModal({
 
         if (!detection) {
           if (!cancelled) setStatus("no-face");
+          timeoutRef.current = setTimeout(detectFrame, 200);
           return;
         }
 
@@ -196,41 +197,41 @@ export default function FaceRecognitionModal({
 
         // Helper function for MAR (Mouth Aspect Ratio)
         const getMAR = (m: faceapi.Point[]) => {
-          const v1 = Math.sqrt(Math.pow(m[13].x - m[19].x, 2) + Math.pow(m[13].y - m[19].y, 2));
-          const v2 = Math.sqrt(Math.pow(m[14].x - m[18].x, 2) + Math.pow(m[14].y - m[18].y, 2));
-          const v3 = Math.sqrt(Math.pow(m[15].x - m[17].x, 2) + Math.pow(m[15].y - m[17].y, 2));
-          const h = Math.sqrt(Math.pow(m[12].x - m[16].x, 2) + Math.pow(m[12].y - m[16].y, 2));
-          return (v1 + v2 + v3) / (2 * Math.max(h, 1));
+          // p14: top inner lip, p18: bottom inner lip
+          // p12: left corner inner, p16: right corner inner
+          const verticalDist = Math.sqrt(Math.pow(m[14].x - m[18].x, 2) + Math.pow(m[14].y - m[18].y, 2));
+          const horizontalDist = Math.sqrt(Math.pow(m[12].x - m[16].x, 2) + Math.pow(m[12].y - m[16].y, 2));
+          return verticalDist / Math.max(horizontalDist, 1);
         };
 
         const mar = getMAR(mouth);
 
-        // Mouth open detection (MAR threshold lowered to ~0.25 for better accuracy)
-        // Also require at least 2 consecutive frames to be stable
-        if (mar > 0.25) {
+        // Mouth open detection (Even more lenient threshold: 0.18)
+        if (mar > 0.18) {
           mouthOpenFramesRef.current += 1;
           if (mouthOpenFramesRef.current >= 2) {
             setIsMouthOpen(true);
           }
-        } else if (mar < 0.15) {
+        } else if (mar < 0.1) {
           mouthOpenFramesRef.current = Math.max(0, mouthOpenFramesRef.current - 1);
         }
 
         // ── 4. Checks (Glasses & Hat Heuristics) ─────────────────────────────
-        // Deteksi Topi (Heuristik: Jarak antara alis dan atas wajah)
         const topOfFace = detection.detection.box.top;
         const eyebrows = landmarks.getLeftEyeBrow();
         const eyebrowTop = eyebrows[2].y;
         const foreheadHeight = eyebrowTop - topOfFace;
 
-        if (foreheadHeight < 15) {
+        if (foreheadHeight < 12) {
           if (!cancelled) setStatus("hat-detected");
+          timeoutRef.current = setTimeout(detectFrame, 200);
           return;
         }
 
         // ── 5. Match ────────────────────────────────────────────────────────
         if (!referenceDescriptorRef.current) {
           if (!cancelled) setStatus("no-reference");
+          timeoutRef.current = setTimeout(detectFrame, 200);
           return;
         }
 
@@ -244,6 +245,7 @@ export default function FaceRecognitionModal({
         if (distance <= 0.45) {
           if (!isMouthOpen) {
             if (!cancelled) setStatus("mouth-open-required");
+            timeoutRef.current = setTimeout(detectFrame, 200);
             return;
           }
           
@@ -255,8 +257,11 @@ export default function FaceRecognitionModal({
           }
         } else {
           if (!cancelled) setStatus("no-match");
+          timeoutRef.current = setTimeout(detectFrame, 200);
         }
-      }, 250);
+      };
+
+      detectFrame();
     };
 
     run();
