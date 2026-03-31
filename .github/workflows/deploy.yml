@@ -25,6 +25,8 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
 
+            echo "🚀 Start deploy..."
+
             # Load NVM
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
@@ -33,14 +35,20 @@ jobs:
 
             cd /home/jaxerid/jaxer-project/hr-manage-next
 
+            echo "📥 Pull latest code"
             git pull origin production
 
+            echo "📦 Install dependencies"
             npm install
-            npx prisma migrate deploy
+
+            echo "⚙️ Generate Prisma Client (SAFE)"
             npx prisma generate
+
+            echo "🏗️ Build app"
             npm run build
 
+            echo "🔄 Reload PM2"
             pm2 reload hr-manage-next
 
-            echo "Deploy success 🚀"
+            echo "✅ Deploy success 🚀"
           EOF
