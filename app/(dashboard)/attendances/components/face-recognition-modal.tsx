@@ -18,6 +18,9 @@ type ScanStatus =
   | "loading-models"
   | "loading-reference"
   | "scanning"
+  | "blink-required"
+  | "glasses-detected"
+  | "hat-detected"
   | "match"
   | "no-match"
   | "no-face"
@@ -40,9 +43,14 @@ export default function FaceRecognitionModal({
   const referenceDescriptorRef = useRef<Float32Array | null>(null);
   const successCalledRef = useRef(false);
 
+  // Blink detection states
+  const blinkCountRef = useRef(0);
+  const wasMataTertutupRef = useRef(false);
+
   const [status, setStatus] = useState<ScanStatus>("loading-models");
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [hasBlinked, setHasBlinked] = useState(false);
 
   const stopCamera = useCallback(() => {
     if (intervalRef.current) {
@@ -59,6 +67,9 @@ export default function FaceRecognitionModal({
     stopCamera();
     successCalledRef.current = false;
     referenceDescriptorRef.current = null;
+    blinkCountRef.current = 0;
+    wasMataTertutupRef.current = false;
+    setHasBlinked(false);
     setStatus("loading-models");
     setMatchScore(null);
   }, [stopCamera]);
@@ -174,6 +185,7 @@ export default function FaceRecognitionModal({
           if (detection) {
             const resized = faceapi.resizeResults(detection, dims);
             faceapi.draw.drawDetections(canvasRef.current, [resized]);
+            faceapi.draw.drawFaceLandmarks(canvasRef.current, [resized]);
           }
         }
 
@@ -182,8 +194,50 @@ export default function FaceRecognitionModal({
           return;
         }
 
-        // ── 4. Match ────────────────────────────────────────────────────────
-        // Tidak ada referensi → BLOKIR (tidak pernah seharusnya sampai sini)
+        const landmarks = detection.landmarks;
+        const leftEye = landmarks.getLeftEye();
+        const rightEye = landmarks.getRightEye();
+
+        // Helper function for EAR
+        const getEAR = (eye: faceapi.Point[]) => {
+          const v1 = Math.sqrt(Math.pow(eye[1].x - eye[5].x, 2) + Math.pow(eye[1].y - eye[5].y, 2));
+          const v2 = Math.sqrt(Math.pow(eye[2].x - eye[4].x, 2) + Math.pow(eye[2].y - eye[4].y, 2));
+          const h = Math.sqrt(Math.pow(eye[0].x - eye[3].x, 2) + Math.pow(eye[0].y - eye[3].y, 2));
+          return (v1 + v2) / (2 * h);
+        };
+
+        const ear = (getEAR(leftEye) + getEAR(rightEye)) / 2;
+
+        // Blink detection logic (EAR threshold ~0.2)
+        if (ear < 0.22) {
+          wasMataTertutupRef.current = true;
+        } else if (wasMataTertutupRef.current && ear > 0.25) {
+          wasMataTertutupRef.current = false;
+          blinkCountRef.current += 1;
+          if (blinkCountRef.current >= 1) {
+            setHasBlinked(true);
+          }
+        }
+
+        // ── 4. Checks (Glasses & Hat Heuristics) ─────────────────────────────
+        // Deteksi Kacamata (Heuristik: Cek area antara mata dan hidung)
+        // Kita gunakan area bridge hidung dan jarak antar mata
+        const noseBridge = landmarks.getNose();
+        const eyeDistance = Math.abs(leftEye[3].x - rightEye[0].x);
+        
+        // Deteksi Topi (Heuristik: Jarak antara alis dan atas wajah)
+        const jawOutline = landmarks.getJawOutline();
+        const topOfFace = detection.detection.box.top;
+        const eyebrows = landmarks.getLeftEyeBrow();
+        const eyebrowTop = eyebrows[2].y;
+        const foreheadHeight = eyebrowTop - topOfFace;
+
+        if (foreheadHeight < 15) {
+          if (!cancelled) setStatus("hat-detected");
+          return;
+        }
+
+        // ── 5. Match ────────────────────────────────────────────────────────
         if (!referenceDescriptorRef.current) {
           if (!cancelled) setStatus("no-reference");
           return;
@@ -196,9 +250,12 @@ export default function FaceRecognitionModal({
         const score = Math.max(0, 1 - distance);
         setMatchScore(score);
 
-        // Threshold ketat: distance <= 0.45 (direkomendasikan face-api.js)
-        // Semakin kecil angkanya, semakin ketat / susah lolos
         if (distance <= 0.45) {
+          if (!hasBlinked) {
+            if (!cancelled) setStatus("blink-required");
+            return;
+          }
+          
           if (!cancelled && !successCalledRef.current) {
             successCalledRef.current = true;
             setStatus("match");
@@ -208,7 +265,7 @@ export default function FaceRecognitionModal({
         } else {
           if (!cancelled) setStatus("no-match");
         }
-      }, 600);
+      }, 400);
     };
 
     run();
@@ -239,6 +296,21 @@ export default function FaceRecognitionModal({
       label: "Mendeteksi wajah...",
       color: "text-yellow-400",
       icon: <ScanFace className="w-5 h-5 animate-pulse" />,
+    },
+    "blink-required": {
+      label: "Wajah dikenali! Silakan KEDIPKAN mata Anda sekarang",
+      color: "text-indigo-400",
+      icon: <ScanFace className="w-5 h-5 animate-bounce" />,
+    },
+    "hat-detected": {
+      label: "Topi terdeteksi! Harap lepas topi Anda",
+      color: "text-red-400",
+      icon: <XCircle className="w-5 h-5" />,
+    },
+    "glasses-detected": {
+      label: "Kacamata terdeteksi! Harap lepas kacamata Anda",
+      color: "text-red-400",
+      icon: <XCircle className="w-5 h-5" />,
     },
     "no-face": {
       label: "Wajah tidak terdeteksi, posisikan wajah Anda",
@@ -313,7 +385,7 @@ export default function FaceRecognitionModal({
           />
 
           {/* Face frame guide */}
-          {(status === "scanning" || status === "no-face" || status === "no-match") && (
+          {(status === "scanning" || status === "no-face" || status === "no-match" || status === "blink-required") && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div
                 className={`w-48 h-60 rounded-full border-4 transition-colors duration-500 ${
@@ -321,10 +393,19 @@ export default function FaceRecognitionModal({
                     ? "border-red-400"
                     : status === "no-face"
                       ? "border-orange-400 opacity-60"
-                      : "border-indigo-400 opacity-70"
+                      : status === "blink-required"
+                        ? "border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)]"
+                        : "border-indigo-400 opacity-70"
                 }`}
                 style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)" }}
               />
+              {status === "blink-required" && (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+                   <div className="bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold animate-pulse shadow-lg">
+                      SILAKAN KEDIP
+                   </div>
+                </div>
+              )}
             </div>
           )}
 
