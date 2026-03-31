@@ -36,6 +36,8 @@ jobs:
             git pull origin production
 
             npm install
+            npx prisma migrate deploy
+            npx prisma generate
             npm run build
 
             pm2 reload hr-manage-next
