@@ -2,8 +2,24 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { unlink } from "fs/promises";
+import path from "path";
 
 import prisma from "@/lib/prisma";
+
+// Helper: hapus file avatar lama dari disk
+async function deleteOldAvatar(avatarUrl: string | null) {
+  if (!avatarUrl) return;
+  // Hanya hapus file lokal (path diawali /avatars/)
+  if (!avatarUrl.startsWith("/avatars/")) return;
+  try {
+    const filename = path.basename(avatarUrl);
+    const filePath = path.join(process.cwd(), "public", "avatars", filename);
+    await unlink(filePath);
+  } catch {
+    // File tidak ada / sudah dihapus → abaikan
+  }
+}
 
 type Params = {
   params: Promise<{
@@ -47,8 +63,26 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.phone) updateData.phone = body.phone;
     if (body.position) updateData.position = body.position;
     if (body.salary !== undefined) updateData.salary = body.salary;
-    if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl || null;
     if (body.status) updateData.status = body.status;
+
+    // Jika avatarUrl diupdate → hapus file lama dari disk terlebih dahulu
+    if (body.avatarUrl !== undefined) {
+      const newAvatarUrl = body.avatarUrl || null;
+      updateData.avatarUrl = newAvatarUrl;
+
+      // Ambil avatarUrl lama dari DB
+      const existingUser = await prisma.user.findUnique({
+        where: { id },
+        select: { avatarUrl: true },
+      });
+
+      const oldAvatarUrl = existingUser?.avatarUrl ?? null;
+
+      // Hapus file lama jika berbeda dengan yang baru
+      if (oldAvatarUrl && oldAvatarUrl !== newAvatarUrl) {
+        await deleteOldAvatar(oldAvatarUrl);
+      }
+    }
 
     if (body.joinDate) {
       updateData.joinDate = new Date(body.joinDate);
