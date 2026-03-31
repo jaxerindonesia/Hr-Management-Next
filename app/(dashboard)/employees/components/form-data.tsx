@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { UserDto } from "@/lib/dto/user";
 import { RoleDto } from "@/lib/dto/role";
+import FaceCapture from "./face-capture";
 
 import {
   Dialog,
@@ -39,6 +40,9 @@ export default function FormData({
   const [roles, setRoles] = useState<RoleDto[]>([]);
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [rePassword, setRePassword] = useState("");
+  const [faceDataUrl, setFaceDataUrl] = useState<string | null>(
+    initialData?.avatarUrl || null,
+  );
   const [formData, setFormData] = useState<UserDto>(
     initialData || {
       roleId: "",
@@ -53,6 +57,7 @@ export default function FormData({
       salary: 0,
       status: "active",
       password: "",
+      avatarUrl: "",
     },
   );
 
@@ -95,14 +100,31 @@ export default function FormData({
     }
 
     try {
-      const url = formData.id ? `/api/users/${formData.id}` : "/api/users";
+      // Upload face photo if it's a new base64 capture
+      let avatarUrl = formData.avatarUrl || "";
+      if (faceDataUrl && faceDataUrl.startsWith("data:image")) {
+        const uploadRes = await fetch("/api/upload-avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: faceDataUrl }),
+        });
+        if (uploadRes.ok) {
+          const uploadJson = await uploadRes.json();
+          avatarUrl = uploadJson.url;
+        } else {
+          toast.error("Gagal mengupload foto wajah");
+          setLoading(false);
+          return;
+        }
+      }
 
+      const url = formData.id ? `/api/users/${formData.id}` : "/api/users";
       const method = formData.id ? "PUT" : "POST";
 
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, avatarUrl }),
       });
 
       if (!res.ok) throw new Error("Gagal menyimpan data");
@@ -328,6 +350,17 @@ export default function FormData({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Foto Wajah */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium dark:text-gray-300">
+              Foto Wajah (untuk absensi)
+            </label>
+            <FaceCapture
+              value={faceDataUrl}
+              onChange={(url) => setFaceDataUrl(url)}
+            />
           </div>
 
           {/* Password */}

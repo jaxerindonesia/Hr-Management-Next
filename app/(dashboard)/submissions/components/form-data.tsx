@@ -86,7 +86,11 @@ export default function FormData({
         body: JSON.stringify(formData),
       });
 
-      if (!res.ok) throw new Error("Gagal menyimpan data");
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || "Gagal menyimpan data");
+      }
+
       toast.success(
         `Data cuti berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );

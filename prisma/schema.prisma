@@ -69,6 +69,10 @@ model SubmissionType {
   id   String @id @default(uuid()) @db.Uuid
   name String @unique
 
+  // Relasi ke konfigurasi batas cuti (opsional)
+  leaveConfigId String? @map("leave_config_id") @db.Uuid
+  leaveConfig   LeaveConfig? @relation(fields: [leaveConfigId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
@@ -76,6 +80,21 @@ model SubmissionType {
   submissions Submission[]
 
   @@map("submission_types")
+}
+
+// Konfigurasi batas maksimal hari cuti per jenis
+model LeaveConfig {
+  id       String @id @default(uuid()) @db.Uuid
+  name     String // misal: "Batas Cuti Umum", "Batas Cuti Hamil"
+  maxDays  Int    @map("max_days") // maksimal hari
+  description String? // keterangan tambahan
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  submissionTypes SubmissionType[]
+
+  @@map("leave_configs")
 }
 
 model Submission {

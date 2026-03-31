@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
         name: user.name,
         role: user.role.name,
         permissions: user.role.permission,
+        avatarUrl: user.avatarUrl ?? "",
       },
     });
 
