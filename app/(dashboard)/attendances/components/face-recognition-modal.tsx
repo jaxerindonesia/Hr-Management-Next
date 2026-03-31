@@ -45,6 +45,7 @@ export default function FaceRecognitionModal({
 
   // Mouth detection state
   const mouthOpenFramesRef = useRef(0);
+  const mouthOpenRef = useRef(false); // ref untuk dicek dalam loop (hindari stale closure)
   const [status, setStatus] = useState<ScanStatus>("loading-models");
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -65,6 +66,7 @@ export default function FaceRecognitionModal({
     stopCamera();
     successCalledRef.current = false;
     referenceDescriptorRef.current = null;
+    mouthOpenRef.current = false;
     setIsMouthOpen(false);
     mouthOpenFramesRef.current = 0;
     setStatus("loading-models");
@@ -197,23 +199,29 @@ export default function FaceRecognitionModal({
 
         // Helper function for MAR (Mouth Aspect Ratio)
         const getMAR = (m: faceapi.Point[]) => {
-          // p14: top inner lip, p18: bottom inner lip
-          // p12: left corner inner, p16: right corner inner
-          const verticalDist = Math.sqrt(Math.pow(m[14].x - m[18].x, 2) + Math.pow(m[14].y - m[18].y, 2));
-          const horizontalDist = Math.sqrt(Math.pow(m[12].x - m[16].x, 2) + Math.pow(m[12].y - m[16].y, 2));
-          return verticalDist / Math.max(horizontalDist, 1);
+          // Vertical: jarak antara titik tengah bibir atas (13) dan bawah (19)
+          // Horizontal: jarak antara sudut mulut kiri (0) dan kanan (6)
+          const A = Math.sqrt(Math.pow(m[13].x - m[19].x, 2) + Math.pow(m[13].y - m[19].y, 2));
+          const B = Math.sqrt(Math.pow(m[14].x - m[18].x, 2) + Math.pow(m[14].y - m[18].y, 2));
+          const C = Math.sqrt(Math.pow(m[12].x - m[16].x, 2) + Math.pow(m[12].y - m[16].y, 2));
+          const horizontal = Math.sqrt(Math.pow(m[0].x - m[6].x, 2) + Math.pow(m[0].y - m[6].y, 2));
+          return (A + B + C) / (2.0 * Math.max(horizontal, 1));
         };
 
         const mar = getMAR(mouth);
 
-        // Mouth open detection (Even more lenient threshold: 0.18)
-        if (mar > 0.18) {
+        // Mouth open detection - threshold 0.25 (cukup sensitif)
+        if (mar > 0.25) {
           mouthOpenFramesRef.current += 1;
-          if (mouthOpenFramesRef.current >= 2) {
-            setIsMouthOpen(true);
+          if (mouthOpenFramesRef.current >= 3) {
+            mouthOpenRef.current = true; // update ref untuk deteksi di loop
+            setIsMouthOpen(true); // update state untuk UI
           }
-        } else if (mar < 0.1) {
-          mouthOpenFramesRef.current = Math.max(0, mouthOpenFramesRef.current - 1);
+        } else if (mar < 0.15) {
+          // Jangan reset ref jika sudah pernah buka mulut (agar tidak perlu buka ulang)
+          if (!mouthOpenRef.current) {
+            mouthOpenFramesRef.current = Math.max(0, mouthOpenFramesRef.current - 1);
+          }
         }
 
         // ── 4. Checks (Glasses & Hat Heuristics) ─────────────────────────────
@@ -243,7 +251,8 @@ export default function FaceRecognitionModal({
         setMatchScore(score);
 
         if (distance <= 0.45) {
-          if (!isMouthOpen) {
+          // Cek mouthOpenRef (bukan state) agar tidak terkena stale closure
+          if (!mouthOpenRef.current) {
             if (!cancelled) setStatus("mouth-open-required");
             timeoutRef.current = setTimeout(detectFrame, 200);
             return;
