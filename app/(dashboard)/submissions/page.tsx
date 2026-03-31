@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import ModalType from "./components/modal-type";
+import ModalLeaveConfig from "./components/modal-leave-config";
 import { usePermission } from "@/lib/helper/check-role";
 import { Input } from "@/components/ui/input";
 
@@ -37,6 +38,7 @@ export default function SubmissionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
+  const [showLeaveConfigModal, setShowLeaveConfigModal] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [userData, setUserData] = useState({ id: "", role: "" });
@@ -263,12 +265,20 @@ export default function SubmissionsPage() {
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
           {checkRole("submission_types", "create") && (
-            <Button
-              onClick={() => setShowTypeModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              <Settings className="w-4 h-4" /> Kelola Jenis
-            </Button>
+            <>
+              <Button
+                onClick={() => setShowTypeModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <Settings className="w-4 h-4" /> Kelola Jenis
+              </Button>
+              <Button
+                onClick={() => setShowLeaveConfigModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+              >
+                <Settings className="w-4 h-4" /> Batas Cuti
+              </Button>
+            </>
           )}
 
           {checkRole("submissions", "create") && (
@@ -678,6 +688,11 @@ export default function SubmissionsPage() {
 
       {/* Type Management Modal */}
       {showTypeModal && <ModalType onClose={() => setShowTypeModal(false)} />}
+
+      {/* Leave Config Modal */}
+      {showLeaveConfigModal && (
+        <ModalLeaveConfig onClose={() => setShowLeaveConfigModal(false)} />
+      )}
     </div>
   );
 }
