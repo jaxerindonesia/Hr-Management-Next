@@ -1,9 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { randomUUID } from "crypto";
+import { uploadBase64ToMinio, BUCKET_AVATARS } from "@/lib/minio";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,19 +13,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "No image provided" }, { status: 400 });
     }
 
-    // Strip data:image/jpeg;base64, prefix
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-    const buffer = Buffer.from(base64Data, "base64");
+    // Buat nama unik untuk file di MinIO
+    // Folder: face-photos/ di dalam bucket hr-avatars
+    const filename = `face-photos/face-${randomUUID()}.jpg`;
 
-    // Save to public/avatars/
-    const uploadDir = path.join(process.cwd(), "public", "avatars");
-    await mkdir(uploadDir, { recursive: true });
-
-    const filename = `face-${randomUUID()}.jpg`;
-    const filePath = path.join(uploadDir, filename);
-    await writeFile(filePath, buffer);
-
-    const url = `/avatars/${filename}`;
+    const url = await uploadBase64ToMinio(imageBase64, filename, BUCKET_AVATARS, "image/jpeg");
 
     return NextResponse.json({ url }, { status: 201 });
   } catch (error) {

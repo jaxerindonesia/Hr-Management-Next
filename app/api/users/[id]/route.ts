@@ -2,23 +2,17 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { unlink } from "fs/promises";
-import path from "path";
 
 import prisma from "@/lib/prisma";
+import { deleteFromMinio } from "@/lib/minio";
 
-// Helper: hapus file avatar lama dari disk
+// Helper: hapus file avatar lama dari MinIO
 async function deleteOldAvatar(avatarUrl: string | null) {
   if (!avatarUrl) return;
-  // Hanya hapus file lokal (path diawali /avatars/)
-  if (!avatarUrl.startsWith("/avatars/")) return;
-  try {
-    const filename = path.basename(avatarUrl);
-    const filePath = path.join(process.cwd(), "public", "avatars", filename);
-    await unlink(filePath);
-  } catch {
-    // File tidak ada / sudah dihapus → abaikan
-  }
+  // Hanya hapus jika URL dari MinIO kita
+  const minioBase = process.env.MINIO_PUBLIC_URL || "http://103.31.204.110:1608";
+  if (!avatarUrl.startsWith(minioBase)) return;
+  await deleteFromMinio(avatarUrl);
 }
 
 type Params = {
@@ -116,9 +110,20 @@ export async function PUT(req: Request, { params }: Params) {
 export async function DELETE(_: Request, { params }: Params) {
   const { id } = await params;
   try {
+    // Ambil avatarUrl sebelum hapus user, untuk cleanup MinIO
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { avatarUrl: true },
+    });
+
     await prisma.user.delete({
       where: { id },
     });
+
+    // Hapus foto wajah dari MinIO setelah user terhapus
+    if (user?.avatarUrl) {
+      await deleteOldAvatar(user.avatarUrl);
+    }
 
     return NextResponse.json({
       message: "User successfully deleted",
