@@ -44,6 +44,7 @@ export default function FaceRecognitionModal({
   const successCalledRef = useRef(false);
 
   // Mouth detection state
+  const mouthOpenFramesRef = useRef(0);
   const [status, setStatus] = useState<ScanStatus>("loading-models");
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -65,6 +66,7 @@ export default function FaceRecognitionModal({
     successCalledRef.current = false;
     referenceDescriptorRef.current = null;
     setIsMouthOpen(false);
+    mouthOpenFramesRef.current = 0;
     setStatus("loading-models");
     setMatchScore(null);
   }, [stopCamera]);
@@ -167,7 +169,7 @@ export default function FaceRecognitionModal({
         const detection = await faceapi
           .detectSingleFace(
             videoRef.current,
-            new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }),
+            new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 }),
           )
           .withFaceLandmarks()
           .withFaceDescriptor();
@@ -194,23 +196,24 @@ export default function FaceRecognitionModal({
 
         // Helper function for MAR (Mouth Aspect Ratio)
         const getMAR = (m: faceapi.Point[]) => {
-          // Inner mouth points (index 12 to 19 in getMouth())
-          // p13: m[13], p19: m[19] (vertical)
-          // p14: m[14], p18: m[18] (vertical)
-          // p15: m[15], p17: m[17] (vertical)
-          // p12: m[12], p16: m[16] (horizontal)
           const v1 = Math.sqrt(Math.pow(m[13].x - m[19].x, 2) + Math.pow(m[13].y - m[19].y, 2));
           const v2 = Math.sqrt(Math.pow(m[14].x - m[18].x, 2) + Math.pow(m[14].y - m[18].y, 2));
           const v3 = Math.sqrt(Math.pow(m[15].x - m[17].x, 2) + Math.pow(m[15].y - m[17].y, 2));
           const h = Math.sqrt(Math.pow(m[12].x - m[16].x, 2) + Math.pow(m[12].y - m[16].y, 2));
-          return (v1 + v2 + v3) / (2 * h);
+          return (v1 + v2 + v3) / (2 * Math.max(h, 1));
         };
 
         const mar = getMAR(mouth);
 
-        // Mouth open detection (MAR threshold ~0.5)
-        if (mar > 0.5) {
-          setIsMouthOpen(true);
+        // Mouth open detection (MAR threshold lowered to ~0.25 for better accuracy)
+        // Also require at least 2 consecutive frames to be stable
+        if (mar > 0.25) {
+          mouthOpenFramesRef.current += 1;
+          if (mouthOpenFramesRef.current >= 2) {
+            setIsMouthOpen(true);
+          }
+        } else if (mar < 0.15) {
+          mouthOpenFramesRef.current = Math.max(0, mouthOpenFramesRef.current - 1);
         }
 
         // ── 4. Checks (Glasses & Hat Heuristics) ─────────────────────────────
@@ -253,7 +256,7 @@ export default function FaceRecognitionModal({
         } else {
           if (!cancelled) setStatus("no-match");
         }
-      }, 400);
+      }, 250);
     };
 
     run();
