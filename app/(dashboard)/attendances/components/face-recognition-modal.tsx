@@ -18,7 +18,7 @@ type ScanStatus =
   | "loading-models"
   | "loading-reference"
   | "scanning"
-  | "blink-required"
+  | "mouth-open-required"
   | "glasses-detected"
   | "hat-detected"
   | "match"
@@ -43,14 +43,11 @@ export default function FaceRecognitionModal({
   const referenceDescriptorRef = useRef<Float32Array | null>(null);
   const successCalledRef = useRef(false);
 
-  // Blink detection states
-  const blinkCountRef = useRef(0);
-  const wasMataTertutupRef = useRef(false);
-
+  // Mouth detection state
   const [status, setStatus] = useState<ScanStatus>("loading-models");
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [hasBlinked, setHasBlinked] = useState(false);
+  const [isMouthOpen, setIsMouthOpen] = useState(false);
 
   const stopCamera = useCallback(() => {
     if (intervalRef.current) {
@@ -67,9 +64,7 @@ export default function FaceRecognitionModal({
     stopCamera();
     successCalledRef.current = false;
     referenceDescriptorRef.current = null;
-    blinkCountRef.current = 0;
-    wasMataTertutupRef.current = false;
-    setHasBlinked(false);
+    setIsMouthOpen(false);
     setStatus("loading-models");
     setMatchScore(null);
   }, [stopCamera]);
@@ -195,38 +190,31 @@ export default function FaceRecognitionModal({
         }
 
         const landmarks = detection.landmarks;
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
+        const mouth = landmarks.getMouth();
 
-        // Helper function for EAR
-        const getEAR = (eye: faceapi.Point[]) => {
-          const v1 = Math.sqrt(Math.pow(eye[1].x - eye[5].x, 2) + Math.pow(eye[1].y - eye[5].y, 2));
-          const v2 = Math.sqrt(Math.pow(eye[2].x - eye[4].x, 2) + Math.pow(eye[2].y - eye[4].y, 2));
-          const h = Math.sqrt(Math.pow(eye[0].x - eye[3].x, 2) + Math.pow(eye[0].y - eye[3].y, 2));
-          return (v1 + v2) / (2 * h);
+        // Helper function for MAR (Mouth Aspect Ratio)
+        const getMAR = (m: faceapi.Point[]) => {
+          // Inner mouth points (index 12 to 19 in getMouth())
+          // p13: m[13], p19: m[19] (vertical)
+          // p14: m[14], p18: m[18] (vertical)
+          // p15: m[15], p17: m[17] (vertical)
+          // p12: m[12], p16: m[16] (horizontal)
+          const v1 = Math.sqrt(Math.pow(m[13].x - m[19].x, 2) + Math.pow(m[13].y - m[19].y, 2));
+          const v2 = Math.sqrt(Math.pow(m[14].x - m[18].x, 2) + Math.pow(m[14].y - m[18].y, 2));
+          const v3 = Math.sqrt(Math.pow(m[15].x - m[17].x, 2) + Math.pow(m[15].y - m[17].y, 2));
+          const h = Math.sqrt(Math.pow(m[12].x - m[16].x, 2) + Math.pow(m[12].y - m[16].y, 2));
+          return (v1 + v2 + v3) / (2 * h);
         };
 
-        const ear = (getEAR(leftEye) + getEAR(rightEye)) / 2;
+        const mar = getMAR(mouth);
 
-        // Blink detection logic (EAR threshold ~0.2)
-        if (ear < 0.22) {
-          wasMataTertutupRef.current = true;
-        } else if (wasMataTertutupRef.current && ear > 0.25) {
-          wasMataTertutupRef.current = false;
-          blinkCountRef.current += 1;
-          if (blinkCountRef.current >= 1) {
-            setHasBlinked(true);
-          }
+        // Mouth open detection (MAR threshold ~0.5)
+        if (mar > 0.5) {
+          setIsMouthOpen(true);
         }
 
         // ── 4. Checks (Glasses & Hat Heuristics) ─────────────────────────────
-        // Deteksi Kacamata (Heuristik: Cek area antara mata dan hidung)
-        // Kita gunakan area bridge hidung dan jarak antar mata
-        const noseBridge = landmarks.getNose();
-        const eyeDistance = Math.abs(leftEye[3].x - rightEye[0].x);
-        
         // Deteksi Topi (Heuristik: Jarak antara alis dan atas wajah)
-        const jawOutline = landmarks.getJawOutline();
         const topOfFace = detection.detection.box.top;
         const eyebrows = landmarks.getLeftEyeBrow();
         const eyebrowTop = eyebrows[2].y;
@@ -251,8 +239,8 @@ export default function FaceRecognitionModal({
         setMatchScore(score);
 
         if (distance <= 0.45) {
-          if (!hasBlinked) {
-            if (!cancelled) setStatus("blink-required");
+          if (!isMouthOpen) {
+            if (!cancelled) setStatus("mouth-open-required");
             return;
           }
           
@@ -297,8 +285,8 @@ export default function FaceRecognitionModal({
       color: "text-yellow-400",
       icon: <ScanFace className="w-5 h-5 animate-pulse" />,
     },
-    "blink-required": {
-      label: "Wajah dikenali! Silakan KEDIPKAN mata Anda sekarang",
+    "mouth-open-required": {
+      label: "Wajah dikenali! Silakan BUKA MULUT Anda sekarang",
       color: "text-indigo-400",
       icon: <ScanFace className="w-5 h-5 animate-bounce" />,
     },
@@ -353,13 +341,13 @@ export default function FaceRecognitionModal({
     status === "no-match";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative bg-gray-900 rounded-2xl shadow-2xl border border-gray-700 w-full max-w-md overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 sm:p-6">
+      <div className="relative bg-gray-900 rounded-2xl shadow-2xl border border-gray-700 w-full max-w-[95%] sm:max-w-md md:max-w-lg overflow-hidden transition-all duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-700">
           <div className="flex items-center gap-2">
             <ScanFace className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-white font-semibold text-base">
+            <h2 className="text-white font-semibold text-sm sm:text-base">
               Verifikasi Wajah – {modeLabel}
             </h2>
           </div>
@@ -372,7 +360,7 @@ export default function FaceRecognitionModal({
         </div>
 
         {/* Camera area */}
-        <div className="relative bg-black aspect-video overflow-hidden">
+        <div className="relative bg-black aspect-[4/3] sm:aspect-video overflow-hidden">
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
@@ -385,24 +373,24 @@ export default function FaceRecognitionModal({
           />
 
           {/* Face frame guide */}
-          {(status === "scanning" || status === "no-face" || status === "no-match" || status === "blink-required") && (
+          {(status === "scanning" || status === "no-face" || status === "no-match" || status === "mouth-open-required") && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div
-                className={`w-48 h-60 rounded-full border-4 transition-colors duration-500 ${
+                className={`w-40 h-52 sm:w-48 sm:h-60 rounded-full border-4 transition-colors duration-500 ${
                   status === "no-match"
                     ? "border-red-400"
                     : status === "no-face"
                       ? "border-orange-400 opacity-60"
-                      : status === "blink-required"
+                      : status === "mouth-open-required"
                         ? "border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)]"
                         : "border-indigo-400 opacity-70"
                 }`}
                 style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)" }}
               />
-              {status === "blink-required" && (
+              {status === "mouth-open-required" && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
-                   <div className="bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-bold animate-pulse shadow-lg">
-                      SILAKAN KEDIP
+                   <div className="bg-indigo-600 text-white px-4 py-2 rounded-full text-xs sm:text-sm font-bold animate-pulse shadow-lg whitespace-nowrap">
+                      SILAKAN BUKA MULUT
                    </div>
                 </div>
               )}
@@ -434,24 +422,24 @@ export default function FaceRecognitionModal({
         </div>
 
         {/* Status bar */}
-        <div className="px-5 py-3 bg-gray-800/60 border-t border-gray-700">
+        <div className="px-4 sm:px-5 py-2 sm:py-3 bg-gray-800/60 border-t border-gray-700">
           <div className={`flex items-center gap-2 ${cfg.color}`}>
             {cfg.icon}
-            <span className="text-sm font-medium">{cfg.label}</span>
+            <span className="text-xs sm:text-sm font-medium line-clamp-1">{cfg.label}</span>
             {matchScore !== null && status === "no-match" && (
-              <span className="ml-auto text-xs text-gray-400">
-                Similarity: {(matchScore * 100).toFixed(0)}%
+              <span className="ml-auto text-[10px] sm:text-xs text-gray-400 whitespace-nowrap">
+                Sim: {(matchScore * 100).toFixed(0)}%
               </span>
             )}
           </div>
         </div>
 
         {/* Actions */}
-        <div className="px-5 py-4 flex gap-3">
+        <div className="px-4 sm:px-5 py-3 sm:py-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
           {showSkip && (
             <Button
               variant="outline"
-              className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
+              className="w-full sm:flex-1 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white text-xs sm:text-sm h-9 sm:h-10"
               onClick={onSkip}
             >
               Lewati Scan Wajah
@@ -459,7 +447,7 @@ export default function FaceRecognitionModal({
           )}
           <Button
             variant="ghost"
-            className="flex-1 text-gray-400 hover:text-white hover:bg-gray-700"
+            className="w-full sm:flex-1 text-gray-400 hover:text-white hover:bg-gray-700 text-xs sm:text-sm h-9 sm:h-10"
             onClick={onClose}
           >
             Batal
@@ -467,8 +455,8 @@ export default function FaceRecognitionModal({
         </div>
 
         {/* Hint */}
-        <p className="text-center text-xs text-gray-500 pb-4 px-5">
-          Pastikan wajah Anda terlihat jelas dan pencahayaan cukup
+        <p className="text-center text-[10px] sm:text-xs text-gray-500 pb-3 sm:pb-4 px-4 sm:px-5">
+          Pastikan wajah terlihat jelas dan pencahayaan cukup
         </p>
       </div>
     </div>
