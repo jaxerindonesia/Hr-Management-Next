@@ -233,3 +233,15 @@ model Reimbursement {
 
   @@map("reimbursements")
 }
+
+model CompanyConfig {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyName String?  @map("company_name")
+  logoUrl     String?  @map("logo_url")
+  logoDarkUrl String?  @map("logo_dark_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("company_configs")
+}
