@@ -12,6 +12,7 @@ import {
   Eye,
   X,
   Download,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -32,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import FaceRecognitionModal from "./components/face-recognition-modal";
+import ModalAttendanceConfig from "./components/modal-attendance-config";
 
 export default function AttendancePage() {
   const { checkRole, checkRoleMulti } = usePermission();
@@ -46,12 +48,15 @@ export default function AttendancePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [currentTime, setCurrentTime] = useState("");
+  const [currentDateLabel, setCurrentDateLabel] = useState("");
+  const [mounted, setMounted] = useState(false);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [todayAttendance, setTodayAttendance] = useState<AttendanceDto | null>(
     null,
   );
   const [isExporting, setIsExporting] = useState(false);
+  const [showAttendanceConfig, setShowAttendanceConfig] = useState(false);
 
   // Face recognition modal state
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
@@ -61,7 +66,7 @@ export default function AttendancePage() {
   const totalPages = Math.ceil(total / itemsPerPage);
 
   const fetchAttendance = useCallback(
-    async (user: any) => {
+    async (user: { id: string; role: string }) => {
       try {
         if (!user?.id) return;
 
@@ -106,7 +111,7 @@ export default function AttendancePage() {
           });
           setTodayAttendance(today || null);
         }
-      } catch (err) {
+      } catch {
         toast.error("Gagal memuat data attendance");
       }
     },
@@ -139,8 +144,17 @@ export default function AttendancePage() {
       }
 
       const XLSX = await import("xlsx");
+      const statusExportLabel: Record<string, string> = {
+        "On Time": "Tepat Waktu",
+        Present: "Hadir",
+        Late: "Terlambat",
+        "Late - Present": "Telat - Hadir",
+        "Late - Half Day": "Telat - Setengah Hari",
+        Absent: "Tidak Hadir",
+        "Half Day": "Setengah Hari",
+      };
 
-      const rows = allData.map((record) => {
+      const rows: Array<Record<string, string>> = allData.map((record) => {
         const tanggal = new Date(record.date).toLocaleDateString("id-ID", {
           weekday: "short",
           year: "numeric",
@@ -160,23 +174,19 @@ export default function AttendancePage() {
             })
           : "-";
 
-        if (userData.role === "Super Admin") {
-          return {
-            "Nama Karyawan": record?.user?.name ?? "-",
-            Tanggal: tanggal,
-            "Check In": checkIn,
-            "Check Out": checkOut,
-            "Jam Kerja": record.workHours ?? "-",
-            Status: record.status,
-          };
-        }
-        return {
+        const emp = userData.role === "Super Admin" ? record?.user?.name : "-";
+        const row: Record<string, string> = {
+          "Nama Karyawan": emp!,
           Tanggal: tanggal,
           "Check In": checkIn,
           "Check Out": checkOut,
           "Jam Kerja": record.workHours ?? "-",
-          Status: record.status,
+          Status: statusExportLabel[record.status] || record.status,
+          "Bukti Check In": record.checkInFaceImage ?? "-",
+          "Bukti Check Out": record.checkOutFaceImage ?? "-",
         };
+
+        return row;
       });
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -188,7 +198,7 @@ export default function AttendancePage() {
         wch:
           Math.max(
             key.length,
-            ...rows.map((r) => String((r as any)[key] ?? "").length),
+            ...rows.map((r) => String(r[key] ?? "").length),
           ) + 2,
       }));
       worksheet["!cols"] = colWidths;
@@ -197,7 +207,7 @@ export default function AttendancePage() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data kehadiran`);
-    } catch (err) {
+    } catch {
       toast.error("Gagal mengexport data");
     } finally {
       setIsExporting(false);
@@ -205,12 +215,13 @@ export default function AttendancePage() {
   };
 
   // ── Raw check-in / check-out (called after face verified) ──────────────
-  const doCheckIn = useCallback(async () => {
+  const doCheckIn = useCallback(async (faceCaptureBase64: string) => {
     try {
       if (!navigator.geolocation) {
         toast.error("Geolocation tidak didukung browser");
         return;
       }
+
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
@@ -220,6 +231,7 @@ export default function AttendancePage() {
             body: JSON.stringify({
               userId: userData.id,
               checkInLocation: { latitude, longitude },
+              faceCaptureBase64,
             }),
           });
           if (!res.ok) throw new Error();
@@ -233,7 +245,7 @@ export default function AttendancePage() {
     }
   }, [userData, fetchAttendance]);
 
-  const doCheckOut = useCallback(async () => {
+  const doCheckOut = useCallback(async (faceCaptureBase64: string) => {
     try {
       if (!navigator.geolocation) {
         toast.error("Geolocation tidak didukung browser");
@@ -248,6 +260,7 @@ export default function AttendancePage() {
             body: JSON.stringify({
               userId: userData.id,
               checkOutLocation: { latitude, longitude },
+              faceCaptureBase64,
             }),
           });
           if (!res.ok) throw new Error();
@@ -272,21 +285,16 @@ export default function AttendancePage() {
     setIsFaceModalOpen(true);
   };
 
-  const handleFaceSuccess = useCallback(() => {
-    setIsFaceModalOpen(false);
-    if (faceModalMode === "check-in") {
-      doCheckIn();
-    } else {
-      doCheckOut();
+  const handleFaceSuccess = useCallback((captureDataUrl: string) => {
+    if (!captureDataUrl) {
+      toast.error("Gagal mengambil bukti foto, silakan ulangi scan wajah");
+      return;
     }
-  }, [faceModalMode, doCheckIn, doCheckOut]);
-
-  const handleFaceSkip = useCallback(() => {
     setIsFaceModalOpen(false);
     if (faceModalMode === "check-in") {
-      doCheckIn();
+      doCheckIn(captureDataUrl);
     } else {
-      doCheckOut();
+      doCheckOut(captureDataUrl);
     }
   }, [faceModalMode, doCheckIn, doCheckOut]);
 
@@ -300,7 +308,7 @@ export default function AttendancePage() {
 
       toast.success("Data berhasil dihapus");
       fetchAttendance(userData);
-    } catch (err) {
+    } catch {
       toast.error("Gagal menghapus data");
     } finally {
       setOpenPopoverId(null);
@@ -310,8 +318,11 @@ export default function AttendancePage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Present":
+      case "On Time":
         return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
       case "Late":
+      case "Late - Present":
+      case "Late - Half Day":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
       case "Absent":
         return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
@@ -325,8 +336,11 @@ export default function AttendancePage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "Present":
+      case "On Time":
         return <CheckCircle className="w-4 h-4" />;
       case "Late":
+      case "Late - Present":
+      case "Late - Half Day":
         return <Clock className="w-4 h-4" />;
       case "Absent":
         return <XCircle className="w-4 h-4" />;
@@ -338,11 +352,18 @@ export default function AttendancePage() {
   };
 
   const statusLabel: Record<string, string> = {
+    "On Time": "Tepat Waktu",
     Present: "Hadir",
     Late: "Terlambat",
+    "Late - Present": "Telat - Hadir",
+    "Late - Half Day": "Telat - Setengah Hari",
     Absent: "Tidak Hadir",
     "Half Day": "Setengah Hari",
   };
+  const tableColSpan =
+    6 +
+    (userData.role === "Super Admin" ? 1 : 0) +
+    (checkRoleMulti("attendances", ["get-by-id", "delete"]) ? 1 : 0);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -366,6 +387,10 @@ export default function AttendancePage() {
   }, []);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     const updateTime = () => {
       const now = new Date();
       setCurrentTime(
@@ -373,6 +398,14 @@ export default function AttendancePage() {
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
+        }),
+      );
+      setCurrentDateLabel(
+        now.toLocaleDateString("id-ID", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
         }),
       );
     };
@@ -383,29 +416,25 @@ export default function AttendancePage() {
     return () => clearInterval(interval);
   }, []);
 
+  if (!mounted) return null;
+
   return (
     <>
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-            {/* LIVE TIME */}
-            <div className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 border dark:border-gray-600">
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {new Date().toLocaleDateString("id-ID", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+          <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* LIVE TIME */}
+              <div className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 border dark:border-gray-600">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {currentDateLabel}
+                </div>
+                <div className="text-lg font-semibold text-gray-800 dark:text-white tracking-wide">
+                  {currentTime}
+                </div>
               </div>
-              <div className="text-lg font-semibold text-gray-800 dark:text-white tracking-wide">
-                {currentTime}
-              </div>
-            </div>
 
-            {checkRole("attendances", "create") && (
-              <>
-                {/* AUTO SWITCH BUTTON */}
+              {checkRole("attendances", "create") && (
                 <div className="flex gap-2">
                   {!todayAttendance ? (
                     <Button
@@ -432,65 +461,79 @@ export default function AttendancePage() {
                     </Button>
                   )}
                 </div>
+              )}
 
-                <div className="flex-1" />
-              </>
-            )}
-
-            {/* Search */}
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Cari nama karyawan..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-              {searchQuery && (
+              {userData.role === "Super Admin" && (
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-gray-600"
+                  variant="outline"
+                  onClick={() => setShowAttendanceConfig(true)}
+                  className="flex items-center gap-2"
                 >
-                  <X className="w-4 h-4" />
+                  <Settings className="w-4 h-4" />
+                  Konfigurasi Kehadiran
                 </Button>
               )}
             </div>
 
-            {/* Filter */}
-            <div className="relative">
-              <Select
-                value={filterStatus}
-                onValueChange={(value) => setFilterStatus(value)}
-              >
-                <SelectTrigger className="pl-4 pr-8 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white w-[180px]">
-                  <SelectValue placeholder="Semua" />
-                </SelectTrigger>
+            <div className="ml-auto flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+              {/* Search */}
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Cari nama karyawan..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
 
-                <SelectContent>
-                  <SelectItem value="all">Semua</SelectItem>
-                  <SelectItem value="Present">Hadir</SelectItem>
-                  <SelectItem value="Late">Terlambat</SelectItem>
-                  <SelectItem value="Absent">Tidak Hadir</SelectItem>
-                  <SelectItem value="Half Day">Setengah Hari</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Filter */}
+              <div className="relative">
+                <Select
+                  value={filterStatus}
+                  onValueChange={(value) => setFilterStatus(value)}
+                >
+                  <SelectTrigger className="pl-4 pr-8 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white w-[180px]">
+                    <SelectValue placeholder="Semua" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    <SelectItem value="all">Semua</SelectItem>
+                    <SelectItem value="On Time">Tepat Waktu</SelectItem>
+                    <SelectItem value="Present">Hadir</SelectItem>
+                    <SelectItem value="Late">Terlambat</SelectItem>
+                    <SelectItem value="Late - Present">Telat - Hadir</SelectItem>
+                    <SelectItem value="Late - Half Day">Telat - Setengah Hari</SelectItem>
+                    <SelectItem value="Absent">Tidak Hadir</SelectItem>
+                    <SelectItem value="Half Day">Setengah Hari</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Export Button */}
+              {checkRole("attendances", "export") && (
+                <Button
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  variant="outline"
+                  className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+                >
+                  <Download className="w-4 h-4" />
+                  {isExporting ? "Mengexport..." : "Export Excel"}
+                </Button>
+              )}
             </div>
-
-            {/* Export Button */}
-            {checkRole("attendances", "export") && (
-              <Button
-                onClick={handleExport}
-                disabled={isExporting}
-                variant="outline"
-                className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
-              >
-                <Download className="w-4 h-4" />
-                {isExporting ? "Mengexport..." : "Export Excel"}
-              </Button>
-            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -515,6 +558,9 @@ export default function AttendancePage() {
                   </th>
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Status
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Bukti
                   </th>
                   {checkRoleMulti("attendances", ["get-by-id", "delete"]) && (
                     <th className="text-right p-3 font-semibold dark:text-gray-300">
@@ -579,6 +625,44 @@ export default function AttendancePage() {
                           {statusLabel[record.status] || record.status}
                         </span>
                       </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          {record.checkInFaceImage ? (
+                            <a
+                              href={record.checkInFaceImage}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                              title="Bukti Check In"
+                            >
+                              <img
+                                src={record.checkInFaceImage}
+                                alt="Bukti check in"
+                                className="w-10 h-10 rounded object-cover border"
+                              />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">CI: -</span>
+                          )}
+                          {record.checkOutFaceImage ? (
+                            <a
+                              href={record.checkOutFaceImage}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                              title="Bukti Check Out"
+                            >
+                              <img
+                                src={record.checkOutFaceImage}
+                                alt="Bukti check out"
+                                className="w-10 h-10 rounded object-cover border"
+                              />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400">CO: -</span>
+                          )}
+                        </div>
+                      </td>
 
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
@@ -634,7 +718,7 @@ export default function AttendancePage() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={tableColSpan}
                       className="p-8 text-center text-gray-500 dark:text-gray-400"
                     >
                       Tidak ada data kehadiran yang ditemukan
@@ -720,9 +804,17 @@ export default function AttendancePage() {
         mode={faceModalMode}
         referenceImageUrl={userData.avatarUrl || null}
         onSuccess={handleFaceSuccess}
-        onSkip={handleFaceSkip}
         onClose={() => setIsFaceModalOpen(false)}
       />
+
+      {showAttendanceConfig && (
+        <ModalAttendanceConfig
+          onClose={() => {
+            setShowAttendanceConfig(false);
+            fetchAttendance(userData);
+          }}
+        />
+      )}
     </>
   );
 }

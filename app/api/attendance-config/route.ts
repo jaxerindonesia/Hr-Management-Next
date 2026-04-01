@@ -1,0 +1,78 @@
+export const runtime = "nodejs";
+
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+
+const DEFAULT_CONFIG = {
+  officeStartTime: "09:00",
+  officeEndTime: "17:00",
+  lateToleranceMinutes: 15,
+};
+
+export async function GET() {
+  try {
+    const cfg = await prisma.attendanceConfig.findFirst({
+      orderBy: { updatedAt: "desc" },
+    });
+
+    return NextResponse.json({
+      message: "OK",
+      data: cfg ?? DEFAULT_CONFIG,
+    });
+  } catch {
+    return NextResponse.json(
+      { message: "Failed to fetch attendance config" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const officeStartTime = String(body.officeStartTime || "").trim();
+    const officeEndTime = String(body.officeEndTime || "").trim();
+    const lateToleranceMinutes = Number(body.lateToleranceMinutes);
+
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(officeStartTime) || !timeRegex.test(officeEndTime)) {
+      return NextResponse.json(
+        { message: "Format jam harus HH:mm" },
+        { status: 400 },
+      );
+    }
+    if (!Number.isFinite(lateToleranceMinutes) || lateToleranceMinutes < 0) {
+      return NextResponse.json(
+        { message: "Toleransi keterlambatan harus angka >= 0" },
+        { status: 400 },
+      );
+    }
+
+    const existing = await prisma.attendanceConfig.findFirst({
+      orderBy: { updatedAt: "desc" },
+    });
+
+    const data = {
+      officeStartTime,
+      officeEndTime,
+      lateToleranceMinutes,
+    };
+
+    const saved = existing
+      ? await prisma.attendanceConfig.update({
+          where: { id: existing.id },
+          data,
+        })
+      : await prisma.attendanceConfig.create({ data });
+
+    return NextResponse.json({
+      message: "Attendance config updated",
+      data: saved,
+    });
+  } catch {
+    return NextResponse.json(
+      { message: "Failed to update attendance config" },
+      { status: 500 },
+    );
+  }
+}

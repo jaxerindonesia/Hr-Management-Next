@@ -21,6 +21,7 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
   const [cameraError, setCameraError] = useState("");
   const [validationError, setValidationError] = useState("");
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [accessoryConfirmed, setAccessoryConfirmed] = useState(false);
 
   // Load face-api models once
   useEffect(() => {
@@ -67,6 +68,13 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
 
   const capture = async () => {
     if (!videoRef.current || !canvasRef.current) return;
+
+    if (!accessoryConfirmed) {
+      setValidationError("Lepas kacamata dan topi terlebih dahulu sebelum mengambil foto.");
+      setState("invalid");
+      return;
+    }
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
@@ -118,6 +126,7 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
   const retake = () => {
     onChange(null);
     setValidationError("");
+    setAccessoryConfirmed(false);
     setState("idle");
     stopCamera();
   };
@@ -178,6 +187,15 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
             Posisikan wajah di dalam lingkaran, lalu klik Ambil Foto
           </p>
+          <label className="flex items-start gap-2 max-w-xs text-xs text-gray-600 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={accessoryConfirmed}
+              onChange={(e) => setAccessoryConfirmed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-indigo-600"
+            />
+            <span>Saya sudah melepas kacamata dan topi.</span>
+          </label>
           <div className="flex gap-2">
             <Button
               type="button"

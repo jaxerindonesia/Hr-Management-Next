@@ -139,11 +139,26 @@ model Attendance {
 
   checkInLocation  Json? @map("check_in_location")
   checkOutLocation Json? @map("check_out_location")
+  checkInFaceImage String? @map("check_in_face_image")
+  checkOutFaceImage String? @map("check_out_face_image")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("attendances")
+}
+
+model AttendanceConfig {
+  id String @id @default(uuid()) @db.Uuid
+
+  officeStartTime String @map("office_start_time")
+  officeEndTime String @map("office_end_time")
+  lateToleranceMinutes Int @map("late_tolerance_minutes")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("attendance_configs")
 }
 
 model Payroll {

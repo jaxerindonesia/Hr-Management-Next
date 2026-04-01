@@ -213,14 +213,13 @@ export default function FormData({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label className="block text-sm font-medium dark:text-gray-300">
-                NIK *
+                NIK
               </Label>
               <Input
                 value={formData.nik || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, nik: e.target.value })
                 }
-                required
               />
             </div>
 
@@ -308,7 +307,7 @@ export default function FormData({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label className="block text-sm font-medium dark:text-gray-300">
-                Gaji *
+                Gaji
               </Label>
               <Input
                 type="text"
@@ -324,7 +323,6 @@ export default function FormData({
                   });
                 }}
                 placeholder="0"
-                required
               />
             </div>
 
