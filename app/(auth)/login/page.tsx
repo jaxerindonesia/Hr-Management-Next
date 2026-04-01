@@ -13,6 +13,8 @@ import {
   AlertCircle,
   ArrowRight,
   Sparkles,
+  Shield,
+  X,
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -24,6 +26,27 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [passwordShake, setPasswordShake] = useState(false);
   const prevErrorRef = useRef("");
+
+  // Easter egg states
+  const [showCredits, setShowCredits] = useState(false);
+  const [logoClicks, setLogoClicks] = useState(0);
+  const clickResetTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoClick = () => {
+    setLogoClicks((prev) => {
+      const newCount = prev + 1;
+      if (newCount >= 3) {
+        setShowCredits(true);
+        return 0;
+      }
+      return newCount;
+    });
+
+    if (clickResetTimer.current) clearTimeout(clickResetTimer.current);
+    clickResetTimer.current = setTimeout(() => {
+      setLogoClicks(0);
+    }, 1500);
+  };
 
   const [formData, setFormData] = useState({
     email: "",
@@ -324,6 +347,23 @@ export default function LoginPage() {
               </p>
             </div>
 
+            {/* Watermark Logo Jaxer */}
+            <div
+              className="mt-6 flex items-center justify-center gap-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer select-none"
+              onClick={handleLogoClick}
+
+            >
+              <span className="text-xs font-medium text-gray-500">by</span>
+              <Image
+                src="/logo22.png"
+                alt="Jaxer Watermark"
+                width={80}
+                height={14}
+                className="object-contain"
+                unoptimized
+              />
+            </div>
+
             {/* Trust Indicators */}
             <div className="mt-8 flex items-center justify-center gap-8 text-gray-500 text-xs">
               <div className="flex items-center gap-2">
@@ -474,6 +514,66 @@ export default function LoginPage() {
       <footer className="relative z-10 py-4 text-center text-xs text-gray-400">
         &copy; {new Date().getFullYear()} Jaxer Teknologi Indonesia.
       </footer>
+
+      {/* ===== CREDITS MODAL (EASTER EGG) ===== */}
+      {showCredits && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowCredits(false)}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-slate-900 rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 animate-in zoom-in-95 slide-in-from-bottom-8 duration-500 border border-slate-700">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowCredits(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-white transition-all duration-300 hover:rotate-90 hover:scale-110 p-1"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30 animate-in zoom-in duration-700 rotate-3">
+                <Shield className="w-10 h-10 text-white" />
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-white mb-6 uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
+                Website By
+              </h3>
+
+              <div className="flex flex-col gap-3 font-semibold text-[15px] text-gray-200">
+                <div className="px-4 py-3 bg-slate-800/80 rounded-xl border border-slate-700 hover:scale-[1.03] transition-transform duration-300">
+                  <span className="bg-gradient-to-r from-blue-500 to-cyan-500 w-2 h-2 rounded-full inline-block mr-3"></span>
+                  M. Abu Bakar Ashidiq
+                </div>
+                <div className="px-4 py-3 bg-slate-800/80 rounded-xl border border-slate-700 hover:scale-[1.03] transition-transform duration-300">
+                  <span className="bg-gradient-to-r from-indigo-500 to-purple-500 w-2 h-2 rounded-full inline-block mr-3"></span>
+                  Famadha Nugraha Setyajati
+                </div>
+                <div className="px-4 py-3 bg-slate-800/80 rounded-xl border border-slate-700 hover:scale-[1.03] transition-transform duration-300">
+                  <span className="bg-gradient-to-r from-orange-500 to-rose-500 w-2 h-2 rounded-full inline-block mr-3"></span>
+                  Surya Dharma Bakti RM
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={() => setShowCredits(false)}
+                className="px-8 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-gray-300 font-medium transition-all duration-300 active:scale-95 text-sm"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
