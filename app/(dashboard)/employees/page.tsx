@@ -427,6 +427,9 @@ export default function EmployeesPage() {
               <thead>
                 <tr className="border-b dark:border-gray-700">
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Email
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
                     NIK
                   </th>
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
@@ -460,6 +463,9 @@ export default function EmployeesPage() {
                       key={emp.id}
                       className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
+                      <td className="p-3 font-medium dark:text-white">
+                        {emp.email || "-"}
+                      </td>
                       <td className="p-3 font-medium dark:text-white">
                         {emp.nik || "-"}
                       </td>

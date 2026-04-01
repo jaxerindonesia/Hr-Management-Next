@@ -5,7 +5,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AttendanceDto } from "@/lib/dto/attendance";
-import { useState } from "react";
 
 export default function DetailData({
   initialData,
@@ -15,8 +14,11 @@ export default function DetailData({
   onClose: () => void;
 }) {
   const statusLabel: Record<string, string> = {
+    "On Time": "Tepat Waktu",
     Present: "Hadir",
     Late: "Terlambat",
+    "Late - Present": "Telat - Hadir",
+    "Late - Half Day": "Telat - Setengah Hari",
     Absent: "Tidak Hadir",
     "Half Day": "Setengah Hari",
   };
@@ -92,6 +94,44 @@ export default function DetailData({
               >
                 Lihat di Google Maps
               </a>
+            </div>
+          )}
+
+          {(initialData.checkInFaceImage || initialData.checkOutFaceImage) && (
+            <div className="space-y-2 pt-3 border-t">
+              <span className="font-medium">Bukti Wajah:</span>
+              <div className="flex gap-3">
+                {initialData.checkInFaceImage && (
+                  <a
+                    href={initialData.checkInFaceImage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <img
+                      src={initialData.checkInFaceImage}
+                      alt="Bukti check in"
+                      className="w-24 h-24 rounded-md object-cover border"
+                    />
+                    <div className="text-xs text-center mt-1">Check In</div>
+                  </a>
+                )}
+                {initialData.checkOutFaceImage && (
+                  <a
+                    href={initialData.checkOutFaceImage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <img
+                      src={initialData.checkOutFaceImage}
+                      alt="Bukti check out"
+                      className="w-24 h-24 rounded-md object-cover border"
+                    />
+                    <div className="text-xs text-center mt-1">Check Out</div>
+                  </a>
+                )}
+              </div>
             </div>
           )}
         </div>

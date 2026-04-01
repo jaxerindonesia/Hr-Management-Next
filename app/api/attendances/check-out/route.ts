@@ -1,16 +1,37 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
+import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
+
+const DEFAULT_CONFIG = {
+  officeStartTime: "09:00",
+  officeEndTime: "17:00",
+  lateToleranceMinutes: 15,
+};
+
+function getDateAtTime(baseDate: Date, hhmm: string) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date(baseDate);
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId, checkOutLocation } = body;
+    const { userId, checkOutLocation, faceCaptureBase64 } = body;
 
     if (!userId) {
       return NextResponse.json(
         { message: "UserId is required" },
+        { status: 400 },
+      );
+    }
+    if (!faceCaptureBase64) {
+      return NextResponse.json(
+        { message: "Face capture evidence is required" },
         { status: 400 },
       );
     }
@@ -44,12 +65,16 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date();
+    const checkOutFaceImage = await uploadBase64ToMinio(
+      faceCaptureBase64,
+      `attendance-face/check-out-${randomUUID()}.jpg`,
+      BUCKET_AVATARS,
+      "image/jpeg",
+    );
 
     // hitung jam kerja
     const checkInTime = new Date(attendance.checkIn!);
     const diffMs = now.getTime() - checkInTime.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-
     const totalMinutes = Math.floor(diffMs / (1000 * 60));
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
@@ -58,10 +83,22 @@ export async function POST(req: NextRequest) {
       minutes,
     ).padStart(2, "0")}`;
 
-    let status = attendance.status;
+    const cfg =
+      (await prisma.attendanceConfig.findFirst({ orderBy: { updatedAt: "desc" } })) ??
+      DEFAULT_CONFIG;
+    const officeEnd = getDateAtTime(now, cfg.officeEndTime);
+    const isHalfDay = now < officeEnd;
+    const wasLate = attendance.status === "Late";
 
-    if (diffHours < 5) {
+    let status: string;
+    if (wasLate && isHalfDay) {
+      status = "Late - Half Day";
+    } else if (wasLate && !isHalfDay) {
+      status = "Late - Present";
+    } else if (!wasLate && isHalfDay) {
       status = "Half Day";
+    } else {
+      status = "Present";
     }
 
     const updated = await prisma.attendance.update({
@@ -71,6 +108,7 @@ export async function POST(req: NextRequest) {
         status,
         workHours: formattedWorkHours,
         checkOutLocation,
+        checkOutFaceImage,
       },
     });
 
@@ -78,7 +116,7 @@ export async function POST(req: NextRequest) {
       message: "Check Out successful",
       data: updated,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { message: "Failed to check out" },
       { status: 500 },
