@@ -102,9 +102,20 @@ export default function MobileNavbar() {
     { icon: TrendingUp, path: "/performances", label: "Kinerja" },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("hr_auth_token");
-    localStorage.removeItem("hr_user_data");
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      // Clear local storage
+      localStorage.removeItem("hr_user_data");
+      localStorage.removeItem("hr_user_role");
+    } catch (err) {
+      console.error("LOGOUT ERROR:", err);
+    }
+
     router.push("/login");
   };
 
