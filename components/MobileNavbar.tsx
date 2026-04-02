@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ import {
   Home,
   ClipboardCheck,
   Receipt,
+  Shield,
 } from "lucide-react";
 
 /**
@@ -32,6 +33,27 @@ export default function MobileNavbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+
+  // Easter egg states
+  const [showCredits, setShowCredits] = useState(false);
+  const [logoClicks, setLogoClicks] = useState(0);
+  const clickResetTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoClick = () => {
+    setLogoClicks((prev) => {
+      const newCount = prev + 1;
+      if (newCount >= 3) {
+        setShowCredits(true);
+        return 0;
+      }
+      return newCount;
+    });
+
+    if (clickResetTimer.current) clearTimeout(clickResetTimer.current);
+    clickResetTimer.current = setTimeout(() => {
+      setLogoClicks(0);
+    }, 1500);
+  };
 
   const menuItems = [
     {
@@ -169,63 +191,95 @@ export default function MobileNavbar() {
       </nav>
 
       {/* Mobile Menu Overlay */}
-      {isMenuOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 top-14"
-            onClick={closeMenu}
-          />
+      <>
+        {/* Backdrop */}
+        <div
+          className={`lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 top-14 transition-opacity duration-300 ${
+            isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
+          onClick={closeMenu}
+        />
 
-          {/* Slide-in Menu */}
-          <div className="lg:hidden fixed top-14 right-0 bottom-0 w-72 bg-white dark:bg-gray-800 shadow-2xl z-50 transform transition-transform duration-300 ease-out overflow-y-auto mobile-menu-slide mobile-menu-scroll">
-            <div className="flex flex-col h-full">
-              {/* Menu Items */}
-              <nav className="flex-1 p-4 space-y-1">
-                {menuItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive =
-                    pathname === item.path || pathname.startsWith(item.path);
+        {/* Slide-in Menu */}
+        <div 
+          className={`lg:hidden fixed top-14 right-0 bottom-0 w-72 bg-white dark:bg-gray-800 shadow-2xl z-50 transition-transform duration-300 ease-in-out overflow-y-auto mobile-menu-scroll flex flex-col ${
+            isMenuOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          {/* Menu Items */}
+          <nav className="flex-1 p-4 space-y-1">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                pathname === item.path || pathname.startsWith(item.path);
 
-                  return (
-                    <Link
-                      key={item.id}
-                      href={item.path}
-                      onClick={closeMenu}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                        isActive
-                          ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="font-medium">{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              {/* Footer Actions */}
-              <div className="border-t dark:border-gray-700 p-4 space-y-2">
-                {/* Logout Button */}
-                <button
-                  onClick={() => {
-                    closeMenu();
-                    handleLogout();
-                  }}
-                  className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+              return (
+                <Link
+                  key={item.id}
+                  href={item.path}
+                  onClick={closeMenu}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                    isActive
+                      ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
                 >
-                  <LogOut className="w-5 h-5" />
-                  <span className="font-medium">Logout</span>
-                </button>
-              </div>
+                  <Icon className="w-5 h-5" />
+                  <span className="font-medium">{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* ===== WATERMARK BOTTOM ===== */}
+          <div className="px-6 pb-2 mt-auto">
+            <div
+              onClick={handleLogoClick}
+              className="flex items-center justify-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity text-gray-500 dark:text-gray-400 select-none cursor-pointer"
+            >
+              <span className="text-xs font-semibold">by</span>
+              <Image
+                src="/logo21.png"
+                alt="Jaxer Watermark"
+                width={65}
+                height={14}
+                className="object-contain dark:hidden mt-0.5"
+                unoptimized
+              />
+              <Image
+                src="/logo22.png"
+                alt="Jaxer Watermark"
+                width={95}
+                height={14}
+                className="object-contain hidden dark:block mt-0.5"
+                unoptimized
+              />
             </div>
           </div>
-        </>
-      )}
+
+          {/* Footer Actions */}
+          <div className="border-t dark:border-gray-700 p-4 space-y-2">
+            {/* Logout Button */}
+            <button
+              onClick={() => {
+                closeMenu();
+                handleLogout();
+              }}
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="font-medium">Logout</span>
+            </button>
+          </div>
+        </div>
+      </>
 
       {/* Mobile Bottom Navigation Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg">
+      <div 
+        className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-transform duration-300 ease-in-out ${
+          isMenuOpen ? "translate-y-full" : "translate-y-0"
+        }`}
+      >
         <div className="flex items-center justify-around px-2 py-2">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
@@ -258,6 +312,66 @@ export default function MobileNavbar() {
 
       {/* Spacer for content (prevents content from being hidden under fixed navbar) */}
       <div className="lg:hidden h-14" />
+
+      {/* ===== CREDITS MODAL (EASTER EGG) ===== */}
+      {showCredits && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowCredits(false)}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 animate-in zoom-in-95 slide-in-from-bottom-8 duration-500 border border-gray-100 dark:border-gray-700">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowCredits(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300 hover:rotate-90 hover:scale-110 p-1"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30 animate-in zoom-in duration-700 rotate-3">
+                <Shield className="w-10 h-10 text-white" />
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                Website By
+              </h3>
+
+              <div className="flex flex-col gap-3 font-semibold text-[15px] text-gray-700 dark:text-gray-200">
+                <a href="https://github.com/ahmadasshidiq" target="_blank" rel="noopener noreferrer" className="block px-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 hover:scale-[1.03] transition-transform duration-300">
+                  <span className="bg-gradient-to-r from-blue-500 to-cyan-500 w-2 h-2 rounded-full inline-block mr-3"></span>
+                  M. Abu Bakar Ashidiq
+                </a>
+                <a href="https://www.linkedin.com/in/famadha-nugraha-setyajati-42aaa6287" target="_blank" rel="noopener noreferrer" className="block px-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 hover:scale-[1.03] transition-transform duration-300">
+                  <span className="bg-gradient-to-r from-indigo-500 to-purple-500 w-2 h-2 rounded-full inline-block mr-3"></span>
+                  Famadha Nugraha Setyajati
+                </a>
+                <a href="https://github.com/suryadharmabakti" target="_blank" rel="noopener noreferrer" className="block px-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 hover:scale-[1.03] transition-transform duration-300">
+                  <span className="bg-gradient-to-r from-orange-500 to-rose-500 w-2 h-2 rounded-full inline-block mr-3"></span>
+                  Surya Dharma Bakti RM
+                </a>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={() => setShowCredits(false)}
+                className="px-8 py-2.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium transition-all duration-300 active:scale-95 text-sm"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
