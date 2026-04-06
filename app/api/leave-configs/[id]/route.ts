@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -9,8 +10,12 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(_: Request, { params }: Params) {
   const { id } = await params;
   try {
-    const config = await prisma.leaveConfig.findUnique({
-      where: { id },
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
+    const config = await prisma.leaveConfig.findFirst({
+      where: { id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
       include: { submissionTypes: { select: { id: true, name: true } } },
     });
     if (!config) return NextResponse.json({ message: "Tidak ditemukan" }, { status: 404 });
@@ -24,6 +29,10 @@ export async function GET(_: Request, { params }: Params) {
 export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const body = await req.json();
     const { name, maxDays, description, submissionTypeIds } = body;
 
@@ -32,8 +41,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Ambil submission types lama untuk disconnect dulu
-    const existing = await prisma.leaveConfig.findUnique({
-      where: { id },
+    const existing = await prisma.leaveConfig.findFirst({
+      where: { id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
       include: { submissionTypes: { select: { id: true } } },
     });
 
@@ -72,6 +81,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
 export async function DELETE(_: Request, { params }: Params) {
   const { id } = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
+    const existing = await prisma.leaveConfig.findFirst({
+      where: { id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return NextResponse.json({ message: "Tidak ditemukan" }, { status: 404 });
+
     await prisma.leaveConfig.delete({ where: { id } });
     return NextResponse.json({ message: "Berhasil dihapus" });
   } catch {

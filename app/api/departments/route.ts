@@ -2,10 +2,16 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 export async function GET() {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const departments = await prisma.department.findMany({
+      where: scopedTenantId ? { tenantId: scopedTenantId } : {},
       orderBy: { createdAt: "desc" },
     });
 
@@ -25,6 +31,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
 
     const { name } = body;
@@ -36,19 +45,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existing = await prisma.department.findFirst({
-      where: { name },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { message: "Department already exists" },
-        { status: 409 },
-      );
-    }
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
 
     const department = await prisma.department.create({
-      data: { name },
+      data: { name, tenantId: finalTenantId },
     });
 
     return NextResponse.json(

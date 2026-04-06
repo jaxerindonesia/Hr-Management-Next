@@ -22,11 +22,11 @@ import {
   Shield,
   ClipboardCheck,
   Receipt,
-  Settings,
+  Building2,
 } from "lucide-react";
 import { usePermission } from "@/lib/helper/check-role";
 
-type CompanyConfig = {
+type TenantConfig = {
   companyName: string | null;
   logoUrl: string | null;
   logoDarkUrl: string | null;
@@ -37,7 +37,8 @@ export default function Sidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [companyConfig, setCompanyConfig] = useState<CompanyConfig>(null);
+  const [tenantConfig, setTenantConfig] = useState<TenantConfig>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Easter egg states
   const [showCredits, setShowCredits] = useState(false);
@@ -78,14 +79,33 @@ export default function Sidebar() {
     }
   }, []);
 
-  // Fetch company config untuk logo sidebar
+  // Fetch tenant config untuk logo sidebar
   useEffect(() => {
-    fetch("/api/company-config")
+    fetch("/api/tenant-config")
       .then((res) => res.json())
       .then((json) => {
-        if (json.data) setCompanyConfig(json.data);
+        if (json.data) setTenantConfig(json.data);
       })
       .catch(() => { });
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem("hr_user_data");
+    if (!raw) {
+      setIsSuperAdmin(false);
+      return;
+    }
+
+    try {
+      const userData = JSON.parse(raw);
+      const rawRoleName =
+        typeof userData?.role === "string" ? userData.role : userData?.role?.name;
+      const roleName = rawRoleName?.toLowerCase().replace(/\s/g, "") || "";
+      setIsSuperAdmin(roleName === "superadmin");
+    } catch {
+      setIsSuperAdmin(false);
+    }
   }, []);
 
   const handleLogout = async () => {
@@ -112,6 +132,14 @@ export default function Sidebar() {
         name: "Dashboard",
         icon: LayoutDashboard,
         path: "/dashboard",
+      },
+      {
+        id: "tenants",
+        name: "Tenant",
+        icon: Building2,
+        path: "/tenants",
+        permissions: ["superadmin"],
+        superadminOnly: true,
       },
       {
         id: "users",
@@ -162,36 +190,16 @@ export default function Sidebar() {
         path: "/roles",
         permissions: ["get-all", "get-by-id"],
       },
-      {
-        id: "settings",
-        name: "Pengaturan",
-        icon: Settings,
-        path: "/settings",
-        permissions: ["superadmin"],
-        superadminOnly: true,
-      },
     ];
 
     return allItems.filter((item: any) => {
       if (!item.permissions) return true;
       if (item.superadminOnly) {
-        // Cek apakah user adalah superadmin berdasarkan nama role
-        const raw = typeof window !== "undefined" ? localStorage.getItem("hr_user_data") : null;
-        if (raw) {
-          try {
-            const userData = JSON.parse(raw);
-            // Hapus spasi dan jadikan lowercase untuk menyamakan "Super Admin" = "superadmin"
-            const roleName = userData?.role?.name?.toLowerCase().replace(/\s/g, '') || "";
-            return roleName === "superadmin";
-          } catch {
-            return false;
-          }
-        }
-        return false;
+        return isSuperAdmin;
       }
       return checkRoleMulti(item.id, item.permissions);
     });
-  }, [permissions]);
+  }, [permissions, checkRoleMulti, isSuperAdmin]);
 
   return (
     <>
@@ -206,8 +214,8 @@ export default function Sidebar() {
             <>
               <div className="flex-1 flex justify-start items-center relative w-full h-full overflow-hidden">
                 {(() => {
-                  const hasLight = !!companyConfig?.logoUrl;
-                  const hasDark = !!companyConfig?.logoDarkUrl;
+                  const hasLight = !!tenantConfig?.logoUrl;
+                  const hasDark = !!tenantConfig?.logoDarkUrl;
                   const showCompanyLogo = hasLight || hasDark;
 
                   // Jika kita punya logo perusahaan
@@ -215,14 +223,14 @@ export default function Sidebar() {
                     // Coba tentukan logo mana yang dipakai, fallback bila salah satu tidak diupload
                     const activeLogo =
                       theme === "dark"
-                        ? companyConfig?.logoDarkUrl || companyConfig?.logoUrl
-                        : companyConfig?.logoUrl || companyConfig?.logoDarkUrl;
+                        ? tenantConfig?.logoDarkUrl || tenantConfig?.logoUrl
+                        : tenantConfig?.logoUrl || tenantConfig?.logoDarkUrl;
 
                     return (
                       <>
                         <Image
                           src={activeLogo as string}
-                          alt={companyConfig?.companyName ?? "Company Logo"}
+                          alt={tenantConfig?.companyName ?? "Company Logo"}
                           width={140}
                           height={45}
                           priority

@@ -1,12 +1,17 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 import prisma from "@/lib/prisma";
+import { requireSessionUser, ensureTenantScope } from "@/lib/auth/tenant";
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
@@ -15,7 +20,9 @@ export async function GET(req: NextRequest) {
     const departmentId = searchParams.get("departmentId") || "";
     const position = searchParams.get("position") || "";
 
-    const where: any = {};
+    const where: Prisma.UserWhereInput = {};
+    const scopedTenantId = ensureTenantScope(auth.user);
+    if (scopedTenantId) where.tenantId = scopedTenantId;
 
     if (search) {
       where.OR = [
@@ -46,6 +53,7 @@ export async function GET(req: NextRequest) {
         take: limit,
         select: {
           id: true,
+          tenantId: true,
           roleId: true,
           departmentId: true,
           email: true,
@@ -85,6 +93,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
 
     const {
@@ -100,6 +111,7 @@ export async function POST(req: NextRequest) {
       joinDate,
       salary,
       avatarUrl,
+      tenantId,
     } = body;
 
     if (!email || !name || !password || !roleId) {
@@ -108,6 +120,9 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const finalTenantId = scopedTenantId ?? tenantId ?? null;
 
     const existing = await prisma.user.findUnique({
       where: { email },
@@ -138,6 +153,7 @@ export async function POST(req: NextRequest) {
         salary,
         avatarUrl: avatarUrl || null,
         currentToken: "",
+        tenantId: finalTenantId,
       },
       select: {
         id: true,

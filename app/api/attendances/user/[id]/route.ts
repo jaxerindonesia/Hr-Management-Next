@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 type Params = {
   params: {
@@ -12,8 +13,12 @@ type Params = {
 export async function GET(_: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const attendances = await prisma.attendance.findMany({
-      where: { userId: p.id },
+      where: { userId: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
       orderBy: { createdAt: "desc" },
     });
 

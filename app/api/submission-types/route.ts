@@ -2,10 +2,16 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 export async function GET() {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const submissionTypes = await prisma.submissionType.findMany({
+      where: scopedTenantId ? { tenantId: scopedTenantId } : {},
       orderBy: { createdAt: "desc" },
     });
 
@@ -25,6 +31,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
 
     const { name } = body;
@@ -36,8 +45,11 @@ export async function POST(req: NextRequest) {
         );
     }
 
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+
     const existing = await prisma.submissionType.findFirst({
-      where: { name },
+      where: { name, tenantId: finalTenantId },
     });
 
     if (existing) {
@@ -48,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     const submissionType = await prisma.submissionType.create({
-      data: { name },
+      data: { name, tenantId: finalTenantId },
     });
 
     return NextResponse.json(
@@ -66,4 +78,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

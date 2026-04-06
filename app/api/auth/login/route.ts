@@ -21,7 +21,14 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        role: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            permission: true,
+          },
+        },
+        tenant: true,
       },
     });
 
@@ -34,6 +41,26 @@ export async function POST(req: NextRequest) {
         { message: "User is no longer active" },
         { status: 403 },
       );
+    }
+
+    if (user.tenantId && user.tenant) {
+      if (!user.tenant.isActive) {
+        return NextResponse.json(
+          { message: "Tenant sedang nonaktif. Hubungi administrator." },
+          { status: 403 },
+        );
+      }
+
+      if (user.tenant.subscriptionEnd) {
+        const endDate = new Date(user.tenant.subscriptionEnd);
+        endDate.setHours(23, 59, 59, 999);
+        if (Date.now() > endDate.getTime()) {
+          return NextResponse.json(
+            { message: "Masa langganan tenant sudah berakhir." },
+            { status: 403 },
+          );
+        }
+      }
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -75,6 +102,7 @@ export async function POST(req: NextRequest) {
         role: user.role.name,
         permissions: user.role.permission,
         avatarUrl: user.avatarUrl ?? "",
+        tenantId: user.tenantId ?? null,
       },
     });
 

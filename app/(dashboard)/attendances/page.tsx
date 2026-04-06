@@ -70,7 +70,7 @@ export default function AttendancePage() {
       try {
         if (!user?.id) return;
 
-        if (user.role === "Super Admin") {
+        if (user.role === "Super Admin" || user.role === "Admin") {
           // Server-side pagination for admin
           const params = new URLSearchParams();
           params.set("page", String(currentPage));
@@ -124,7 +124,7 @@ export default function AttendancePage() {
 
       let allData: AttendanceDto[] = [];
 
-      if (userData.role === "Super Admin") {
+      if (userData.role === "Super Admin" || userData.role === "Admin") {
         const params = new URLSearchParams();
         params.set("limit", "999999");
         if (searchQuery) params.set("search", searchQuery);
@@ -163,18 +163,20 @@ export default function AttendancePage() {
         });
         const checkIn = record.checkIn
           ? new Date(record.checkIn).toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
+            hour: "2-digit",
+            minute: "2-digit",
+          })
           : "-";
         const checkOut = record.checkOut
           ? new Date(record.checkOut).toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
+            hour: "2-digit",
+            minute: "2-digit",
+          })
           : "-";
 
-        const emp = userData.role === "Super Admin" ? record?.user?.name : "-";
+        const emp = ["Super Admin", "Admin"].includes(userData.role)
+          ? record?.user?.name
+          : "-";
         const row: Record<string, string> = {
           "Nama Karyawan": emp!,
           Tanggal: tanggal,
@@ -463,7 +465,7 @@ export default function AttendancePage() {
                 </div>
               )}
 
-              {userData.role === "Super Admin" && (
+              {["Super Admin", "Admin"].includes(userData.role) && (
                 <Button
                   variant="outline"
                   onClick={() => setShowAttendanceConfig(true)}
@@ -592,23 +594,23 @@ export default function AttendancePage() {
                       <td className="p-3 dark:text-gray-300">
                         {record.checkIn
                           ? new Date(record.checkIn).toLocaleDateString(
-                              "id-ID",
-                              {
-                                minute: "2-digit",
-                                hour: "2-digit",
-                              },
-                            )
+                            "id-ID",
+                            {
+                              minute: "2-digit",
+                              hour: "2-digit",
+                            },
+                          )
                           : "-"}
                       </td>
                       <td className="p-3 dark:text-gray-300">
                         {record.checkOut
                           ? new Date(record.checkOut).toLocaleDateString(
-                              "id-ID",
-                              {
-                                minute: "2-digit",
-                                hour: "2-digit",
-                              },
-                            )
+                            "id-ID",
+                            {
+                              minute: "2-digit",
+                              hour: "2-digit",
+                            },
+                          )
                           : "-"}
                       </td>
                       <td className="p-3 dark:text-gray-300 font-medium">
@@ -766,11 +768,10 @@ export default function AttendancePage() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                          currentPage === page
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page
                             ? "bg-blue-600 text-white"
                             : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
+                          }`}
                       >
                         {page}
                       </button>

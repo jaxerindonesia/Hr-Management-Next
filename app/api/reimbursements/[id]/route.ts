@@ -4,14 +4,19 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import path from "path";
 import fs from "fs";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 type Params = { params: { id: string } };
 
 export async function GET(_: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const item = await prisma.reimbursement.findFirst({
-      where: { id: p.id },
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
       include: {
         user: {
           select: { id: true, name: true, position: true, department: true },
@@ -39,6 +44,10 @@ export async function PUT(req: Request, { params }: Params) {
   const p = await params;
 
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const contentType = req.headers.get("content-type") || "";
 
     let updateData: any = {};
@@ -99,8 +108,8 @@ export async function PUT(req: Request, { params }: Params) {
       "New File:",
       newFile,
     );
-    const existing = await prisma.reimbursement.findUnique({
-      where: { id: p.id },
+    const existing = await prisma.reimbursement.findFirst({
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
     });
 
     if (!existing) {
@@ -165,6 +174,16 @@ export async function PUT(req: Request, { params }: Params) {
 export async function DELETE(_: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
+    const existing = await prisma.reimbursement.findFirst({
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return NextResponse.json({ message: "Reimbursement not found" }, { status: 404 });
+
     await prisma.reimbursement.delete({ where: { id: p.id } });
     return NextResponse.json({ message: "Reimbursement successfully deleted" });
   } catch (error) {

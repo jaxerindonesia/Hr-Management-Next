@@ -2,9 +2,13 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
@@ -14,6 +18,8 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get("endDate") || "";
 
     const where: any = {};
+    const scopedTenantId = ensureTenantScope(auth.user);
+    if (scopedTenantId) where.tenantId = scopedTenantId;
 
     if (search) {
       where.user = {
@@ -63,6 +69,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
 
     const { userId, date, checkIn, checkOut, status, notes } = body;
@@ -74,8 +83,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+
     const existing = await prisma.attendance.findFirst({
-      where: { userId: userId, date: new Date(date) },
+      where: { userId: userId, date: new Date(date), ...(finalTenantId ? { tenantId: finalTenantId } : {}) },
     });
 
     if (existing) {
@@ -87,6 +99,7 @@ export async function POST(req: NextRequest) {
 
     const attendance = await prisma.attendance.create({
       data: {
+        tenantId: finalTenantId,
         userId,
         date: new Date(date),
         checkIn,

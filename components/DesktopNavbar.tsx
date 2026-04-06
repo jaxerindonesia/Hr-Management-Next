@@ -15,7 +15,6 @@ import {
   EyeOff,
   X,
   ShieldCheck,
-  Settings,
 } from "lucide-react";
 
 const PasswordField = ({
@@ -124,6 +123,7 @@ export default function DesktopNavbar() {
       performances: "Penilaian Kinerja",
       roles: "Roles",
       reimbursements: "Reimbursement",
+      tenants: "Tenant",
     };
     return titles[path || "dashboard"] || "Dashboard";
   };
@@ -309,15 +309,15 @@ export default function DesktopNavbar() {
                   </div>
 
                   <div className="py-1">
-                    {/* Menu Pengaturan khusus Super Admin */}
+                    {/* Menu Kelola Tenant khusus Super Admin */}
                     {user?.role?.toLowerCase().replace(/\s/g, "") === "superadmin" && (
                       <Link
-                        href="/settings"
+                        href="/tenants"
                         onClick={() => setDropdownOpen(false)}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
-                        <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                        Pengaturan
+                        <ShieldCheck className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        Kelola Tenant
                       </Link>
                     )}
 

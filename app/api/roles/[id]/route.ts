@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireSessionUser } from "@/lib/auth/tenant";
 
 type Params = {
   params: { id: string };
@@ -10,8 +11,16 @@ type Params = {
 export async function GET(_: Request, { params }: Params) {
   const p = await params;
   try {
-    const role = await prisma.role.findUnique({
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
+    const role = await prisma.role.findFirst({
       where: { id: p.id },
+      select: {
+        id: true,
+        name: true,
+        permission: true,
+      },
     });
 
     if (!role) {
@@ -35,6 +44,15 @@ export async function GET(_: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
+    const existing = await prisma.role.findFirst({
+      where: { id: p.id },
+      select: { id: true },
+    });
+    if (!existing) return NextResponse.json({ message: "Role not found" }, { status: 404 });
+
     const body = await req.json();
     const { name, permissions } = body;
 
@@ -43,6 +61,11 @@ export async function PUT(req: Request, { params }: Params) {
       data: {
         name,
         permission: permissions,
+      },
+      select: {
+        id: true,
+        name: true,
+        permission: true,
       },
     });
 
@@ -63,6 +86,15 @@ export async function PUT(req: Request, { params }: Params) {
 export async function DELETE(_: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
+    const existing = await prisma.role.findFirst({
+      where: { id: p.id },
+      select: { id: true },
+    });
+    if (!existing) return NextResponse.json({ message: "Role not found" }, { status: 404 });
+
     await prisma.role.delete({
       where: { id: p.id },
     });

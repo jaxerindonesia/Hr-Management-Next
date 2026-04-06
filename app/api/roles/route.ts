@@ -1,16 +1,21 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { requireSessionUser } from "@/lib/auth/tenant";
 
 export async function GET(req: Request) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
     const search = searchParams.get("search") || "";
 
-    const where: any = {};
+    const where: Prisma.RoleWhereInput = {};
 
     if (search) {
       where.name = { contains: search, mode: "insensitive" };
@@ -22,6 +27,11 @@ export async function GET(req: Request) {
         orderBy: { name: "asc" },
         skip: (page - 1) * limit,
         take: limit,
+        select: {
+          id: true,
+          name: true,
+          permission: true,
+        },
       }),
       prisma.role.count({ where }),
     ]);
@@ -45,6 +55,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
 
     const { name, permissions } = body;
@@ -60,6 +73,11 @@ export async function POST(req: Request) {
       data: {
         name,
         permission: permissions,
+      },
+      select: {
+        id: true,
+        name: true,
+        permission: true,
       },
     });
 

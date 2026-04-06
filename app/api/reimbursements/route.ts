@@ -3,10 +3,15 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
@@ -14,7 +19,9 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category") || "";
     const status = searchParams.get("status") || "";
 
-    const where: any = {};
+    const where: Prisma.ReimbursementWhereInput = {};
+    const scopedTenantId = ensureTenantScope(auth.user);
+    if (scopedTenantId) where.tenantId = scopedTenantId;
 
     if (search) {
       where.OR = [
@@ -63,6 +70,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const formData = await req.formData();
 
     const userId = formData.get("userId") as string;
@@ -80,8 +90,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const finalTenantId = scopedTenantId;
+
     const reimbursement = await prisma.reimbursement.create({
       data: {
+        tenantId: finalTenantId,
         userId,
         title,
         category,

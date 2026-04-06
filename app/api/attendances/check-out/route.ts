@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -20,7 +21,12 @@ function getDateAtTime(baseDate: Date, hhmm: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
     const { userId, checkOutLocation, faceCaptureBase64 } = body;
 
     if (!userId) {
@@ -42,6 +48,7 @@ export async function POST(req: NextRequest) {
 
     const attendance = await prisma.attendance.findFirst({
       where: {
+        ...(finalTenantId ? { tenantId: finalTenantId } : {}),
         userId,
         date: {
           gte: startOfDay,
@@ -84,7 +91,10 @@ export async function POST(req: NextRequest) {
     ).padStart(2, "0")}`;
 
     const cfg =
-      (await prisma.attendanceConfig.findFirst({ orderBy: { updatedAt: "desc" } })) ??
+      (await prisma.attendanceConfig.findFirst({
+        where: finalTenantId ? { tenantId: finalTenantId } : {},
+        orderBy: { updatedAt: "desc" },
+      })) ??
       DEFAULT_CONFIG;
     const officeEnd = getDateAtTime(now, cfg.officeEndTime);
     const isHalfDay = now < officeEnd;

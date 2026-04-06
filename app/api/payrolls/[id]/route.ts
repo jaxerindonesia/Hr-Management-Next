@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 type Params = {
   params: {
@@ -13,8 +14,12 @@ type Params = {
 export async function GET(_: Request, { params }: Params) {
   const p = await params;
   try {
-    const payroll = await prisma.payroll.findUnique({
-      where: { id: p.id },
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
+    const payroll = await prisma.payroll.findFirst({
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
     });
 
     if (!payroll) {
@@ -36,6 +41,16 @@ export async function GET(_: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
+    const existing = await prisma.payroll.findFirst({
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return NextResponse.json({ message: "Payroll not found" }, { status: 404 });
+
     const body = await req.json();
 
     const updateData: any = {};
@@ -71,6 +86,16 @@ export async function PUT(req: Request, { params }: Params) {
 export async function DELETE(_: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
+    const existing = await prisma.payroll.findFirst({
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return NextResponse.json({ message: "Payroll not found" }, { status: 404 });
+
     await prisma.payroll.delete({
       where: { id: p.id },
     });

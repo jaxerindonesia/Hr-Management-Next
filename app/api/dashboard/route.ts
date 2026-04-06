@@ -2,9 +2,16 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 export async function GET() {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const tenantWhere = scopedTenantId ? { tenantId: scopedTenantId } : {};
+
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
@@ -22,12 +29,14 @@ export async function GET() {
       const [hadir, absen] = await Promise.all([
         prisma.attendance.count({
           where: {
+            ...tenantWhere,
             date: { gte: d, lt: nextD },
             status: { in: ["Present", "Half Day"] },
           },
         }),
         prisma.attendance.count({
           where: {
+            ...tenantWhere,
             date: { gte: d, lt: nextD },
             status: { notIn: ["Present", "Half Day"] },
           },
@@ -47,14 +56,15 @@ export async function GET() {
     // Stat cards
     const [totalKaryawan, karyawanAktif, pendingSubmissions] =
       await Promise.all([
-        prisma.user.count(),
-        prisma.user.count({ where: { status: "active" } }),
-        prisma.submission.count({ where: { status: "PENDING" } }),
+        prisma.user.count({ where: tenantWhere }),
+        prisma.user.count({ where: { ...tenantWhere, status: "active" } }),
+        prisma.submission.count({ where: { ...tenantWhere, status: "PENDING" } }),
       ]);
 
     const gajiAggregate = await prisma.payroll.aggregate({
       _sum: { totalSalary: true },
       where: {
+        ...tenantWhere,
         month: currentMonth,
         year: currentYear,
         status: "paid",
@@ -64,6 +74,7 @@ export async function GET() {
     const totalGajiBulanIni = gajiAggregate._sum.totalSalary ?? 0;
 
     const users = await prisma.user.findMany({
+      where: tenantWhere,
       select: {
         department: {
           select: {
@@ -86,6 +97,7 @@ export async function GET() {
     }));
 
     const recentSubmissions = await prisma.submission.findMany({
+      where: tenantWhere,
       orderBy: { createdAt: "desc" },
       take: 10,
       include: {
@@ -95,6 +107,7 @@ export async function GET() {
     });
 
     const newEmployeesRaw = await prisma.user.findMany({
+      where: tenantWhere,
       orderBy: { createdAt: "desc" },
       take: 10,
       select: {
