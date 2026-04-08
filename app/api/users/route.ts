@@ -19,10 +19,12 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status") || "";
     const departmentId = searchParams.get("departmentId") || "";
     const position = searchParams.get("position") || "";
+    const tenantId = searchParams.get("tenantId") || "";
 
     const where: Prisma.UserWhereInput = {};
     const scopedTenantId = ensureTenantScope(auth.user);
     if (scopedTenantId) where.tenantId = scopedTenantId;
+    if (!scopedTenantId && tenantId) where.tenantId = tenantId;
 
     if (search) {
       where.OR = [
@@ -68,7 +70,14 @@ export async function GET(req: NextRequest) {
           avatarUrl: true,
           department: {
             select: {
+              id: true,
               name: true,
+            },
+          },
+          tenant: {
+            select: {
+              id: true,
+              companyName: true,
             },
           },
         },
@@ -83,7 +92,7 @@ export async function GET(req: NextRequest) {
       page,
       limit,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { message: "Failed to retrieve user data" },
       { status: 500 },
@@ -107,7 +116,6 @@ export async function POST(req: NextRequest) {
       nik,
       phone,
       position,
-      department,
       joinDate,
       salary,
       avatarUrl,

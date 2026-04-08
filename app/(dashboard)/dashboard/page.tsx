@@ -21,7 +21,6 @@ import {
   ClipboardList,
   Calendar,
   TrendingUp,
-  Clock,
   AlertCircle,
   UserPlus,
 } from "lucide-react";
@@ -187,21 +186,29 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [currentTime, setCurrentTime] = useState<Date | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [userRole] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem("hr_user_data");
+      if (!raw) return null;
+      return JSON.parse(raw)?.role ?? null;
+    } catch {
+      return null;
+    }
+  });
+  const [userName] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem("hr_user_data");
+      if (!raw) return null;
+      return JSON.parse(raw)?.name ?? null;
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
-    const userData = localStorage.getItem("hr_user_data");
-    if (userData) {
-      try {
-        const u = JSON.parse(userData);
-        setUserRole(u.role);
-        setUserName(u.name);
-      } catch (_) {}
-    }
-
-    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
 
     fetch("/api/dashboard")
@@ -217,6 +224,8 @@ export default function DashboardPage() {
   }, []);
 
   const holidays = getNextHolidays();
+  const canViewEmployeeStats =
+    userRole === "Super Admin" || userRole === "Admin";
 
   if (loading) {
     return (
@@ -259,34 +268,36 @@ export default function DashboardPage() {
           </span>{" "}
           👋
         </h1>
-        {currentTime && (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {currentTime.toLocaleDateString("id-ID", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}{" "}
-            &bull;{" "}
-            {currentTime.toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}
-          </p>
-        )}
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {currentTime.toLocaleDateString("id-ID", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}{" "}
+          &bull;{" "}
+          {currentTime.toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })}
+        </p>
       </div>
 
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {userRole === "Super Admin" && (
+        {canViewEmployeeStats && (
           <>
             <StatCard
               title="Total Karyawan"
               value={stats.totalKaryawan}
               icon={Users}
               gradient="bg-gradient-to-br from-blue-500 to-blue-700"
-              sub="Semua karyawan terdaftar"
+              sub={
+                userRole === "Super Admin"
+                  ? "Semua karyawan terdaftar"
+                  : "Karyawan di tenant Anda"
+              }
             />
             <StatCard
               title="Karyawan Aktif"

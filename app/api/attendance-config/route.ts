@@ -24,6 +24,7 @@ export async function GET() {
     return NextResponse.json({
       message: "OK",
       data: cfg ?? DEFAULT_CONFIG,
+      isDefault: !cfg,
     });
   } catch {
     return NextResponse.json(

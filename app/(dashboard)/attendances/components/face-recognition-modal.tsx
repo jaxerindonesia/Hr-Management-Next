@@ -356,13 +356,13 @@ export default function FaceRecognitionModal({
         <div className="relative bg-black aspect-[4/3] sm:aspect-video overflow-hidden">
           <video
             ref={videoRef}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover -scale-x-100"
             muted
             playsInline
           />
           <canvas
             ref={canvasRef}
-            className="absolute inset-0 w-full h-full"
+            className="absolute inset-0 w-full h-full -scale-x-100"
           />
 
           {(status === "scanning" || status === "no-face" || status === "no-match" || status === "head-turn-required") && (

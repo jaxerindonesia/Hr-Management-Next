@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -62,6 +62,9 @@ export default function TenantsPage() {
 
   useEffect(() => {
     fetchTenants();
+  }, [fetchTenants]);
+
+  useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
   }, []);
@@ -152,7 +155,7 @@ export default function TenantsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b dark:border-gray-700">
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">Nama Company</th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">Nama Perusahaan</th>
                   <th className="text-left p-3 font-semibold dark:text-gray-300">Email Admin</th>
                   <th className="text-left p-3 font-semibold dark:text-gray-300">Status</th>
                   <th className="text-left p-3 font-semibold dark:text-gray-300">Mulai Langganan</th>

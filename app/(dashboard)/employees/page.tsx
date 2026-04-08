@@ -28,6 +28,11 @@ import ModalDepartment from "./components/modal-department";
 import { DepartmentDto } from "@/lib/dto/department";
 import { Input } from "@/components/ui/input";
 
+type TenantOption = {
+  id: string;
+  companyName: string;
+};
+
 export default function EmployeesPage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [userData, setUserData] = useState({ id: "", role: "" });
@@ -38,6 +43,7 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<UserDto[]>([]);
   const [total, setTotal] = useState(0);
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [formData, setFormData] = useState<UserDto>({
     roleId: "",
@@ -56,11 +62,21 @@ export default function EmployeesPage() {
   // Filter states
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterCompany, setFilterCompany] = useState<string>("all");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 
   const itemsPerPage = 10;
   const totalPages = Math.ceil(total / itemsPerPage);
+  const isSuperAdmin = userData.role === "Super Admin";
+  const isAdmin = userData.role === "Admin";
+
+  const getDepartmentDisplayName = (dept?: DepartmentDto | null) => {
+    if (!dept) return "-";
+    if (!isSuperAdmin) return dept.name || "-";
+    const companyName = dept.tenant?.companyName || "";
+    return companyName ? `${dept.name} - ${companyName}` : dept.name || "-";
+  };
 
   const handleOpenModal = (data?: UserDto) => {
     if (data) setFormData(data);
@@ -93,7 +109,7 @@ export default function EmployeesPage() {
       if (!res.ok) throw new Error("Gagal menghapus karyawan");
       toast.success("Karyawan berhasil dihapus!");
       fetchUsers();
-    } catch (error) {
+    } catch {
       toast.error("Gagal menghapus karyawan");
     }
   };
@@ -108,6 +124,9 @@ export default function EmployeesPage() {
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterDepartment !== "all")
         params.set("departmentId", filterDepartment);
+      if (isSuperAdmin && filterCompany !== "all") {
+        params.set("tenantId", filterCompany);
+      }
 
       const res = await fetch(`/api/users?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal mengambil data untuk export");
@@ -118,13 +137,16 @@ export default function EmployeesPage() {
       const XLSX = await import("xlsx");
 
       const rows = allData.map((emp) => {
-        const row: Record<string, any> = {
+        const row: Record<string, unknown> = {
           NIK: emp.nik || "-",
           Nama: emp.name || "-",
           Email: emp.email || "-",
           "No. Telepon": emp.phone || "-",
           Posisi: emp.position || "-",
-          Departemen: emp.department?.name || "-",
+          Departemen:
+            emp.department?.name && isSuperAdmin
+              ? `${emp.department.name} - ${emp.tenant?.companyName || "-"}`
+              : emp.department?.name || "-",
           "Tanggal Bergabung": emp.joinDate
             ? new Date(emp.joinDate).toLocaleDateString("id-ID", {
                 day: "numeric",
@@ -135,7 +157,12 @@ export default function EmployeesPage() {
           Status: emp.status === "active" ? "Aktif" : "Tidak Aktif",
         };
 
-        if (userData.role === "Super Admin") {
+        if (isSuperAdmin) {
+          row["Perusahaan"] = emp.tenant?.companyName || "-";
+          row["Gaji"] = emp.salary || 0;
+        }
+
+        if (isAdmin) {
           row["Gaji"] = emp.salary || 0;
         }
 
@@ -157,7 +184,7 @@ export default function EmployeesPage() {
       worksheet["!cols"] = colWidths;
 
       // Format salary column as currency if Super Admin
-      if (userData.role === "Super Admin") {
+      if (isSuperAdmin) {
         const salaryColIndex = Object.keys(rows[0] ?? {}).indexOf("Gaji");
         if (salaryColIndex >= 0) {
           const colLetter = XLSX.utils.encode_col(salaryColIndex);
@@ -174,7 +201,7 @@ export default function EmployeesPage() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data karyawan`);
-    } catch (err) {
+    } catch {
       toast.error("Gagal mengexport data");
     } finally {
       setIsExporting(false);
@@ -184,15 +211,22 @@ export default function EmployeesPage() {
   const clearAllFilters = () => {
     setFilterDepartment("all");
     setFilterStatus("all");
+    setFilterCompany("all");
     setSearchTerm("");
   };
 
   // Count active filters
   const activeFilterCount = [
+    isSuperAdmin && filterCompany !== "all",
     filterDepartment !== "all",
     filterStatus !== "all",
     searchTerm !== "",
   ].filter(Boolean).length;
+
+  const filteredDepartments =
+    isSuperAdmin && filterCompany !== "all"
+      ? departments.filter((dept) => dept.tenantId === filterCompany)
+      : departments;
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -203,16 +237,19 @@ export default function EmployeesPage() {
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterDepartment !== "all")
         params.set("departmentId", filterDepartment);
+      if (isSuperAdmin && filterCompany !== "all") {
+        params.set("tenantId", filterCompany);
+      }
 
       const res = await fetch(`/api/users?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal mengambil data karyawan");
       const json = await res.json();
       setEmployees(json.data || []);
       setTotal(json.total || 0);
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat data karyawan");
     }
-  }, [currentPage, searchTerm, filterStatus, filterDepartment]);
+  }, [currentPage, searchTerm, filterStatus, filterDepartment, filterCompany, isSuperAdmin]);
 
   const fetchDepartments = async () => {
     try {
@@ -220,8 +257,19 @@ export default function EmployeesPage() {
       if (!res.ok) throw new Error("Gagal mengambil data departemen");
       const json = await res.json();
       setDepartments(json.data || []);
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat departemen");
+    }
+  };
+
+  const fetchTenants = async () => {
+    try {
+      const res = await fetch("/api/tenants?page=1&limit=100");
+      if (!res.ok) throw new Error("Gagal mengambil data tenant");
+      const json = await res.json();
+      setTenants(json.data || []);
+    } catch {
+      toast.error("Gagal memuat data tenant");
     }
   };
 
@@ -240,6 +288,19 @@ export default function EmployeesPage() {
     setUserData(data);
     fetchDepartments();
   }, []);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    fetchTenants();
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    if (filterDepartment === "all") return;
+    const exists = filteredDepartments.some((dept) => dept.id === filterDepartment);
+    if (!exists) {
+      setFilterDepartment("all");
+    }
+  }, [filterDepartment, filteredDepartments]);
 
   return (
     <>
@@ -341,7 +402,27 @@ export default function EmployeesPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 ${isSuperAdmin ? "sm:grid-cols-3 lg:grid-cols-4" : "sm:grid-cols-3"} gap-4`}>
+                {isSuperAdmin && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                      Perusahaan
+                    </label>
+                    <select
+                      value={filterCompany}
+                      onChange={(e) => setFilterCompany(e.target.value)}
+                      className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">Semua Perusahaan</option>
+                      {tenants.map((tenant) => (
+                        <option key={tenant.id} value={tenant.id}>
+                          {tenant.companyName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {/* Department Filter */}
                 <div>
                   <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
@@ -353,9 +434,9 @@ export default function EmployeesPage() {
                     className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="all">Semua Departemen</option>
-                    {departments.map((dept) => (
-                      <option key={dept?.id} value={dept?.id!}>
-                        {dept?.name}
+                    {filteredDepartments.map((dept) => (
+                      <option key={dept.id} value={dept.id}>
+                        {getDepartmentDisplayName(dept)}
                       </option>
                     ))}
                   </select>
@@ -395,10 +476,25 @@ export default function EmployeesPage() {
                   {filterDepartment !== "all" && (
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
                       Departemen:{" "}
-                      {departments.find((d) => d.id === filterDepartment)
-                        ?.name || filterDepartment}
+                      {getDepartmentDisplayName(
+                        filteredDepartments.find((d) => d.id === filterDepartment) ||
+                          departments.find((d) => d.id === filterDepartment) ||
+                          null,
+                      )}
                       <button
                         onClick={() => setFilterDepartment("all")}
+                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {isSuperAdmin && filterCompany !== "all" && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
+                      Perusahaan:{" "}
+                      {tenants.find((t) => t.id === filterCompany)?.companyName || "-"}
+                      <button
+                        onClick={() => setFilterCompany("all")}
                         className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
                       >
                         <X className="w-3 h-3" />
@@ -426,6 +522,11 @@ export default function EmployeesPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b dark:border-gray-700">
+                  {isSuperAdmin && (
+                    <th className="text-left p-3 font-semibold dark:text-gray-300">
+                      Perusahaan
+                    </th>
+                  )}
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Email
                   </th>
@@ -441,7 +542,7 @@ export default function EmployeesPage() {
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Departemen
                   </th>
-                  {userData.role === "Super Admin" && (
+                  {(isSuperAdmin || isAdmin) && (
                     <th className="text-left p-3 font-semibold dark:text-gray-300">
                       Gaji
                     </th>
@@ -463,6 +564,11 @@ export default function EmployeesPage() {
                       key={emp.id}
                       className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
+                      {isSuperAdmin && (
+                        <td className="p-3 dark:text-gray-300">
+                          {emp.tenant?.companyName || "-"}
+                        </td>
+                      )}
                       <td className="p-3 font-medium dark:text-white">
                         {emp.email || "-"}
                       </td>
@@ -476,9 +582,11 @@ export default function EmployeesPage() {
                         {emp.position || "-"}
                       </td>
                       <td className="p-3 dark:text-gray-300">
-                        {emp.department?.name || "-"}
+                        {emp.department?.name && isSuperAdmin
+                          ? `${emp.department.name} - ${emp.tenant?.companyName || "-"}`
+                          : emp.department?.name || "-"}
                       </td>
-                      {userData.role === "Super Admin" && (
+                      {(isSuperAdmin || isAdmin) && (
                         <td className="p-3 dark:text-gray-300">
                           {formatCurrency(emp.salary || 0)}
                         </td>
@@ -549,7 +657,13 @@ export default function EmployeesPage() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={
+                        (isSuperAdmin ? 1 : 0) +
+                        5 + // email, nik, nama, posisi, departemen
+                        (isSuperAdmin ? 1 : 0) + // gaji
+                        1 + // status
+                        (checkRoleMulti("users", ["update", "delete"]) ? 1 : 0) // aksi
+                      }
                       className="p-8 text-center text-gray-500 dark:text-gray-400"
                     >
                       Tidak ada data karyawan yang ditemukan

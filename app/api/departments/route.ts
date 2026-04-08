@@ -13,6 +13,20 @@ export async function GET() {
     const departments = await prisma.department.findMany({
       where: scopedTenantId ? { tenantId: scopedTenantId } : {},
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        tenantId: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+        tenant: {
+          select: {
+            id: true,
+            companyName: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json({

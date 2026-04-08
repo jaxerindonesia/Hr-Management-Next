@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/tenant-expiry",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/attendance-absent",
+      "schedule": "10 17 * * *"
+    }
+  ]
+}

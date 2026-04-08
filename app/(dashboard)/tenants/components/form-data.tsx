@@ -153,7 +153,7 @@ export default function FormData({ initialData, onClose, onSuccess }: FormDataPr
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Nama Company</Label>
+            <Label>Nama Perusahaan</Label>
             <Input
               value={form.companyName}
               onChange={(e) => setForm((prev) => ({ ...prev, companyName: e.target.value }))}

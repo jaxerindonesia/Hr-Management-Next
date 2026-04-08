@@ -15,6 +15,13 @@ export default function ModalDepartment({ onClose }: { onClose: () => void }) {
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [newType, setNewType] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  const getDepartmentLabel = (dept: DepartmentDto) => {
+    if (!isSuperAdmin) return dept.name;
+    const companyName = dept.tenant?.companyName || "";
+    return companyName ? `${dept.name} - ${companyName}` : dept.name;
+  };
 
   const handleAddType = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +76,19 @@ export default function ModalDepartment({ onClose }: { onClose: () => void }) {
   };
 
   useEffect(() => {
+    const raw = localStorage.getItem("hr_user_data");
+    if (raw) {
+      try {
+        const userData = JSON.parse(raw);
+        const rawRoleName =
+          typeof userData?.role === "string" ? userData.role : userData?.role?.name;
+        const roleName = String(rawRoleName || "").toLowerCase().replace(/\s/g, "");
+        setIsSuperAdmin(roleName === "superadmin");
+      } catch {
+        setIsSuperAdmin(false);
+      }
+    }
+
     fetchDepartments();
   }, []);
 
@@ -98,7 +118,7 @@ export default function ModalDepartment({ onClose }: { onClose: () => void }) {
                 key={dept.id}
                 className="flex items-center justify-between p-2 border rounded-md"
               >
-                <span>{dept.name}</span>
+                <span>{getDepartmentLabel(dept)}</span>
 
                 <Button
                   type="button"

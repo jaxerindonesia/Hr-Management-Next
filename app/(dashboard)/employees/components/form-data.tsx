@@ -76,7 +76,7 @@ export default function FormData({
       if (!res.ok) throw new Error("Gagal mengambil data role");
       const json = await res.json();
       setRoles(json.data || []);
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat role");
     }
   };
@@ -87,7 +87,7 @@ export default function FormData({
       if (!res.ok) throw new Error("Gagal mengambil data departemen");
       const json = await res.json();
       setDepartments(json.data || []);
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat departemen");
     }
   };
@@ -161,7 +161,7 @@ export default function FormData({
       toast.success(
         `Data karyawan berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
-      onSuccess && onSuccess();
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
@@ -215,6 +215,30 @@ export default function FormData({
     return normalizedName !== "superadmin";
   });
 
+  const selectedTenantId = isSuperAdmin
+    ? formData.tenantId || ""
+    : currentTenantId || formData.tenantId || "";
+
+  const filteredDepartments = departments.filter((dept) => {
+    if (!selectedTenantId) return false;
+    return dept.tenantId === selectedTenantId;
+  });
+
+  useEffect(() => {
+    if (!formData.departmentId) return;
+
+    const isDepartmentStillValid = filteredDepartments.some(
+      (dept) => dept.id === formData.departmentId,
+    );
+
+    if (!isDepartmentStillValid) {
+      setFormData((prev) => ({
+        ...prev,
+        departmentId: "",
+      }));
+    }
+  }, [filteredDepartments, formData.departmentId]);
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -260,7 +284,7 @@ export default function FormData({
                 <Select
                   value={formData.tenantId || ""}
                   onValueChange={(val) =>
-                    setFormData({ ...formData, tenantId: val })
+                    setFormData({ ...formData, tenantId: val, departmentId: "" })
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -294,9 +318,11 @@ export default function FormData({
                 </SelectTrigger>
 
                 <SelectContent>
-                  {departments.map((dept) => (
+                  {filteredDepartments.map((dept) => (
                     <SelectItem key={dept.id} value={dept.id ?? ""}>
-                      {dept.name}
+                      {isSuperAdmin
+                        ? `${dept.name} - ${dept.tenant?.companyName || "-"}`
+                        : dept.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

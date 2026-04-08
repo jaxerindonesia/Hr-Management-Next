@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     if (!companyName || !adminEmail) {
       return NextResponse.json(
-        { message: "Nama company dan email admin wajib diisi" },
+        { message: "Nama perusahaan dan email admin wajib diisi" },
         { status: 400 },
       );
     }
@@ -131,7 +131,9 @@ export async function POST(req: NextRequest) {
       const createdAdmin = await tx.user.create({
         data: {
           email: adminEmail,
-          name: `${companyName} Admin`,
+          name: `Admin ${companyName}`,
+          joinDate: new Date(subscriptionStart),
+          position: "Admin",
           roleId: adminRole.id,
           password: hashedPassword,
           salt,
