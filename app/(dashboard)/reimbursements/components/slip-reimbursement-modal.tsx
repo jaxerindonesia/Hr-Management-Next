@@ -6,11 +6,16 @@ import { formatCurrency } from "@/lib/helper/format-currency";
 
 interface SlipReimbursementModalProps {
     reimbursement: ReimbursementDto;
+    tenantConfig?: {
+        companyName?: string | null;
+        logoUrl?: string | null;
+    } | null;
     onClose: () => void;
 }
 
 export default function SlipReimbursementModal({
     reimbursement,
+    tenantConfig,
     onClose,
 }: SlipReimbursementModalProps) {
     const handlePrint = () => {
@@ -58,7 +63,7 @@ export default function SlipReimbursementModal({
 
                     {/* Slip Preview */}
                     <div className="p-6">
-                        <SlipContent reimbursement={reimbursement} />
+                        <SlipContent reimbursement={reimbursement} tenantConfig={tenantConfig} />
                     </div>
                 </div>
             </div>
@@ -67,9 +72,24 @@ export default function SlipReimbursementModal({
 }
 
 /* ---------- Reusable slip content (also rendered on print) ---------- */
-function SlipContent({ reimbursement }: { reimbursement: ReimbursementDto }) {
+function SlipContent({
+    reimbursement,
+    tenantConfig,
+}: {
+    reimbursement: ReimbursementDto;
+    tenantConfig?: {
+        companyName?: string | null;
+        logoUrl?: string | null;
+    } | null;
+}) {
     const isApproved = reimbursement.status === "approved";
     const isRejected = reimbursement.status === "rejected";
+    const departmentLabel =
+        typeof reimbursement.user?.department === "string"
+            ? reimbursement.user.department
+            : reimbursement.user?.department?.name;
+    const companyName = tenantConfig?.companyName?.trim() || "JAXER GRUP INDONESIA";
+    const companyLogo = tenantConfig?.logoUrl || "/logo22.png";
 
     const statusConfig = isApproved
         ? { label: "Disetujui", color: "bg-green-100 text-green-700", Icon: CheckCircle }
@@ -89,10 +109,10 @@ function SlipContent({ reimbursement }: { reimbursement: ReimbursementDto }) {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center">
-                            <img src="/logo22.png" alt="Logo Jaxer" />
+                            <img src={companyLogo} alt={`Logo ${companyName}`} />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold tracking-wide">JAXER GRUP INDONESIA</h1>
+                            <h1 className="text-xl font-bold tracking-wide">{companyName}</h1>
                             <p className="text-blue-200 text-sm">Human Resources Department</p>
                         </div>
                     </div>
@@ -127,7 +147,7 @@ function SlipContent({ reimbursement }: { reimbursement: ReimbursementDto }) {
                     </p>
                     <p className="text-base font-semibold text-gray-800">
                         {reimbursement.user?.position ?? "-"} /{" "}
-                        {reimbursement.user?.department ?? "-"}
+                        {departmentLabel ?? "-"}
                     </p>
                 </div>
                 <div>
@@ -265,7 +285,7 @@ function SlipContent({ reimbursement }: { reimbursement: ReimbursementDto }) {
                 </div>
 
                 <p className="text-center text-xs text-gray-400 mt-6">
-                    Dokumen ini dibuat secara otomatis oleh sistem HR Jaxer Grup Indonesia.
+                    Dokumen ini dibuat secara otomatis oleh sistem HR {companyName}.
                     Bukti reimbursement ini sah tanpa tanda tangan basah.
                 </p>
             </div>

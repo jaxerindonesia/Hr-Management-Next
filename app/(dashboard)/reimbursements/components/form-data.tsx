@@ -217,17 +217,17 @@ export default function ReimbursementFormData({
               <Select
                 value={
                   formData.userId ||
-                  (userData.role !== "Super Admin" ? userData.id : "")
+                  (!["Super Admin", "Admin"].includes(userData.role) ? userData.id : "")
                 }
                 onValueChange={(val) => {
-                  if (userData.role === "Super Admin") {
+                  if (["Super Admin", "Admin"].includes(userData.role)) {
                     setFormData({
                       ...formData,
                       userId: val,
                     });
                   }
                 }}
-                disabled={userData.role !== "Super Admin"}
+                disabled={!["Super Admin", "Admin"].includes(userData.role)}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={"Pilih Karyawan"} />
