@@ -16,6 +16,12 @@ export interface ReimbursementDto {
         id: string;
         name: string;
         position?: string | null;
-        department?: string | null;
+        department?:
+            | string
+            | {
+                id?: string;
+                name?: string | null;
+            }
+            | null;
     } | null;
 }

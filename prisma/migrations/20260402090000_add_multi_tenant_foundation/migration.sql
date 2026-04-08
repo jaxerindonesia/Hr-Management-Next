@@ -21,7 +21,6 @@ ALTER TABLE "attendance_configs" ADD COLUMN "tenant_id" UUID;
 ALTER TABLE "payrolls" ADD COLUMN "tenant_id" UUID;
 ALTER TABLE "performances" ADD COLUMN "tenant_id" UUID;
 ALTER TABLE "reimbursements" ADD COLUMN "tenant_id" UUID;
-ALTER TABLE "company_configs" ADD COLUMN "tenant_id" UUID;
 
 CREATE INDEX "roles_tenant_id_idx" ON "roles"("tenant_id");
 CREATE INDEX "departments_tenant_id_idx" ON "departments"("tenant_id");
@@ -34,7 +33,6 @@ CREATE INDEX "attendance_configs_tenant_id_idx" ON "attendance_configs"("tenant_
 CREATE INDEX "payrolls_tenant_id_idx" ON "payrolls"("tenant_id");
 CREATE INDEX "performances_tenant_id_idx" ON "performances"("tenant_id");
 CREATE INDEX "reimbursements_tenant_id_idx" ON "reimbursements"("tenant_id");
-CREATE INDEX "company_configs_tenant_id_idx" ON "company_configs"("tenant_id");
 
 ALTER TABLE "roles" ADD CONSTRAINT "roles_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "departments" ADD CONSTRAINT "departments_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -47,4 +45,3 @@ ALTER TABLE "attendance_configs" ADD CONSTRAINT "attendance_configs_tenant_id_fk
 ALTER TABLE "payrolls" ADD CONSTRAINT "payrolls_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "performances" ADD CONSTRAINT "performances_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "reimbursements" ADD CONSTRAINT "reimbursements_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "company_configs" ADD CONSTRAINT "company_configs_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE SET NULL ON UPDATE CASCADE;

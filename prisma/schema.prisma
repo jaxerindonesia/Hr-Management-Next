@@ -108,7 +108,7 @@ model User {
 
 model SubmissionType {
   id   String @id @default(uuid()) @db.Uuid
-  name String @unique
+  name String
 
   // Relasi ke konfigurasi batas cuti (opsional)
   leaveConfigId String? @map("leave_config_id") @db.Uuid

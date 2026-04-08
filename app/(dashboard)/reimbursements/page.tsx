@@ -54,6 +54,11 @@ const STATUS_COLOR: Record<string, string> = {
 const ITEMS_PER_PAGE = 10;
 
 export default function ReimbursementsPage() {
+  type TenantConfig = {
+    companyName?: string | null;
+    logoUrl?: string | null;
+  };
+
   const { checkRole } = usePermission();
   const [reimbursements, setReimbursements] = useState<ReimbursementDto[]>([]);
   const [total, setTotal] = useState(0);
@@ -62,6 +67,7 @@ export default function ReimbursementsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [slipData, setSlipData] = useState<ReimbursementDto | null>(null);
+  const [tenantConfig, setTenantConfig] = useState<TenantConfig | null>(null);
   const [userData, setUserData] = useState({ id: "", role: "" });
   const [isExporting, setIsExporting] = useState(false);
   const [formData, setFormData] = useState<ReimbursementDto>({
@@ -264,6 +270,21 @@ export default function ReimbursementsPage() {
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
+  }, []);
+
+  useEffect(() => {
+    const fetchTenantConfig = async () => {
+      try {
+        const res = await fetch("/api/tenant-config");
+        if (!res.ok) return;
+        const json = await res.json();
+        setTenantConfig(json.data ?? null);
+      } catch {
+        // Silent fail: slip will use fallback branding.
+      }
+    };
+
+    fetchTenantConfig();
   }, []);
 
   return (
@@ -650,6 +671,7 @@ export default function ReimbursementsPage() {
       {slipData && (
         <SlipReimbursementModal
           reimbursement={slipData}
+          tenantConfig={tenantConfig}
           onClose={() => setSlipData(null)}
         />
       )}
