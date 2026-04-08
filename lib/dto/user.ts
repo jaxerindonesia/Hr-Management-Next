@@ -1,8 +1,10 @@
 export interface UserDto {
   id?: string | null;
+  tenantId?: string | null;
   roleId: string;
   departmentId?: string | null;
   department?: { id: string; name: string } | null;
+  tenant?: { id: string; companyName: string } | null;
   email: string;
   name: string;
   nik?: string | null;

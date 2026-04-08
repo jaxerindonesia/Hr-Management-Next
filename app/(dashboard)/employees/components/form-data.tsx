@@ -27,6 +27,11 @@ import {
 } from "@/components/ui/select";
 import { DepartmentDto } from "@/lib/dto/department";
 
+type TenantDto = {
+  id: string;
+  companyName: string;
+};
+
 export default function FormData({
   initialData,
   onClose,
@@ -38,8 +43,11 @@ export default function FormData({
 }) {
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<RoleDto[]>([]);
+  const [tenants, setTenants] = useState<TenantDto[]>([]);
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [rePassword, setRePassword] = useState("");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [currentTenantId, setCurrentTenantId] = useState<string>("");
   const [faceDataUrl, setFaceDataUrl] = useState<string | null>(
     initialData?.avatarUrl || null,
   );
@@ -58,6 +66,7 @@ export default function FormData({
       status: "active",
       password: "",
       avatarUrl: "",
+      tenantId: "",
     },
   );
 
@@ -67,7 +76,7 @@ export default function FormData({
       if (!res.ok) throw new Error("Gagal mengambil data role");
       const json = await res.json();
       setRoles(json.data || []);
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat role");
     }
   };
@@ -78,8 +87,19 @@ export default function FormData({
       if (!res.ok) throw new Error("Gagal mengambil data departemen");
       const json = await res.json();
       setDepartments(json.data || []);
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat departemen");
+    }
+  };
+
+  const fetchTenants = async () => {
+    try {
+      const res = await fetch("/api/tenants?page=1&limit=100");
+      if (!res.ok) throw new Error("Gagal mengambil data tenant");
+      const json = await res.json();
+      setTenants(json.data || []);
+    } catch {
+      toast.error("Gagal memuat tenant");
     }
   };
 
@@ -120,11 +140,20 @@ export default function FormData({
 
       const url = formData.id ? `/api/users/${formData.id}` : "/api/users";
       const method = formData.id ? "PUT" : "POST";
+      const finalTenantId = isSuperAdmin
+        ? formData.tenantId || ""
+        : currentTenantId;
+
+      if (!finalTenantId) {
+        toast.error("Tenant wajib dipilih");
+        setLoading(false);
+        return;
+      }
 
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, avatarUrl }),
+        body: JSON.stringify({ ...formData, avatarUrl, tenantId: finalTenantId }),
       });
 
       if (!res.ok) throw new Error("Gagal menyimpan data");
@@ -132,7 +161,7 @@ export default function FormData({
       toast.success(
         `Data karyawan berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
-      onSuccess && onSuccess();
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
@@ -142,9 +171,73 @@ export default function FormData({
   };
 
   useEffect(() => {
+    const raw = localStorage.getItem("hr_user_data");
+    if (raw) {
+      try {
+        const userData = JSON.parse(raw);
+        const rawRoleName =
+          typeof userData?.role === "string" ? userData.role : userData?.role?.name;
+        const normalizedRole = String(rawRoleName || "")
+          .toLowerCase()
+          .replace(/\s/g, "");
+        setIsSuperAdmin(normalizedRole === "superadmin");
+
+        const userTenantId = userData?.tenantId || userData?.tenant_id || "";
+        setCurrentTenantId(userTenantId);
+
+        if (!initialData?.id && userTenantId) {
+          setFormData((prev) => ({
+            ...prev,
+            tenantId: userTenantId,
+          }));
+        }
+      } catch {
+        setIsSuperAdmin(false);
+        setCurrentTenantId("");
+      }
+    }
+
     fetchRoles();
     fetchDepartments();
-  }, []);
+  }, [initialData?.id]);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      fetchTenants();
+    }
+  }, [isSuperAdmin]);
+
+  const visibleRoles = roles.filter((role) => {
+    if (isSuperAdmin) return true;
+    const normalizedName = String(role.name || "")
+      .toLowerCase()
+      .replace(/\s/g, "");
+    return normalizedName !== "superadmin";
+  });
+
+  const selectedTenantId = isSuperAdmin
+    ? formData.tenantId || ""
+    : currentTenantId || formData.tenantId || "";
+
+  const filteredDepartments = departments.filter((dept) => {
+    if (!selectedTenantId) return false;
+    return dept.tenantId === selectedTenantId;
+  });
+
+  useEffect(() => {
+    if (!formData.departmentId) return;
+
+    const isDepartmentStillValid = filteredDepartments.some(
+      (dept) => dept.id === formData.departmentId,
+    );
+
+    if (!isDepartmentStillValid) {
+      setFormData((prev) => ({
+        ...prev,
+        departmentId: "",
+      }));
+    }
+  }, [filteredDepartments, formData.departmentId]);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -157,7 +250,7 @@ export default function FormData({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Role */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className={`grid ${isSuperAdmin ? "grid-cols-3" : "grid-cols-2"} gap-4`}>
             <div className="space-y-1">
               <Label className="block text-sm font-medium dark:text-gray-300">
                 Role *
@@ -174,7 +267,7 @@ export default function FormData({
                 </SelectTrigger>
 
                 <SelectContent>
-                  {roles.map((role) => (
+                  {visibleRoles.map((role) => (
                     <SelectItem key={role.id} value={role.id ?? ""}>
                       {role.name}
                     </SelectItem>
@@ -182,6 +275,32 @@ export default function FormData({
                 </SelectContent>
               </Select>
             </div>
+
+            {isSuperAdmin && (
+              <div className="space-y-1">
+                <Label className="block text-sm font-medium dark:text-gray-300">
+                  Tenant *
+                </Label>
+                <Select
+                  value={formData.tenantId || ""}
+                  onValueChange={(val) =>
+                    setFormData({ ...formData, tenantId: val, departmentId: "" })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={"Pilih Tenant"} />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {tenants.map((tenant) => (
+                      <SelectItem key={tenant.id} value={tenant.id}>
+                        {tenant.companyName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-1">
               <Label className="block text-sm font-medium dark:text-gray-300">
@@ -199,9 +318,11 @@ export default function FormData({
                 </SelectTrigger>
 
                 <SelectContent>
-                  {departments.map((dept) => (
+                  {filteredDepartments.map((dept) => (
                     <SelectItem key={dept.id} value={dept.id ?? ""}>
-                      {dept.name}
+                      {isSuperAdmin
+                        ? `${dept.name} - ${dept.tenant?.companyName || "-"}`
+                        : dept.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

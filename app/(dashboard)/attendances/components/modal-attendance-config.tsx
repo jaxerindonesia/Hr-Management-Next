@@ -19,7 +19,13 @@ const defaultConfig: AttendanceConfig = {
   lateToleranceMinutes: 15,
 };
 
-export default function ModalAttendanceConfig({ onClose }: { onClose: () => void }) {
+export default function ModalAttendanceConfig({
+  onClose,
+  onSaved,
+}: {
+  onClose: () => void;
+  onSaved?: () => void;
+}) {
   const [form, setForm] = useState<AttendanceConfig>(defaultConfig);
   const [loading, setLoading] = useState(false);
 
@@ -56,6 +62,7 @@ export default function ModalAttendanceConfig({ onClose }: { onClose: () => void
       });
       if (!res.ok) throw new Error();
       toast.success("Konfigurasi attendance berhasil disimpan");
+      if (onSaved) onSaved();
       onClose();
     } catch {
       toast.error("Gagal menyimpan konfigurasi attendance");

@@ -2,11 +2,17 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 // GET - semua konfigurasi batas cuti
 export async function GET() {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const configs = await prisma.leaveConfig.findMany({
+      where: scopedTenantId ? { tenantId: scopedTenantId } : {},
       orderBy: { createdAt: "desc" },
       include: {
         submissionTypes: {
@@ -25,6 +31,9 @@ export async function GET() {
 // POST - buat konfigurasi baru
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
     const { name, maxDays, description, submissionTypeIds } = body;
 
@@ -36,11 +45,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Maksimal hari harus berupa angka positif" }, { status: 400 });
     }
 
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+
     const config = await prisma.leaveConfig.create({
       data: {
         name,
         maxDays: Number(maxDays),
         description: description || null,
+        tenantId: finalTenantId,
         // Hubungkan submission types yang dipilih
         submissionTypes: submissionTypeIds?.length
           ? { connect: submissionTypeIds.map((id: string) => ({ id })) }

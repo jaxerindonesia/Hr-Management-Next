@@ -35,6 +35,47 @@ import {
 import FaceRecognitionModal from "./components/face-recognition-modal";
 import ModalAttendanceConfig from "./components/modal-attendance-config";
 
+type AttendanceConfigState = {
+  officeStartTime: string;
+  officeEndTime: string;
+  lateToleranceMinutes: number;
+  isDefault?: boolean;
+};
+
+const DEFAULT_ATTENDANCE_CONFIG: AttendanceConfigState = {
+  officeStartTime: "09:00",
+  officeEndTime: "17:00",
+  lateToleranceMinutes: 15,
+  isDefault: true,
+};
+
+const LAST_GEO_STORAGE_KEY = "hr_last_geo_point";
+const LOCATION_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  timeout: 10000,
+  maximumAge: 0,
+};
+
+type SavedGeoPoint = {
+  lat: number;
+  lng: number;
+  timestamp: number;
+};
+
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const p1 = toRad(aLat);
+  const p2 = toRad(bLat);
+
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(p1) * Math.cos(p2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 export default function AttendancePage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [selectedRecord, setSelectedRecord] = useState<AttendanceDto | null>(
@@ -57,6 +98,11 @@ export default function AttendancePage() {
   );
   const [isExporting, setIsExporting] = useState(false);
   const [showAttendanceConfig, setShowAttendanceConfig] = useState(false);
+  const [attendanceConfig, setAttendanceConfig] = useState<AttendanceConfigState>(
+    DEFAULT_ATTENDANCE_CONFIG,
+  );
+  const [locationReady, setLocationReady] = useState(true);
+  const [locationWarning, setLocationWarning] = useState("");
 
   // Face recognition modal state
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
@@ -65,12 +111,74 @@ export default function AttendancePage() {
   const itemsPerPage = 10;
   const totalPages = Math.ceil(total / itemsPerPage);
 
+  const refreshLocationReadiness = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    if (!navigator.geolocation) {
+      setLocationReady(false);
+      setLocationWarning("Perangkat tidak mendukung akses lokasi.");
+      return;
+    }
+
+    try {
+      const permissionName = "geolocation" as PermissionName;
+      if (navigator.permissions?.query) {
+        const perm = await navigator.permissions.query({ name: permissionName });
+        if (perm.state === "denied") {
+          setLocationReady(false);
+          setLocationWarning(
+            "Lokasi belum diizinkan. Aktifkan izin lokasi di browser/perangkat.",
+          );
+          return;
+        }
+        if (perm.state === "prompt") {
+          setLocationReady(false);
+          setLocationWarning(
+            "Lokasi belum diizinkan. Klik Check In/Out untuk memberikan izin lokasi.",
+          );
+          return;
+        }
+      }
+
+      await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          ...LOCATION_OPTIONS,
+          timeout: 5000,
+        }),
+      );
+
+      setLocationReady(true);
+      setLocationWarning("");
+    } catch {
+      setLocationReady(false);
+      setLocationWarning(
+        "Lokasi belum aktif. Nyalakan GPS/lokasi perangkat terlebih dahulu.",
+      );
+    }
+  }, []);
+
+  const fetchAttendanceConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/attendance-config");
+      if (!res.ok) throw new Error("Gagal mengambil konfigurasi kehadiran");
+      const json = await res.json();
+      const config = json?.data || DEFAULT_ATTENDANCE_CONFIG;
+      setAttendanceConfig({
+        officeStartTime: config.officeStartTime || "09:00",
+        officeEndTime: config.officeEndTime || "17:00",
+        lateToleranceMinutes: Number(config.lateToleranceMinutes ?? 15),
+        isDefault: Boolean(json?.isDefault),
+      });
+    } catch {
+      setAttendanceConfig(DEFAULT_ATTENDANCE_CONFIG);
+    }
+  }, []);
+
   const fetchAttendance = useCallback(
     async (user: { id: string; role: string }) => {
       try {
         if (!user?.id) return;
 
-        if (user.role === "Super Admin") {
+        if (user.role === "Super Admin" || user.role === "Admin") {
           // Server-side pagination for admin
           const params = new URLSearchParams();
           params.set("page", String(currentPage));
@@ -124,7 +232,7 @@ export default function AttendancePage() {
 
       let allData: AttendanceDto[] = [];
 
-      if (userData.role === "Super Admin") {
+      if (userData.role === "Super Admin" || userData.role === "Admin") {
         const params = new URLSearchParams();
         params.set("limit", "999999");
         if (searchQuery) params.set("search", searchQuery);
@@ -163,18 +271,20 @@ export default function AttendancePage() {
         });
         const checkIn = record.checkIn
           ? new Date(record.checkIn).toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
+            hour: "2-digit",
+            minute: "2-digit",
+          })
           : "-";
         const checkOut = record.checkOut
           ? new Date(record.checkOut).toLocaleTimeString("id-ID", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
+            hour: "2-digit",
+            minute: "2-digit",
+          })
           : "-";
 
-        const emp = userData.role === "Super Admin" ? record?.user?.name : "-";
+        const emp = ["Super Admin", "Admin"].includes(userData.role)
+          ? record?.user?.name
+          : "-";
         const row: Record<string, string> = {
           "Nama Karyawan": emp!,
           Tanggal: tanggal,
@@ -218,69 +328,195 @@ export default function AttendancePage() {
   const doCheckIn = useCallback(async (faceCaptureBase64: string) => {
     try {
       if (!navigator.geolocation) {
-        toast.error("Geolocation tidak didukung browser");
+        toast.error("Perangkat ini tidak mendukung akses lokasi");
         return;
       }
 
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          const res = await fetch("/api/attendances/check-in", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: userData.id,
-              checkInLocation: { latitude, longitude },
-              faceCaptureBase64,
-            }),
-          });
-          if (!res.ok) throw new Error();
-          toast.success("Berhasil Check In");
-          fetchAttendance(userData);
-        },
-        () => toast.error("Gagal mendapatkan lokasi"),
+      const permissionName = "geolocation" as PermissionName;
+      if (navigator.permissions?.query) {
+        const perm = await navigator.permissions.query({ name: permissionName });
+        if (perm.state === "denied") {
+          toast.error(
+            "Lokasi masih nonaktif. Aktifkan GPS dan izinkan akses lokasi terlebih dahulu.",
+          );
+          return;
+        }
+      }
+
+      const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, LOCATION_OPTIONS),
       );
+
+      const { latitude, longitude, accuracy } = position.coords;
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        toast.error("Lokasi tidak valid. Pastikan GPS aktif lalu coba lagi.");
+        return;
+      }
+
+      if (accuracy > 1500) {
+        toast.error(
+          "Akurasi lokasi terlalu rendah. Nyalakan GPS presisi tinggi lalu coba lagi.",
+        );
+        return;
+      }
+
+      const nowTs = Date.now();
+      const lastRaw = localStorage.getItem(LAST_GEO_STORAGE_KEY);
+      if (lastRaw) {
+        try {
+          const last = JSON.parse(lastRaw) as SavedGeoPoint;
+          const distanceKm = haversineKm(last.lat, last.lng, latitude, longitude);
+          const hours = (nowTs - last.timestamp) / 3600000;
+          const speedKmh = hours > 0 ? distanceKm / hours : Number.POSITIVE_INFINITY;
+
+          if (hours <= 2 && speedKmh > 250) {
+            toast.error(
+              "Lokasi terdeteksi tidak wajar (indikasi fake GPS). Nonaktifkan fake GPS lalu coba lagi.",
+            );
+            return;
+          }
+        } catch {
+          // Ignore invalid local cache
+        }
+      }
+
+      const res = await fetch("/api/attendances/check-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userData.id,
+          checkInLocation: { latitude, longitude, accuracy },
+          faceCaptureBase64,
+        }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      localStorage.setItem(
+        LAST_GEO_STORAGE_KEY,
+        JSON.stringify({
+          lat: latitude,
+          lng: longitude,
+          timestamp: nowTs,
+        } satisfies SavedGeoPoint),
+      );
+
+      toast.success("Berhasil Check In");
+      fetchAttendance(userData);
     } catch {
-      toast.error("Gagal Check In");
+      toast.error(
+        "Gagal mengambil lokasi. Nyalakan lokasi/GPS lalu izinkan akses lokasi terlebih dahulu.",
+      );
     }
   }, [userData, fetchAttendance]);
 
   const doCheckOut = useCallback(async (faceCaptureBase64: string) => {
     try {
       if (!navigator.geolocation) {
-        toast.error("Geolocation tidak didukung browser");
+        toast.error("Perangkat ini tidak mendukung akses lokasi");
         return;
       }
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          const res = await fetch("/api/attendances/check-out", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: userData.id,
-              checkOutLocation: { latitude, longitude },
-              faceCaptureBase64,
-            }),
-          });
-          if (!res.ok) throw new Error();
-          toast.success("Berhasil Check Out");
-          fetchAttendance(userData);
-        },
-        () => toast.error("Gagal mendapatkan lokasi"),
+
+      const permissionName = "geolocation" as PermissionName;
+      if (navigator.permissions?.query) {
+        const perm = await navigator.permissions.query({ name: permissionName });
+        if (perm.state === "denied") {
+          toast.error(
+            "Lokasi masih nonaktif. Aktifkan GPS dan izinkan akses lokasi terlebih dahulu.",
+          );
+          return;
+        }
+      }
+
+      const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, LOCATION_OPTIONS),
       );
+
+      const { latitude, longitude, accuracy } = position.coords;
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        toast.error("Lokasi tidak valid. Pastikan GPS aktif lalu coba lagi.");
+        return;
+      }
+
+      if (accuracy > 1500) {
+        toast.error(
+          "Akurasi lokasi terlalu rendah. Nyalakan GPS presisi tinggi lalu coba lagi.",
+        );
+        return;
+      }
+
+      const nowTs = Date.now();
+      const lastRaw = localStorage.getItem(LAST_GEO_STORAGE_KEY);
+      if (lastRaw) {
+        try {
+          const last = JSON.parse(lastRaw) as SavedGeoPoint;
+          const distanceKm = haversineKm(last.lat, last.lng, latitude, longitude);
+          const hours = (nowTs - last.timestamp) / 3600000;
+          const speedKmh = hours > 0 ? distanceKm / hours : Number.POSITIVE_INFINITY;
+
+          if (hours <= 2 && speedKmh > 250) {
+            toast.error(
+              "Lokasi terdeteksi tidak wajar (indikasi fake GPS). Nonaktifkan fake GPS lalu coba lagi.",
+            );
+            return;
+          }
+        } catch {
+          // Ignore invalid local cache
+        }
+      }
+
+      const res = await fetch("/api/attendances/check-out", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userData.id,
+          checkOutLocation: { latitude, longitude, accuracy },
+          faceCaptureBase64,
+        }),
+      });
+      if (!res.ok) throw new Error();
+
+      localStorage.setItem(
+        LAST_GEO_STORAGE_KEY,
+        JSON.stringify({
+          lat: latitude,
+          lng: longitude,
+          timestamp: nowTs,
+        } satisfies SavedGeoPoint),
+      );
+
+      toast.success("Berhasil Check Out");
+      fetchAttendance(userData);
     } catch {
-      toast.error("Gagal Check Out");
+      toast.error(
+        "Gagal mengambil lokasi. Nyalakan lokasi/GPS lalu izinkan akses lokasi terlebih dahulu.",
+      );
     }
   }, [userData, fetchAttendance]);
 
   // ── Open face-recognition modal first ──────────────────────────────────
   const handleCheckIn = () => {
+    if (!locationReady) {
+      toast.error(
+        locationWarning ||
+          "Lokasi belum aktif/diizinkan. Aktifkan lokasi terlebih dahulu.",
+      );
+      refreshLocationReadiness();
+      return;
+    }
     setFaceModalMode("check-in");
     setIsFaceModalOpen(true);
   };
 
   const handleCheckOut = () => {
+    if (!locationReady) {
+      toast.error(
+        locationWarning ||
+          "Lokasi belum aktif/diizinkan. Aktifkan lokasi terlebih dahulu.",
+      );
+      refreshLocationReadiness();
+      return;
+    }
     setFaceModalMode("check-out");
     setIsFaceModalOpen(true);
   };
@@ -374,8 +610,9 @@ export default function AttendancePage() {
   useEffect(() => {
     if (userData.id) {
       fetchAttendance(userData);
+      fetchAttendanceConfig();
     }
-  }, [fetchAttendance, userData]);
+  }, [fetchAttendance, fetchAttendanceConfig, userData]);
 
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
@@ -389,6 +626,19 @@ export default function AttendancePage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    refreshLocationReadiness();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        refreshLocationReadiness();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshLocationReadiness]);
 
   useEffect(() => {
     const updateTime = () => {
@@ -425,17 +675,29 @@ export default function AttendancePage() {
           <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-3">
               {/* LIVE TIME */}
-              <div className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 border dark:border-gray-600">
-                <div className="text-xs text-gray-500 dark:text-gray-400">
+              <div className="min-w-[185px] rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white px-3 py-2 shadow-sm dark:border-slate-600 dark:from-slate-800 dark:to-slate-700">
+                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-300">
                   {currentDateLabel}
                 </div>
-                <div className="text-lg font-semibold text-gray-800 dark:text-white tracking-wide">
+                <div className="mt-1 text-xl leading-none font-bold tracking-tight text-slate-900 dark:text-white">
                   {currentTime}
+                </div>
+                <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-600">
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                      {attendanceConfig.officeStartTime}
+                    </span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">-</span>
+                    <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                      {attendanceConfig.officeEndTime}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {checkRole("attendances", "create") && (
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex gap-2">
                   {!todayAttendance ? (
                     <Button
                       onClick={handleCheckIn}
@@ -460,10 +722,16 @@ export default function AttendancePage() {
                       Sudah Absen Hari Ini
                     </Button>
                   )}
+                  </div>
+                  {!locationReady && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      {locationWarning}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {userData.role === "Super Admin" && (
+              {["Super Admin", "Admin"].includes(userData.role) && (
                 <Button
                   variant="outline"
                   onClick={() => setShowAttendanceConfig(true)}
@@ -592,23 +860,23 @@ export default function AttendancePage() {
                       <td className="p-3 dark:text-gray-300">
                         {record.checkIn
                           ? new Date(record.checkIn).toLocaleDateString(
-                              "id-ID",
-                              {
-                                minute: "2-digit",
-                                hour: "2-digit",
-                              },
-                            )
+                            "id-ID",
+                            {
+                              minute: "2-digit",
+                              hour: "2-digit",
+                            },
+                          )
                           : "-"}
                       </td>
                       <td className="p-3 dark:text-gray-300">
                         {record.checkOut
                           ? new Date(record.checkOut).toLocaleDateString(
-                              "id-ID",
-                              {
-                                minute: "2-digit",
-                                hour: "2-digit",
-                              },
-                            )
+                            "id-ID",
+                            {
+                              minute: "2-digit",
+                              hour: "2-digit",
+                            },
+                          )
                           : "-"}
                       </td>
                       <td className="p-3 dark:text-gray-300 font-medium">
@@ -766,11 +1034,10 @@ export default function AttendancePage() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                          currentPage === page
+                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page
                             ? "bg-blue-600 text-white"
                             : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
+                          }`}
                       >
                         {page}
                       </button>
@@ -813,6 +1080,7 @@ export default function AttendancePage() {
             setShowAttendanceConfig(false);
             fetchAttendance(userData);
           }}
+          onSaved={fetchAttendanceConfig}
         />
       )}
     </>

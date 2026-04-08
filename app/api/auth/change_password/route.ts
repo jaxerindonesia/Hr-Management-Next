@@ -3,9 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
     const { userId, currentPassword, newPassword } = body;
 
@@ -23,8 +27,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    const scopedTenantId = ensureTenantScope(auth.user);
+
+    const user = await prisma.user.findFirst({
+      where: { id: userId, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
     });
 
     if (!user) {

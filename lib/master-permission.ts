@@ -35,4 +35,8 @@ export const MASTER_PERMISSIONS = [
     model: "reimbursements",
     actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
+  {
+    model: "tenants",
+    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+  },
 ];

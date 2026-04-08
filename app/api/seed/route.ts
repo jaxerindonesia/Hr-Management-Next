@@ -54,6 +54,12 @@ export async function GET() {
           { model: "performances", action: "get-by-id" },
           { model: "performances", action: "create" },
           { model: "performances", action: "update" },
+
+          { model: "tenants", action: "get-all" },
+          { model: "tenants", action: "get-by-id" },
+          { model: "tenants", action: "create" },
+          { model: "tenants", action: "update" },
+          { model: "tenants", action: "delete" },
         ],
       },
       {
@@ -105,7 +111,7 @@ export async function GET() {
     const createdDepartments = [];
 
     for (const name of departmentNames) {
-      let department = await prisma.department.findUnique({
+      let department = await prisma.department.findFirst({
         where: { name },
       });
 

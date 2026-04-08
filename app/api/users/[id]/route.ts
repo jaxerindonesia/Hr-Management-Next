@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 
 import prisma from "@/lib/prisma";
 import { deleteFromMinio } from "@/lib/minio";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 // Helper: hapus file avatar lama dari MinIO
 async function deleteOldAvatar(avatarUrl: string | null) {
@@ -23,10 +24,14 @@ type Params = {
 
 export async function GET(_: Request, { params }: Params) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const { id } = await params;
 
-    const user = await prisma.user.findUnique({
-      where: { id },
+    const user = await prisma.user.findFirst({
+      where: { id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
     });
 
     if (!user) {
@@ -44,7 +49,17 @@ export async function GET(_: Request, { params }: Params) {
 
 export async function PUT(req: Request, { params }: Params) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const { id } = await params;
+    const targetUser = await prisma.user.findFirst({
+      where: { id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      select: { id: true },
+    });
+    if (!targetUser) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
     const body = await req.json();
 
     const updateData: any = {};
@@ -110,11 +125,16 @@ export async function PUT(req: Request, { params }: Params) {
 export async function DELETE(_: Request, { params }: Params) {
   const { id } = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     // Ambil avatarUrl sebelum hapus user, untuk cleanup MinIO
-    const user = await prisma.user.findUnique({
-      where: { id },
+    const user = await prisma.user.findFirst({
+      where: { id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
       select: { avatarUrl: true },
     });
+    if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
     await prisma.user.delete({
       where: { id },

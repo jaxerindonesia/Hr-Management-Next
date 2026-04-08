@@ -1,10 +1,15 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
@@ -12,7 +17,9 @@ export async function GET(req: NextRequest) {
     const period = searchParams.get("period") || "";
     const scoreFilter = searchParams.get("score") || "";
 
-    const where: any = {};
+    const where: Prisma.PerformanceWhereInput = {};
+    const scopedTenantId = ensureTenantScope(auth.user);
+    if (scopedTenantId) where.tenantId = scopedTenantId;
 
     if (search) {
       where.user = {
@@ -63,6 +70,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
 
     const {
@@ -91,8 +101,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+
     const existing = await prisma.performance.findFirst({
-      where: { userId: userId, period: period },
+      where: { userId: userId, period: period, ...(finalTenantId ? { tenantId: finalTenantId } : {}) },
     });
 
     if (existing) {
@@ -111,6 +124,7 @@ export async function POST(req: NextRequest) {
 
     const performance = await prisma.performance.create({
       data: {
+        tenantId: finalTenantId,
         userId,
         period,
         productivity: Number(productivity),

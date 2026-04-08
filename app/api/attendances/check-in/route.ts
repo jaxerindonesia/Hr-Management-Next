@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -20,6 +21,9 @@ function getDateAtTime(baseDate: Date, hhmm: string) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const body = await req.json();
     const { userId, checkInLocation, faceCaptureBase64 } = body;
 
@@ -33,9 +37,15 @@ export async function POST(req: Request) {
       );
     }
 
+    const scopedTenantId = ensureTenantScope(auth.user);
+    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+
     const now = new Date();
     const cfg =
-      (await prisma.attendanceConfig.findFirst({ orderBy: { updatedAt: "desc" } })) ??
+      (await prisma.attendanceConfig.findFirst({
+        where: finalTenantId ? { tenantId: finalTenantId } : {},
+        orderBy: { updatedAt: "desc" },
+      })) ??
       DEFAULT_CONFIG;
     const officeStart = getDateAtTime(now, cfg.officeStartTime);
     const lateLimit = new Date(officeStart.getTime() + cfg.lateToleranceMinutes * 60 * 1000);
@@ -50,6 +60,7 @@ export async function POST(req: Request) {
 
     const attendance = await prisma.attendance.create({
       data: {
+        tenantId: finalTenantId,
         userId,
         date: now,
         checkIn: now,

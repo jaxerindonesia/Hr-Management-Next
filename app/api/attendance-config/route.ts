@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -11,13 +12,19 @@ const DEFAULT_CONFIG = {
 
 export async function GET() {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const cfg = await prisma.attendanceConfig.findFirst({
+      where: scopedTenantId ? { tenantId: scopedTenantId } : {},
       orderBy: { updatedAt: "desc" },
     });
 
     return NextResponse.json({
       message: "OK",
       data: cfg ?? DEFAULT_CONFIG,
+      isDefault: !cfg,
     });
   } catch {
     return NextResponse.json(
@@ -29,6 +36,10 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const body = await req.json();
     const officeStartTime = String(body.officeStartTime || "").trim();
     const officeEndTime = String(body.officeEndTime || "").trim();
@@ -49,6 +60,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const existing = await prisma.attendanceConfig.findFirst({
+      where: scopedTenantId ? { tenantId: scopedTenantId } : {},
       orderBy: { updatedAt: "desc" },
     });
 
@@ -56,6 +68,7 @@ export async function PUT(req: NextRequest) {
       officeStartTime,
       officeEndTime,
       lateToleranceMinutes,
+      ...(scopedTenantId ? { tenantId: scopedTenantId } : {}),
     };
 
     const saved = existing

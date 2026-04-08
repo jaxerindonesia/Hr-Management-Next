@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
 type Params = {
   params: {
@@ -13,8 +14,12 @@ type Params = {
 export async function GET(_: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
     const submissionType = await prisma.submissionType.findFirst({
-      where: { id: p.id },
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
     });
 
     if (!submissionType) {
@@ -36,6 +41,16 @@ export async function GET(_: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
+    const existing = await prisma.submissionType.findFirst({
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return NextResponse.json({ message: "Submission type not found" }, { status: 404 });
+
     const body = await req.json();
 
     const updateData: any = {};
@@ -62,6 +77,16 @@ export async function PUT(req: Request, { params }: Params) {
 export async function DELETE(_: Request, { params }: Params) {
   const p = await params;
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    const scopedTenantId = ensureTenantScope(auth.user);
+
+    const existing = await prisma.submissionType.findFirst({
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      select: { id: true },
+    });
+    if (!existing) return NextResponse.json({ message: "Submission type not found" }, { status: 404 });
+
     await prisma.submissionType.delete({
       where: { id: p.id },
     });
