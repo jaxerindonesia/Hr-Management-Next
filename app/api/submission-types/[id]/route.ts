@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
@@ -67,6 +68,19 @@ export async function PUT(req: Request, { params }: Params) {
       data: submissionType,
     });
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "Submission type name masih terkena unique constraint. Jalankan migration terbaru untuk menghapus unique index.",
+        },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { message: "Failed to update submission type" },
       { status: 500 }

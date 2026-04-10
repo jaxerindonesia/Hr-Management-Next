@@ -101,8 +101,13 @@ export default function AttendancePage() {
   const [attendanceConfig, setAttendanceConfig] = useState<AttendanceConfigState>(
     DEFAULT_ATTENDANCE_CONFIG,
   );
-  const [locationReady, setLocationReady] = useState(true);
+  const [locationReady, setLocationReady] = useState(false);
+  const [locationChecking, setLocationChecking] = useState(true);
+  const [locationBlocked, setLocationBlocked] = useState(false);
   const [locationWarning, setLocationWarning] = useState("");
+  const isIOSBrowser =
+    typeof navigator !== "undefined" &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   // Face recognition modal state
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
@@ -113,8 +118,12 @@ export default function AttendancePage() {
 
   const refreshLocationReadiness = useCallback(async () => {
     if (typeof window === "undefined") return;
+    setLocationChecking(true);
+    setLocationBlocked(false);
     if (!navigator.geolocation) {
       setLocationReady(false);
+      setLocationChecking(false);
+      setLocationBlocked(true);
       setLocationWarning("Perangkat tidak mendukung akses lokasi.");
       return;
     }
@@ -125,6 +134,8 @@ export default function AttendancePage() {
         const perm = await navigator.permissions.query({ name: permissionName });
         if (perm.state === "denied") {
           setLocationReady(false);
+          setLocationChecking(false);
+          setLocationBlocked(true);
           setLocationWarning(
             "Lokasi belum diizinkan. Aktifkan izin lokasi di browser/perangkat.",
           );
@@ -132,6 +143,7 @@ export default function AttendancePage() {
         }
         if (perm.state === "prompt") {
           setLocationReady(false);
+          setLocationChecking(false);
           setLocationWarning(
             "Lokasi belum diizinkan. Klik Check In/Out untuk memberikan izin lokasi.",
           );
@@ -148,13 +160,29 @@ export default function AttendancePage() {
 
       setLocationReady(true);
       setLocationWarning("");
-    } catch {
-      setLocationReady(false);
-      setLocationWarning(
-        "Lokasi belum aktif. Nyalakan GPS/lokasi perangkat terlebih dahulu.",
-      );
+    } catch (error) {
+      const geoError = error as GeolocationPositionError | undefined;
+      if (geoError?.code === 1) {
+        setLocationReady(false);
+        setLocationBlocked(true);
+        setLocationWarning(
+          "Lokasi belum diizinkan. Aktifkan izin lokasi di browser/perangkat.",
+        );
+      } else if (isIOSBrowser) {
+        // Safari iOS often needs user gesture before location becomes available.
+        setLocationReady(true);
+        setLocationBlocked(false);
+        setLocationWarning("");
+      } else {
+        setLocationReady(false);
+        setLocationWarning(
+          "Lokasi belum aktif. Nyalakan GPS/lokasi perangkat terlebih dahulu.",
+        );
+      }
+    } finally {
+      setLocationChecking(false);
     }
-  }, []);
+  }, [isIOSBrowser]);
 
   const fetchAttendanceConfig = useCallback(async () => {
     try {
@@ -178,7 +206,7 @@ export default function AttendancePage() {
       try {
         if (!user?.id) return;
 
-        if (user.role === "Super Admin" || user.role === "Admin") {
+        if (["Super Admin", "Admin"].includes(user.role)) {
           // Server-side pagination for admin
           const params = new URLSearchParams();
           params.set("page", String(currentPage));
@@ -205,7 +233,7 @@ export default function AttendancePage() {
 
         // Check today's attendance (separate call without pagination)
         const todayRes = await fetch(
-          user.role === "Super Admin"
+          ["Super Admin", "Admin"].includes(user.role)
             ? `/api/attendances?limit=999`
             : `/api/attendances/user/${user.id}`,
         );
@@ -232,7 +260,7 @@ export default function AttendancePage() {
 
       let allData: AttendanceDto[] = [];
 
-      if (userData.role === "Super Admin" || userData.role === "Admin") {
+      if (["Super Admin", "Admin"].includes(userData.role)) {
         const params = new URLSearchParams();
         params.set("limit", "999999");
         if (searchQuery) params.set("search", searchQuery);
@@ -496,7 +524,8 @@ export default function AttendancePage() {
 
   // ── Open face-recognition modal first ──────────────────────────────────
   const handleCheckIn = () => {
-    if (!locationReady) {
+    const canProceed = !locationBlocked && (locationReady || isIOSBrowser);
+    if (!canProceed) {
       toast.error(
         locationWarning ||
           "Lokasi belum aktif/diizinkan. Aktifkan lokasi terlebih dahulu.",
@@ -509,7 +538,8 @@ export default function AttendancePage() {
   };
 
   const handleCheckOut = () => {
-    if (!locationReady) {
+    const canProceed = !locationBlocked && (locationReady || isIOSBrowser);
+    if (!canProceed) {
       toast.error(
         locationWarning ||
           "Lokasi belum aktif/diizinkan. Aktifkan lokasi terlebih dahulu.",
@@ -598,7 +628,7 @@ export default function AttendancePage() {
   };
   const tableColSpan =
     6 +
-    (userData.role === "Super Admin" ? 1 : 0) +
+    (["Super Admin", "Admin"].includes(userData.role) ? 1 : 0) +
     (checkRoleMulti("attendances", ["get-by-id", "delete"]) ? 1 : 0);
 
   // Reset to page 1 when filters change
@@ -701,6 +731,11 @@ export default function AttendancePage() {
                   {!todayAttendance ? (
                     <Button
                       onClick={handleCheckIn}
+                      disabled={
+                        locationChecking ||
+                        locationBlocked ||
+                        (!locationReady && !isIOSBrowser)
+                      }
                       className="bg-green-600 hover:bg-green-700 text-white"
                     >
                       <Clock className="w-4 h-4 mr-2" />
@@ -709,6 +744,11 @@ export default function AttendancePage() {
                   ) : todayAttendance && !todayAttendance.checkOut ? (
                     <Button
                       onClick={handleCheckOut}
+                      disabled={
+                        locationChecking ||
+                        locationBlocked ||
+                        (!locationReady && !isIOSBrowser)
+                      }
                       className="bg-red-600 hover:bg-red-700 text-white"
                     >
                       <Clock className="w-4 h-4 mr-2" />
@@ -723,11 +763,15 @@ export default function AttendancePage() {
                     </Button>
                   )}
                   </div>
-                  {!locationReady && (
+                  {locationChecking ? (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Memeriksa izin lokasi...
+                    </p>
+                  ) : !locationReady ? (
                     <p className="text-xs text-amber-600 dark:text-amber-400">
                       {locationWarning}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               )}
 
@@ -807,7 +851,7 @@ export default function AttendancePage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b dark:border-gray-700">
-                  {userData.role === "Super Admin" && (
+                  {["Super Admin", "Admin"].includes(userData.role) && (
                     <th className="text-left p-3 font-semibold dark:text-gray-300">
                       Nama Karyawan
                     </th>
@@ -844,7 +888,7 @@ export default function AttendancePage() {
                       key={record.id}
                       className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
-                      {userData.role === "Super Admin" && (
+                      {["Super Admin", "Admin"].includes(userData.role) && (
                         <td className="p-3 dark:text-gray-300">
                           {record?.user?.name}
                         </td>
