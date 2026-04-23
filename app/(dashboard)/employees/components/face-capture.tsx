@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Camera, RefreshCw, CheckCircle, X, ScanFace, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import * as faceapi from "face-api.js";
 
 interface FaceCaptureProps {
@@ -127,8 +128,17 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
     onChange(null);
     setValidationError("");
     setAccessoryConfirmed(false);
-    setState("idle");
     stopCamera();
+    setState("idle");
+  };
+
+  const retakeAndReopen = () => {
+    onChange(null);
+    setValidationError("");
+    setAccessoryConfirmed(false);
+    stopCamera();
+    setState("idle");
+    setTimeout(() => { void startCamera(); }, 50);
   };
 
   const displayImage = value;
@@ -139,10 +149,13 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
       {state === "captured" && displayImage && (
         <div className="relative w-full flex flex-col items-center gap-3">
           <div className="relative">
-            <img
+            <Image
               src={displayImage}
               alt="Foto wajah"
+              width={160}
+              height={160}
               className="w-40 h-40 rounded-full object-cover border-4 border-green-500 shadow-lg"
+              unoptimized={displayImage.startsWith("data:")}
             />
             <div className="absolute bottom-1 right-1 bg-green-500 rounded-full p-1">
               <CheckCircle className="w-4 h-4 text-white" />
@@ -250,10 +263,20 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
               {validationError}
             </p>
           </div>
+          {/* Tampilkan ulang checklist agar user ingat syaratnya */}
+          <label className="flex items-start gap-2 max-w-xs text-xs text-gray-600 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={accessoryConfirmed}
+              onChange={(e) => setAccessoryConfirmed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-indigo-600"
+            />
+            <span>Saya sudah melepas kacamata dan topi.</span>
+          </label>
           <Button
             type="button"
             variant="outline"
-            onClick={retake}
+            onClick={retakeAndReopen}
             className="flex items-center gap-2 border-red-400 text-red-600 hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-900/20"
           >
             <RefreshCw className="w-4 h-4" />
@@ -279,11 +302,22 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
           {cameraError && (
             <p className="text-xs text-red-500 text-center px-4">{cameraError}</p>
           )}
+          {/* Checklist wajib sebelum buka kamera */}
+          <label className="flex items-start gap-2 max-w-xs text-xs text-gray-600 dark:text-gray-300 cursor-pointer px-2">
+            <input
+              type="checkbox"
+              checked={accessoryConfirmed}
+              onChange={(e) => setAccessoryConfirmed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-indigo-600 cursor-pointer"
+            />
+            <span>Saya sudah melepas kacamata dan topi.</span>
+          </label>
           <Button
             type="button"
             variant="outline"
             onClick={startCamera}
-            className="flex items-center gap-2 border-indigo-500 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+            disabled={!accessoryConfirmed}
+            className="flex items-center gap-2 border-indigo-500 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Camera className="w-4 h-4" />
             Buka Kamera
