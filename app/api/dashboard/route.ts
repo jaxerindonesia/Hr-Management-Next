@@ -31,14 +31,14 @@ export async function GET() {
           where: {
             ...tenantWhere,
             date: { gte: d, lt: nextD },
-            status: { in: ["Present", "Half Day"] },
+            status: { in: ["Present", "Half Day", "Late - Present", "Late - Half Day"] },
           },
         }),
         prisma.attendance.count({
           where: {
             ...tenantWhere,
             date: { gte: d, lt: nextD },
-            status: { notIn: ["Present", "Half Day"] },
+            status: { notIn: ["Present", "Half Day", "Late - Present", "Late - Half Day"] },
           },
         }),
       ]);

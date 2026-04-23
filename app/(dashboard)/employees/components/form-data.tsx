@@ -48,6 +48,7 @@ export default function FormData({
   const [rePassword, setRePassword] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentTenantId, setCurrentTenantId] = useState<string>("");
+  const [changePassword, setChangePassword] = useState(false);
   const [faceDataUrl, setFaceDataUrl] = useState<string | null>(
     initialData?.avatarUrl || null,
   );
@@ -107,6 +108,7 @@ export default function FormData({
     e.preventDefault();
     setLoading(true);
 
+    // Validasi untuk tambah baru
     if ((!formData.id && !formData.password) || (!formData.id && !rePassword)) {
       toast.error("Password dan konfirmasi password wajib diisi");
       setLoading(false);
@@ -117,6 +119,25 @@ export default function FormData({
       toast.error("Password dan konfirmasi password tidak sama");
       setLoading(false);
       return;
+    }
+
+    // Validasi untuk edit dengan ganti password
+    if (formData.id && changePassword) {
+      if (!formData.password) {
+        toast.error("Password baru wajib diisi");
+        setLoading(false);
+        return;
+      }
+      if (formData.password !== rePassword) {
+        toast.error("Password baru dan konfirmasi password tidak sama");
+        setLoading(false);
+        return;
+      }
+      if (formData.password.length < 6) {
+        toast.error("Password minimal 6 karakter");
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -150,10 +171,16 @@ export default function FormData({
         return;
       }
 
+      // Jika mode edit dan tidak ganti password, hapus password dari payload
+      const payload = { ...formData, avatarUrl, tenantId: finalTenantId };
+      if (formData.id && !changePassword) {
+        delete payload.password;
+      }
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, avatarUrl, tenantId: finalTenantId }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error("Gagal menyimpan data");
@@ -483,7 +510,8 @@ export default function FormData({
           </div>
 
           {/* Password */}
-          {!formData.id && (
+          {!formData.id ? (
+            // Mode Tambah: password wajib diisi
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="block text-sm font-medium dark:text-gray-300">
@@ -513,6 +541,69 @@ export default function FormData({
                   required
                 />
               </div>
+            </div>
+          ) : (
+            // Mode Edit: ganti password opsional
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
+                <input
+                  type="checkbox"
+                  id="changePasswordToggle"
+                  checked={changePassword}
+                  onChange={(e) => {
+                    setChangePassword(e.target.checked);
+                    if (!e.target.checked) {
+                      setFormData({ ...formData, password: "" });
+                      setRePassword("");
+                    }
+                  }}
+                  className="w-4 h-4 accent-blue-600 cursor-pointer"
+                />
+                <label
+                  htmlFor="changePasswordToggle"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+                >
+                  Ganti Password
+                </label>
+                {!changePassword && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                    (Biarkan kosong jika tidak ingin mengubah password)
+                  </span>
+                )}
+              </div>
+
+              {changePassword && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="block text-sm font-medium dark:text-gray-300">
+                      Password Baru *
+                    </Label>
+                    <Input
+                      type="password"
+                      value={formData.password || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          password: e.target.value,
+                        })
+                      }
+                      placeholder="Min. 6 karakter"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="block text-sm font-medium dark:text-gray-300">
+                      Konfirmasi Password Baru *
+                    </Label>
+                    <Input
+                      type="password"
+                      value={rePassword}
+                      onChange={(e) => setRePassword(e.target.value)}
+                      placeholder="Ulangi password baru"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
