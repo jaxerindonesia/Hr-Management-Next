@@ -89,42 +89,11 @@ const PIE_COLORS = [
   "#84cc16",
 ];
 
-const generateHolidays = (year: number) => [
-  { date: `${year}-01-01`, name: "Tahun Baru", type: "holiday" },
-  { date: `${year}-01-29`, name: "Tahun Baru Imlek", type: "holiday" },
-  { date: `${year}-03-22`, name: "Hari Raya Nyepi", type: "holiday" },
-  { date: `${year}-03-31`, name: "Idul Fitri", type: "holiday" },
-  { date: `${year}-04-01`, name: "Idul Fitri Hari Ke-2", type: "holiday" },
-  { date: `${year}-04-18`, name: "Wafat Isa Al-Masih", type: "holiday" },
-  { date: `${year}-05-01`, name: "Hari Buruh Internasional", type: "holiday" },
-  { date: `${year}-05-29`, name: "Kenaikan Isa Al-Masih", type: "holiday" },
-  { date: `${year}-06-01`, name: "Hari Lahir Pancasila", type: "holiday" },
-  { date: `${year}-06-06`, name: "Idul Adha", type: "holiday" },
-  { date: `${year}-06-27`, name: "Tahun Baru Islam", type: "holiday" },
-  { date: `${year}-08-17`, name: "Hari Kemerdekaan RI", type: "holiday" },
-  { date: `${year}-09-05`, name: "Maulid Nabi Muhammad SAW", type: "holiday" },
-  { date: `${year}-12-25`, name: "Hari Raya Natal", type: "holiday" },
-];
-
-const getNextHolidays = () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const year = today.getFullYear();
-  const all = [...generateHolidays(year), ...generateHolidays(year + 1)];
-  return all
-    .map((h) => {
-      const [y, m, d] = h.date.split("-").map(Number);
-      const target = new Date(y, m - 1, d);
-      target.setHours(0, 0, 0, 0);
-      const daysLeft = Math.ceil(
-        (target.getTime() - today.getTime()) / 86400000,
-      );
-      return { ...h, daysLeft };
-    })
-    .filter((h) => h.daysLeft >= 0)
-    .sort((a, b) => a.daysLeft - b.daysLeft)
-    .slice(0, 4);
-};
+interface HolidayItem {
+  date: string;
+  name: string;
+  daysLeft: number;
+}
 
 const formatRp = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" })
@@ -187,6 +156,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [holidays, setHolidays] = useState<HolidayItem[]>([]);
+  const [holidaysLoading, setHolidaysLoading] = useState(true);
   const [userRole] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -220,10 +191,16 @@ export default function DashboardPage() {
       .catch(() => setError("Gagal terhubung ke server."))
       .finally(() => setLoading(false));
 
+    fetch("/api/holidays")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.data) setHolidays(res.data);
+      })
+      .catch(() => { })
+      .finally(() => setHolidaysLoading(false));
+
     return () => clearInterval(timer);
   }, []);
-
-  const holidays = getNextHolidays();
   const canViewEmployeeStats =
     userRole === "Super Admin" || userRole === "Admin";
 
@@ -492,10 +469,9 @@ export default function DashboardPage() {
                       </td>
                       <td className="py-3">
                         <span
-                          className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                            statusColor[s.status] ??
+                          className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColor[s.status] ??
                             "bg-gray-500/20 text-gray-400"
-                          }`}
+                            }`}
                         >
                           {statusLabel[s.status] ?? s.status}
                         </span>
@@ -538,11 +514,10 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <span
-                      className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                        e.status === "active"
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : "bg-gray-500/20 text-gray-400"
-                      }`}
+                      className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${e.status === "active"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : "bg-gray-500/20 text-gray-400"
+                        }`}
                     >
                       {e.status === "active" ? "Aktif" : "Nonaktif"}
                     </span>
@@ -560,33 +535,49 @@ export default function DashboardPage() {
                 Hari Libur Mendatang
               </h3>
             </div>
-            <ul className="space-y-2">
-              {holidays.map((h, i) => (
-                <li
-                  key={i}
-                  className="flex items-center gap-3 rounded-xl bg-red-50 p-3 dark:bg-red-900/20"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-                    {h.daysLeft === 0 ? "!" : h.daysLeft}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold dark:text-white">
-                      {h.name}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {h.daysLeft === 0
-                        ? "Hari ini!"
-                        : h.daysLeft === 1
-                          ? "Besok"
-                          : `${h.daysLeft} hari lagi`}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-red-500 px-2 py-0.5 text-xs font-medium text-white">
-                    Libur
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {holidaysLoading ? (
+              <div className="flex justify-center py-6">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-red-500/30 border-t-red-500" />
+              </div>
+            ) : holidays.length === 0 ? (
+              <p className="text-center text-sm text-gray-400 py-4">
+                Tidak ada data hari libur
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {holidays.map((h, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center gap-3 rounded-xl bg-red-50 p-3 dark:bg-red-900/20"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                      {h.daysLeft === 0 ? "!" : h.daysLeft}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold dark:text-white">
+                        {h.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {new Date(h.date + "T00:00:00").toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                        {" · "}
+                        {h.daysLeft === 0
+                          ? "Hari ini!"
+                          : h.daysLeft === 1
+                            ? "Besok"
+                            : `${h.daysLeft} hari lagi`}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-red-500 px-2 py-0.5 text-xs font-medium text-white">
+                      Libur
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>
