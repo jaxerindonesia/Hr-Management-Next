@@ -13,7 +13,7 @@ export interface UserDto {
   joinDate?: string | null;
   salary?: number | null;
   avatarUrl?: string | null;
-  password: string;
+  password?: string;
   currentToken?: string | null;
   salt?: string | null;
   status: string;
