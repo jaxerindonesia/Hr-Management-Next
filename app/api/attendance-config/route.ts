@@ -20,6 +20,7 @@ const VALID_WORKING_DAYS = [
   "SATURDAY",
   "SUNDAY",
 ] as const;
+type WorkingDayCode = (typeof VALID_WORKING_DAYS)[number];
 
 export async function GET() {
   try {
@@ -55,16 +56,15 @@ export async function PUT(req: NextRequest) {
     const officeStartTime = String(body.officeStartTime || "").trim();
     const officeEndTime = String(body.officeEndTime || "").trim();
     const lateToleranceMinutes = Number(body.lateToleranceMinutes);
-    const workingDaysInput = Array.isArray(body.workingDays) ? body.workingDays : [];
-    const workingDays = [
-      ...new Set(
-        workingDaysInput
-          .map((d) => String(d || "").trim().toUpperCase())
-          .filter((d): d is (typeof VALID_WORKING_DAYS)[number] =>
-            VALID_WORKING_DAYS.includes(d as (typeof VALID_WORKING_DAYS)[number]),
-          ),
-      ),
-    ];
+    const workingDaysInput: unknown[] = Array.isArray(body.workingDays)
+      ? body.workingDays
+      : [];
+    const normalizedWorkingDays = workingDaysInput
+      .map((d) => String(d || "").trim().toUpperCase())
+      .filter((d): d is WorkingDayCode =>
+        VALID_WORKING_DAYS.includes(d as WorkingDayCode),
+      );
+    const workingDays = [...new Set(normalizedWorkingDays)] as WorkingDayCode[];
 
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!timeRegex.test(officeStartTime) || !timeRegex.test(officeEndTime)) {
@@ -96,7 +96,6 @@ export async function PUT(req: NextRequest) {
       officeEndTime,
       lateToleranceMinutes,
       workingDays,
-      ...(scopedTenantId ? { tenantId: scopedTenantId } : {}),
     };
 
     const saved = existing
@@ -104,7 +103,12 @@ export async function PUT(req: NextRequest) {
           where: { id: existing.id },
           data,
         })
-      : await prisma.attendanceConfig.create({ data });
+      : await prisma.attendanceConfig.create({
+          data: {
+            ...data,
+            ...(scopedTenantId ? { tenantId: scopedTenantId } : {}),
+          },
+        });
 
     return NextResponse.json({
       message: "Attendance config updated",
