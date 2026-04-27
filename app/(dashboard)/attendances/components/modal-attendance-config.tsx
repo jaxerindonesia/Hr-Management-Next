@@ -11,13 +11,25 @@ interface AttendanceConfig {
   officeStartTime: string;
   officeEndTime: string;
   lateToleranceMinutes: number;
+  workingDays: string[];
 }
 
 const defaultConfig: AttendanceConfig = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
   lateToleranceMinutes: 15,
+  workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
 };
+
+const DAY_OPTIONS = [
+  { value: "MONDAY", label: "Senin" },
+  { value: "TUESDAY", label: "Selasa" },
+  { value: "WEDNESDAY", label: "Rabu" },
+  { value: "THURSDAY", label: "Kamis" },
+  { value: "FRIDAY", label: "Jumat" },
+  { value: "SATURDAY", label: "Sabtu" },
+  { value: "SUNDAY", label: "Minggu" },
+] as const;
 
 export default function ModalAttendanceConfig({
   onClose,
@@ -33,7 +45,18 @@ export default function ModalAttendanceConfig({
     try {
       const res = await fetch("/api/attendance-config");
       const json = await res.json();
-      setForm(json.data || defaultConfig);
+      const data = json.data || defaultConfig;
+      setForm({
+        officeStartTime: data.officeStartTime || defaultConfig.officeStartTime,
+        officeEndTime: data.officeEndTime || defaultConfig.officeEndTime,
+        lateToleranceMinutes: Number(
+          data.lateToleranceMinutes ?? defaultConfig.lateToleranceMinutes,
+        ),
+        workingDays:
+          Array.isArray(data.workingDays) && data.workingDays.length > 0
+            ? data.workingDays
+            : defaultConfig.workingDays,
+      });
     } catch {
       toast.error("Gagal memuat konfigurasi attendance");
     }
@@ -50,6 +73,10 @@ export default function ModalAttendanceConfig({
     }
     if (form.lateToleranceMinutes < 0) {
       toast.error("Toleransi terlambat tidak boleh negatif");
+      return;
+    }
+    if (form.workingDays.length === 0) {
+      toast.error("Pilih minimal 1 hari masuk kantor");
       return;
     }
 
@@ -107,6 +134,62 @@ export default function ModalAttendanceConfig({
                 setForm((p) => ({ ...p, lateToleranceMinutes: Number(e.target.value || 0) }))
               }
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Hari Masuk Kantor</Label>
+                        <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+                  }))
+                }
+              >
+                Senin - Jumat
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    workingDays: DAY_OPTIONS.map((d) => d.value),
+                  }))
+                }
+              >
+                Semua Hari
+              </Button>
+            </div>
+            <hr className="my-3"/>
+            <div className="flex flex-wrap gap-2">
+              {DAY_OPTIONS.map((day) => {
+                const active = form.workingDays.includes(day.value);
+                return (
+                  <Button
+                    key={day.value}
+                    type="button"
+                    variant={active ? "default" : "outline"}
+                    size="sm"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        workingDays: active
+                          ? prev.workingDays.filter((d) => d !== day.value)
+                          : [...prev.workingDays, day.value],
+                      }))
+                    }
+                  >
+                    {day.label}
+                  </Button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
