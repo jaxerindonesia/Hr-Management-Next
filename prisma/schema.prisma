@@ -211,6 +211,7 @@ model AttendanceConfig {
   officeStartTime String @map("office_start_time")
   officeEndTime String @map("office_end_time")
   lateToleranceMinutes Int @map("late_tolerance_minutes")
+  workingDays String[] @default(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]) @map("working_days")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

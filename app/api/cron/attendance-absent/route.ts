@@ -4,6 +4,22 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 const JAKARTA_UTC_OFFSET_HOURS = 7;
+const DEFAULT_WORKING_DAYS = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+];
+const WEEKDAY_MAP = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+] as const;
 
 function isAuthorizedCron(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -38,6 +54,11 @@ export async function GET(req: NextRequest) {
     }
 
     const { startUtc, endUtc } = getPreviousJakartaDayRange();
+    const targetDayCode = WEEKDAY_MAP[
+      new Date(
+        startUtc.getTime() + JAKARTA_UTC_OFFSET_HOURS * 60 * 60 * 1000,
+      ).getUTCDay()
+    ];
 
     const eligibleUsers = await prisma.user.findMany({
       where: {
@@ -74,6 +95,63 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const tenantIds = [...new Set(eligibleUsers.map((u) => u.tenantId).filter(Boolean))] as string[];
+    const configs = await prisma.attendanceConfig.findMany({
+      where: {
+        OR: [
+          { tenantId: { in: tenantIds } },
+          { tenantId: null },
+        ],
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      select: {
+        tenantId: true,
+        workingDays: true,
+      },
+    });
+
+    const configByTenant = new Map<string, string[]>();
+    let globalConfigWorkingDays: string[] | null = null;
+    for (const cfg of configs) {
+      const normalizedDays =
+        Array.isArray(cfg.workingDays) && cfg.workingDays.length > 0
+          ? cfg.workingDays
+          : DEFAULT_WORKING_DAYS;
+
+      if (cfg.tenantId) {
+        if (!configByTenant.has(cfg.tenantId)) {
+          configByTenant.set(cfg.tenantId, normalizedDays);
+        }
+        continue;
+      }
+
+      if (!globalConfigWorkingDays) {
+        globalConfigWorkingDays = normalizedDays;
+      }
+    }
+
+    const usersToProcess = eligibleUsers.filter((user) => {
+      const workingDays =
+        (user.tenantId ? configByTenant.get(user.tenantId) : null) ||
+        globalConfigWorkingDays ||
+        DEFAULT_WORKING_DAYS;
+      return workingDays.includes(targetDayCode);
+    });
+
+    if (usersToProcess.length === 0) {
+      return NextResponse.json({
+        message: "Attendance absent job completed",
+        created: 0,
+        targetDateStart: startUtc.toISOString(),
+        targetDateEnd: endUtc.toISOString(),
+        checkedUsers: eligibleUsers.length,
+        skippedByWorkingDay: eligibleUsers.length,
+        targetDayCode,
+      });
+    }
+
     const existingAttendances = await prisma.attendance.findMany({
       where: {
         date: {
@@ -81,7 +159,7 @@ export async function GET(req: NextRequest) {
           lte: endUtc,
         },
         userId: {
-          in: eligibleUsers.map((u) => u.id),
+          in: usersToProcess.map((u) => u.id),
         },
       },
       select: {
@@ -90,7 +168,7 @@ export async function GET(req: NextRequest) {
     });
 
     const existingUserIds = new Set(existingAttendances.map((a) => a.userId));
-    const attendanceToCreate = eligibleUsers
+    const attendanceToCreate = usersToProcess
       .filter((u) => !existingUserIds.has(u.id))
       .map((u) => ({
         userId: u.id,
@@ -112,7 +190,9 @@ export async function GET(req: NextRequest) {
       created: attendanceToCreate.length,
       targetDateStart: startUtc.toISOString(),
       targetDateEnd: endUtc.toISOString(),
-      checkedUsers: eligibleUsers.length,
+      checkedUsers: usersToProcess.length,
+      skippedByWorkingDay: eligibleUsers.length - usersToProcess.length,
+      targetDayCode,
     });
   } catch (error) {
     console.error("CRON ATTENDANCE ABSENT ERROR:", error);

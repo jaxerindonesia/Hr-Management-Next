@@ -39,6 +39,7 @@ type AttendanceConfigState = {
   officeStartTime: string;
   officeEndTime: string;
   lateToleranceMinutes: number;
+  workingDays: string[];
   isDefault?: boolean;
 };
 
@@ -46,6 +47,7 @@ const DEFAULT_ATTENDANCE_CONFIG: AttendanceConfigState = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
   lateToleranceMinutes: 15,
+  workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
   isDefault: true,
 };
 
@@ -194,6 +196,10 @@ export default function AttendancePage() {
         officeStartTime: config.officeStartTime || "09:00",
         officeEndTime: config.officeEndTime || "17:00",
         lateToleranceMinutes: Number(config.lateToleranceMinutes ?? 15),
+        workingDays:
+          Array.isArray(config.workingDays) && config.workingDays.length > 0
+            ? config.workingDays
+            : DEFAULT_ATTENDANCE_CONFIG.workingDays,
         isDefault: Boolean(json?.isDefault),
       });
     } catch {
