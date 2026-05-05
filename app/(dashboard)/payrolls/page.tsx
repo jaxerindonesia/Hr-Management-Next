@@ -655,21 +655,28 @@ export default function PayrollPage() {
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                          currentPage === page
-                            ? "bg-blue-600 text-white"
-                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    ),
-                  )}
+                  {(() => {
+                    const pages: (number | "...")[] = [];
+                    if (totalPages <= 5) {
+                      for (let i = 1; i <= totalPages; i++) pages.push(i);
+                    } else if (currentPage <= 3) {
+                      pages.push(1, 2, 3, "...", totalPages - 1, totalPages);
+                    } else if (currentPage >= totalPages - 2) {
+                      pages.push(1, 2, "...", totalPages - 2, totalPages - 1, totalPages);
+                    } else {
+                      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
+                    }
+                    return pages.map((page, idx) =>
+                      page === "..." ? (
+                        <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm select-none">...</span>
+                      ) : (
+                        <button key={page} onClick={() => setCurrentPage(page as number)}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"}`}>
+                          {page}
+                        </button>
+                      )
+                    );
+                  })()}
                 </div>
                 <Button
                   variant="outline"
