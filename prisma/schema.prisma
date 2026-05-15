@@ -202,6 +202,7 @@ model Attendance {
   tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
+  @@unique([userId, date], map: "attendances_user_id_date_key")
   @@map("attendances")
 }
 

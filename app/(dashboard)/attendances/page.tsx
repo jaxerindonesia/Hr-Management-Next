@@ -236,29 +236,31 @@ export default function AttendancePage() {
           setAttendanceRecords(data);
           setTotal(data.length);
         }
-
-        // Check today's attendance (separate call without pagination)
-        const todayRes = await fetch(
-          ["Super Admin", "Admin"].includes(user.role)
-            ? `/api/attendances?limit=999`
-            : `/api/attendances/user/${user.id}`,
-        );
-        if (todayRes.ok) {
-          const todayJson = await todayRes.json();
-          const allData = todayJson.data || [];
-          const todayStr = new Date().toISOString().split("T")[0];
-          const today = allData.find((item: AttendanceDto) => {
-            const itemDate = new Date(item.date).toISOString().split("T")[0];
-            return itemDate === todayStr;
-          });
-          setTodayAttendance(today || null);
-        }
       } catch {
         toast.error("Gagal memuat data attendance");
       }
     },
     [currentPage, searchQuery, filterStatus],
   );
+
+  const fetchTodayAttendance = useCallback(async (userId: string) => {
+    try {
+      if (!userId) return;
+      const res = await fetch(`/api/attendances/user/${userId}`);
+      if (!res.ok) throw new Error("Gagal mengambil data attendance hari ini");
+
+      const json = await res.json();
+      const allData = json.data || [];
+      const todayStr = new Date().toISOString().split("T")[0];
+      const today = allData.find((item: AttendanceDto) => {
+        const itemDate = new Date(item.date).toISOString().split("T")[0];
+        return itemDate === todayStr;
+      });
+      setTodayAttendance(today || null);
+    } catch {
+      setTodayAttendance(null);
+    }
+  }, []);
 
   const handleExport = async () => {
     try {
@@ -437,12 +439,13 @@ export default function AttendancePage() {
 
       toast.success("Berhasil Check In");
       fetchAttendance(userData);
+      fetchTodayAttendance(userData.id);
     } catch {
       toast.error(
         "Gagal mengambil lokasi. Nyalakan lokasi/GPS lalu izinkan akses lokasi terlebih dahulu.",
       );
     }
-  }, [userData, fetchAttendance]);
+  }, [userData, fetchAttendance, fetchTodayAttendance]);
 
   const doCheckOut = useCallback(async (faceCaptureBase64: string) => {
     try {
@@ -521,12 +524,13 @@ export default function AttendancePage() {
 
       toast.success("Berhasil Check Out");
       fetchAttendance(userData);
+      fetchTodayAttendance(userData.id);
     } catch {
       toast.error(
         "Gagal mengambil lokasi. Nyalakan lokasi/GPS lalu izinkan akses lokasi terlebih dahulu.",
       );
     }
-  }, [userData, fetchAttendance]);
+  }, [userData, fetchAttendance, fetchTodayAttendance]);
 
   // ── Open face-recognition modal first ──────────────────────────────────
   const handleCheckIn = () => {
@@ -647,8 +651,9 @@ export default function AttendancePage() {
     if (userData.id) {
       fetchAttendance(userData);
       fetchAttendanceConfig();
+      fetchTodayAttendance(userData.id);
     }
-  }, [fetchAttendance, fetchAttendanceConfig, userData]);
+  }, [fetchAttendance, fetchAttendanceConfig, fetchTodayAttendance, userData]);
 
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
