@@ -5,6 +5,11 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
   const { pathname } = request.nextUrl;
 
+  // bypass cron routes
+  if (pathname.startsWith('/api/cron')) {
+    return NextResponse.next();
+  }
+
   const publicRoutes = ['/login', '/register'];
   const authApiRoutes = ['/api/auth/login', '/api/auth/register'];
 
