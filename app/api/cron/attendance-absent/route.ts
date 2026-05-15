@@ -182,6 +182,7 @@ export async function GET(req: NextRequest) {
     if (attendanceToCreate.length > 0) {
       await prisma.attendance.createMany({
         data: attendanceToCreate,
+        skipDuplicates: true,
       });
     }
 
