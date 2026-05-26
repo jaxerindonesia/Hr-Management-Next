@@ -12,6 +12,10 @@ export interface UserDto {
   position?: string | null;
   joinDate?: string | null;
   salary?: number | null;
+  gender?: string | null;
+  address?: string | null;
+  birthDate?: string | null;
+  birthPlace?: string | null;
   avatarUrl?: string | null;
   password?: string;
   currentToken?: string | null;

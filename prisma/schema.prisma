@@ -83,6 +83,10 @@ model User {
   joinDate   DateTime? @map("join_date")
   salary     Float?
   avatarUrl  String? @map("avatar_url")
+  gender     String?
+  address    String?
+  birthDate  DateTime? @map("birth_date")
+  birthPlace String? @map("birth_place")
 
   password     String
   currentToken String? @map("current_token")
