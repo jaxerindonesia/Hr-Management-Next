@@ -3,7 +3,6 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Camera, RefreshCw, CheckCircle, X, ScanFace, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import * as faceapi from "face-api.js";
 
 interface FaceCaptureProps {
@@ -149,13 +148,23 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
       {state === "captured" && displayImage && (
         <div className="relative w-full flex flex-col items-center gap-3">
           <div className="relative">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={displayImage}
               alt="Foto wajah"
-              width={160}
-              height={160}
               className="w-40 h-40 rounded-full object-cover border-4 border-green-500 shadow-lg"
-              unoptimized={displayImage.startsWith("data:")}
+              onError={(e) => {
+                // Jika gambar gagal dimuat, tampilkan placeholder
+                const target = e.currentTarget;
+                target.style.display = "none";
+                const parent = target.parentElement;
+                if (parent && !parent.querySelector(".face-placeholder")) {
+                  const placeholder = document.createElement("div");
+                  placeholder.className = "face-placeholder w-40 h-40 rounded-full border-4 border-yellow-400 bg-gray-100 dark:bg-gray-700 flex items-center justify-center";
+                  placeholder.innerHTML = `<span class="text-xs text-gray-500 text-center px-2">Foto tidak dapat dimuat</span>`;
+                  parent.insertBefore(placeholder, target);
+                }
+              }}
             />
             <div className="absolute bottom-1 right-1 bg-green-500 rounded-full p-1">
               <CheckCircle className="w-4 h-4 text-white" />
