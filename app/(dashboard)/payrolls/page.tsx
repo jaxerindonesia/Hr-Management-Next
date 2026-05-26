@@ -26,6 +26,11 @@ import SlipGajiModal from "./components/slip-gaji-modal";
 import { months } from "@/lib/helper/date";
 import { usePermission } from "@/lib/helper/check-role";
 
+type TenantConfig = {
+  companyName?: string | null;
+  logoUrl?: string | null;
+};
+
 export default function PayrollPage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [payrolls, setPayrolls] = useState<PayrollDto[]>([]);
@@ -52,6 +57,7 @@ export default function PayrollPage() {
   const [showModal, setShowModal] = useState(false);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [selectedSlip, setSelectedSlip] = useState<PayrollDto | null>(null);
+  const [tenantConfig, setTenantConfig] = useState<TenantConfig | null>(null);
 
   // Summary stats (fetched separately without pagination)
   const [summaryPaid, setSummaryPaid] = useState(0);
@@ -240,6 +246,20 @@ export default function PayrollPage() {
     fetchSummary();
   }, []);
 
+  useEffect(() => {
+    const fetchTenantConfig = async () => {
+      try {
+        const res = await fetch("/api/tenant-config");
+        if (!res.ok) return;
+        const json = await res.json();
+        setTenantConfig(json.data ?? null);
+      } catch {
+        // Silent fail: slip will use fallback branding.
+      }
+    };
+    fetchTenantConfig();
+  }, []);
+
   return (
     <>
       <div className="space-y-6">
@@ -324,11 +344,10 @@ export default function PayrollPage() {
             <Button
               variant="outline"
               onClick={() => setShowFilterPanel(!showFilterPanel)}
-              className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-                showFilterPanel || activeFilterCount > 0
-                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
-                  : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-              }`}
+              className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${showFilterPanel || activeFilterCount > 0
+                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
+                }`}
             >
               <Filter className="w-4 h-4" />
               Filter
@@ -539,11 +558,10 @@ export default function PayrollPage() {
                       </td>
                       <td className="p-3">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            emp.status === "paid"
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === "paid"
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                            }`}
                         >
                           {emp.status === "paid" ? "Dibayar" : "Pending"}
                         </span>
@@ -709,6 +727,7 @@ export default function PayrollPage() {
       {selectedSlip && (
         <SlipGajiModal
           payroll={selectedSlip}
+          tenantConfig={tenantConfig}
           onClose={() => setSelectedSlip(null)}
         />
       )}
