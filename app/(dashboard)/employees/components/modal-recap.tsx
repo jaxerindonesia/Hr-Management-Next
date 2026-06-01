@@ -323,7 +323,7 @@ export default function ModalRecap({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[60vw] sm:!max-w-[90rem] h-[94vh] overflow-y-auto p-4 md:p-6">
         <DialogHeader>
           <DialogTitle className="text-lg sr-only">
             Rekap Karyawan — {employee.name}
@@ -396,10 +396,10 @@ export default function ModalRecap({
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+        <div className="grid grid-cols-2 gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg h-12">
           <button
             onClick={() => setActiveTab("attendance")}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === "attendance"
+            className={`h-full px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center ${activeTab === "attendance"
               ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
               : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               }`}
@@ -408,7 +408,7 @@ export default function ModalRecap({
           </button>
           <button
             onClick={() => setActiveTab("submissions")}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === "submissions"
+            className={`h-full px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center ${activeTab === "submissions"
               ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
               : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               }`}
@@ -418,14 +418,14 @@ export default function ModalRecap({
         </div>
 
         {/* Filter Bulan & Tahun */}
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-wrap gap-3 items-center rounded-xl border dark:border-gray-700 p-3">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">Bulan:</span>
             <Select
               value={String(month)}
               onValueChange={(v) => setMonth(parseInt(v))}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[140px] bg-white dark:bg-gray-800">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -444,7 +444,7 @@ export default function ModalRecap({
               value={String(year)}
               onValueChange={(v) => setYear(parseInt(v))}
             >
-              <SelectTrigger className="w-[100px]">
+              <SelectTrigger className="w-[100px] bg-white dark:bg-gray-800">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -469,9 +469,14 @@ export default function ModalRecap({
           <>
             {/* ═══ TAB KEHADIRAN ═══ */}
             {activeTab === "attendance" && (
-              <div className="space-y-4">
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Ringkasan Kehadiran — {MONTHS[month - 1]} {year}
+                  </h3>
+                </div>
                 {/* Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-1">
                       <CalendarCheck className="w-4 h-4 text-green-600 dark:text-green-400" />
@@ -522,7 +527,11 @@ export default function ModalRecap({
                 </div>
 
                 {/* Attendance Table */}
-                <div className="overflow-x-auto border dark:border-gray-700 rounded-lg">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Detail Kehadiran — {MONTHS[month - 1]} {year}
+                  </h3>
+                  <div className="overflow-x-auto border dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">
@@ -591,6 +600,7 @@ export default function ModalRecap({
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -599,13 +609,13 @@ export default function ModalRecap({
             {activeTab === "submissions" && (
               <div className="space-y-4">
                 {/* Leave Quota Cards */}
-                {leaveQuotas.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Sisa Kuota Cuti — Tahun {year}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {leaveQuotas.map((quota, i) => (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Ringkasan Pengajuan — Tahun {year}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {leaveQuotas.length > 0 ? (
+                      leaveQuotas.map((quota, i) => (
                         <div
                           key={i}
                           className="border dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800"
@@ -621,7 +631,6 @@ export default function ModalRecap({
                               / {quota.maxDays} hari
                             </span>
                           </div>
-                          {/* Progress bar */}
                           <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${quota.remainingDays === 0
@@ -642,17 +651,21 @@ export default function ModalRecap({
                             Terpakai: {quota.usedDays} hari
                           </p>
                         </div>
-                      ))}
-                    </div>
+                      ))
+                    ) : (
+                      <div className="col-span-full border dark:border-gray-700 rounded-lg p-6 text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800">
+                        Belum ada data kuota cuti.
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
 
                 {/* Submission History Table */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3">
                     Riwayat Pengajuan — Tahun {year}
                   </h3>
-                  <div className="overflow-x-auto border dark:border-gray-700 rounded-lg">
+                  <div className="overflow-x-auto border dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">

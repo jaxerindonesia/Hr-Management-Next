@@ -542,6 +542,15 @@ export default function EmployeesPage() {
                     Posisi
                   </th>
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    No. Telepon
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Gender
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Tempat Lahir
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Departemen
                   </th>
                   {(isSuperAdmin || isAdmin) && (
@@ -582,6 +591,19 @@ export default function EmployeesPage() {
                       </td>
                       <td className="p-3 dark:text-gray-300">
                         {emp.position || "-"}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
+                        {emp.phone || "-"}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
+                        {emp.gender === "male"
+                          ? "Laki-laki"
+                          : emp.gender === "female"
+                            ? "Perempuan"
+                            : "-"}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
+                        {emp.birthPlace || "-"}
                       </td>
                       <td className="p-3 dark:text-gray-300">
                         {emp.department?.name && isSuperAdmin
@@ -668,8 +690,8 @@ export default function EmployeesPage() {
                     <td
                       colSpan={
                         (isSuperAdmin ? 1 : 0) +
-                        5 + // email, nik, nama, posisi, departemen
-                        (isSuperAdmin ? 1 : 0) + // gaji
+                        8 + // email, nik, nama, posisi, no.telp, gender, tempat lahir, departemen
+                        ((isSuperAdmin || isAdmin) ? 1 : 0) + // gaji
                         1 + // status
                         (checkRoleMulti("users", ["update", "delete"]) ? 1 : 0) // aksi
                       }

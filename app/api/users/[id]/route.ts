@@ -72,6 +72,12 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.phone) updateData.phone = body.phone;
     if (body.position) updateData.position = body.position;
     if (body.salary !== undefined) updateData.salary = body.salary;
+    if (body.gender !== undefined) updateData.gender = body.gender || null;
+    if (body.address !== undefined) updateData.address = body.address || null;
+    if (body.birthPlace !== undefined) updateData.birthPlace = body.birthPlace || null;
+    if (body.birthDate !== undefined) {
+      updateData.birthDate = body.birthDate ? new Date(body.birthDate) : null;
+    }
     if (body.status) updateData.status = body.status;
 
     // Jika avatarUrl diupdate → hapus file lama dari disk terlebih dahulu
