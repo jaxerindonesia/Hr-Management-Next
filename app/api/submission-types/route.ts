@@ -14,6 +14,12 @@ export async function GET() {
     const submissionTypes = await prisma.submissionType.findMany({
       where: scopedTenantId ? { tenantId: scopedTenantId } : {},
       orderBy: { createdAt: "desc" },
+      include: {
+        approverConfigs: {
+          include: { approverUser: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
 
     return NextResponse.json({
@@ -37,13 +43,13 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    const { name } = body;
+    const { name, approverUserIds = [] } = body;
 
     if (!name) {
-        return NextResponse.json(
-            { message: "Submission type name is required" },
-            { status: 400 }
-        );
+      return NextResponse.json(
+        { message: "Submission type name is required" },
+        { status: 400 }
+      );
     }
 
     const scopedTenantId = ensureTenantScope(auth.user);
@@ -60,8 +66,48 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const uniqueApprovers = Array.from(new Set((approverUserIds as string[]).filter(Boolean)));
+    let finalApproverUserIds = uniqueApprovers;
+
+    // Fallback: jika tidak dipilih manual, otomatis pakai user dengan role Admin / Super Admin.
+    if (finalApproverUserIds.length === 0) {
+      const defaultApprovers = await prisma.user.findMany({
+        where: {
+          ...(finalTenantId ? { tenantId: finalTenantId } : {}),
+          role: {
+            name: { in: ["Admin", "Super Admin"] },
+          },
+        },
+        select: { id: true },
+      });
+
+      finalApproverUserIds = defaultApprovers.map((u) => u.id);
+    }
+
+    if (finalApproverUserIds.length === 0) {
+      return NextResponse.json(
+        { message: "Tidak ada approver yang bisa dipakai. Tambahkan user Admin terlebih dahulu." },
+        { status: 400 }
+      );
+    }
+
     const submissionType = await prisma.submissionType.create({
-      data: { name, tenantId: finalTenantId },
+      data: {
+        name,
+        tenantId: finalTenantId,
+        approverConfigs: finalApproverUserIds.length
+          ? {
+              createMany: {
+                data: finalApproverUserIds.map((approverUserId) => ({ approverUserId })),
+              },
+            }
+          : undefined,
+      },
+      include: {
+        approverConfigs: {
+          include: { approverUser: { select: { id: true, name: true } } },
+        },
+      },
     });
 
     return NextResponse.json(

@@ -29,6 +29,8 @@ import ModalType from "./components/modal-type";
 import ModalLeaveConfig from "./components/modal-leave-config";
 import { usePermission } from "@/lib/helper/check-role";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function SubmissionsPage() {
   const { checkRole, checkRoleMulti } = usePermission();
@@ -48,6 +50,9 @@ export default function SubmissionsPage() {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedRejectId, setSelectedRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const itemsPerPage = 10;
   const totalPages = Math.ceil(total / itemsPerPage);
@@ -129,35 +134,50 @@ export default function SubmissionsPage() {
       const res = await fetch(`/api/submissions/${id}`, {
         method: "PUT",
         body: JSON.stringify({
-          status: "APPROVED",
-          approvedBy: userData?.id,
-          approvedAt: new Date(),
+          approvalAction: "APPROVE",
         }),
       });
-      if (!res.ok) throw new Error("Gagal menyetujui pengajuan");
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Gagal menyetujui pengajuan");
+      }
       toast.success("Pengajuan berhasil disetujui!");
       fetchSubmissions();
     } catch (error) {
-      toast.error("Gagal menyetujui pengajuan");
+      console.log(error);
+      toast.error(`Gagal menyetujui pengajuan: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleReject = async (id: string, rejectionReason: string) => {
+    if (!rejectionReason.trim()) {
+      toast.error("Alasan penolakan wajib diisi");
+      return;
+    }
     try {
       const res = await fetch(`/api/submissions/${id}`, {
         method: "PUT",
         body: JSON.stringify({
-          status: "REJECTED",
-          approvedBy: userData?.id,
-          approvedAt: new Date(),
+          approvalAction: "REJECT",
+          rejectionReason: rejectionReason.trim(),
         }),
       });
-      if (!res.ok) throw new Error("Gagal menolak pengajuan");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Gagal menyetujui pengajuan");
+      }
       toast.success("Pengajuan berhasil ditolak!");
       fetchSubmissions();
     } catch (error) {
-      toast.error("Gagal menolak pengajuan");
+      toast.error(`Gagal menyetujui pengajuan: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
+  };
+
+  const openRejectDialog = (id: string) => {
+    setSelectedRejectId(id);
+    setRejectReason("");
+    setRejectDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -196,19 +216,19 @@ export default function SubmissionsPage() {
         "Jenis Pengajuan": emp.submissionType?.name ?? "-",
         "Tanggal Mulai": emp.startDate
           ? new Date(emp.startDate).toLocaleDateString("id-ID", {
-              weekday: "short",
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })
+            weekday: "short",
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
           : "-",
         "Tanggal Selesai": emp.endDate
           ? new Date(emp.endDate).toLocaleDateString("id-ID", {
-              weekday: "short",
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })
+            weekday: "short",
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
           : "-",
         Alasan: emp.reason || "-",
         Status:
@@ -259,6 +279,14 @@ export default function SubmissionsPage() {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
   }, []);
+
+  const approverHeaders = Array.from(
+    new Set(
+      submissions.flatMap((s) =>
+        (s.submissionType?.approverConfigs || []).map((c) => c.approverUser.name),
+      ),
+    ),
+  );
 
   return (
     <div className="space-y-6">
@@ -319,11 +347,10 @@ export default function SubmissionsPage() {
           <Button
             variant="outline"
             onClick={() => setShowFilterPanel(!showFilterPanel)}
-            className={`relative flex items-center gap-2 px-4 py-2 ${
-              showFilterPanel
+            className={`relative flex items-center gap-2 px-4 py-2 ${showFilterPanel
                 ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
                 : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-            }`}
+              }`}
           >
             <Filter className="w-4 h-4" />
             Filter
@@ -473,6 +500,11 @@ export default function SubmissionsPage() {
                 <th className="text-left p-3 font-semibold dark:text-gray-300">
                   Status
                 </th>
+                {approverHeaders.map((name) => (
+                  <th key={name} className="text-left p-3 font-semibold dark:text-gray-300">
+                    Approval {name}
+                  </th>
+                ))}
                 {checkRoleMulti("submissions", ["update", "delete"]) && (
                   <th className="text-right p-3 font-semibold dark:text-gray-300">
                     Aksi
@@ -514,13 +546,12 @@ export default function SubmissionsPage() {
                     </td>
                     <td className="p-3">
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          emp.status === "APPROVED"
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === "APPROVED"
                             ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                             : emp.status === "REJECTED"
                               ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                               : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                        }`}
+                          }`}
                       >
                         {emp.status === "APPROVED"
                           ? "Disetujui"
@@ -529,6 +560,27 @@ export default function SubmissionsPage() {
                             : "Menunggu"}
                       </span>
                     </td>
+                    {approverHeaders.map((name) => {
+                      const cfg = (emp.submissionType?.approverConfigs || []).find(
+                        (c) => c.approverUser.name === name,
+                      );
+                      const decision = (emp.approvalDecisions || []).find(
+                        (d) => d.approverUserId === cfg?.approverUserId,
+                      );
+                      const text =
+                        decision?.status === "APPROVED"
+                          ? "Disetujui"
+                          : decision?.status === "REJECTED"
+                            ? `Ditolak${decision.reason ? `: ${decision.reason}` : ""}`
+                            : cfg
+                              ? "Menunggu"
+                              : "-";
+                      return (
+                        <td key={`${emp.id}-${name}`} className="p-3 text-sm dark:text-gray-300">
+                          {text}
+                        </td>
+                      );
+                    })}
 
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-2">
@@ -543,7 +595,7 @@ export default function SubmissionsPage() {
                                 <CheckCircle className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleReject(emp.id!)}
+                                onClick={() => openRejectDialog(emp.id!)}
                                 className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                                 title="Tolak"
                               >
@@ -700,6 +752,37 @@ export default function SubmissionsPage() {
       {showLeaveConfigModal && (
         <ModalLeaveConfig onClose={() => setShowLeaveConfigModal(false)} />
       )}
+
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alasan Penolakan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Tulis alasan penolakan..."
+              rows={4}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+                Batal
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (!selectedRejectId) return;
+                  await handleReject(selectedRejectId, rejectReason);
+                  setRejectDialogOpen(false);
+                }}
+              >
+                Tolak Pengajuan
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
