@@ -159,7 +159,7 @@ export async function GET(req: NextRequest) {
           lte: endUtc,
         },
         userId: {
-          in: usersToProcess.map((u) => u.id),
+          in: usersToProcess.map((u: any) => u.id),
         },
       },
       select: {
