@@ -33,7 +33,7 @@ jobs:
 
             nvm use 24
 
-            cd /home/jaxerid/jaxer-project/hr-manage-next
+            cd /home/jaxerid/jaxer-project/production/hr-manage-next
 
             echo "📥 Pull latest code"
             git pull origin production
