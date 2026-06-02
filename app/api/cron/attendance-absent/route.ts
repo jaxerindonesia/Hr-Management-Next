@@ -4,8 +4,22 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 const JAKARTA_UTC_OFFSET_HOURS = 7;
-const DEFAULT_WORKING_DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
-const WEEKDAY_MAP = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+const DEFAULT_WORKING_DAYS = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+];
+const WEEKDAY_MAP = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+] as const;
 
 function isAuthorizedCron(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -15,121 +29,177 @@ function isAuthorizedCron(req: NextRequest) {
 }
 
 function getPreviousJakartaDayRange(nowUtc = new Date()) {
-  const shifted = new Date(nowUtc.getTime() + JAKARTA_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  const shifted = new Date(
+    nowUtc.getTime() + JAKARTA_UTC_OFFSET_HOURS * 60 * 60 * 1000,
+  );
+
   const y = shifted.getUTCFullYear();
   const m = shifted.getUTCMonth();
   const d = shifted.getUTCDate() - 1;
-  const startUtc = new Date(Date.UTC(y, m, d, -JAKARTA_UTC_OFFSET_HOURS, 0, 0, 0));
-  const endUtc = new Date(Date.UTC(y, m, d, 23 - JAKARTA_UTC_OFFSET_HOURS, 59, 59, 999));
-  return { startUtc, endUtc };
-}
 
-function dateAtHHMM(baseDate: Date, hhmm: string) {
-  const [h, m] = hhmm.split(":").map(Number);
-  return new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), h || 0, m || 0, 0, 0);
+  const startUtc = new Date(
+    Date.UTC(y, m, d, -JAKARTA_UTC_OFFSET_HOURS, 0, 0, 0),
+  );
+  const endUtc = new Date(
+    Date.UTC(y, m, d, 23 - JAKARTA_UTC_OFFSET_HOURS, 59, 59, 999),
+  );
+
+  return { startUtc, endUtc };
 }
 
 export async function GET(req: NextRequest) {
   try {
-    if (!isAuthorizedCron(req)) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (!isAuthorizedCron(req)) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
     const { startUtc, endUtc } = getPreviousJakartaDayRange();
-    const targetDayCode = WEEKDAY_MAP[new Date(startUtc.getTime() + JAKARTA_UTC_OFFSET_HOURS * 60 * 60 * 1000).getUTCDay()];
+    const targetDayCode = WEEKDAY_MAP[
+      new Date(
+        startUtc.getTime() + JAKARTA_UTC_OFFSET_HOURS * 60 * 60 * 1000,
+      ).getUTCDay()
+    ];
 
     const eligibleUsers = await prisma.user.findMany({
       where: {
         status: "active",
         deletedAt: null,
-        AND: [{ OR: [{ joinDate: null }, { joinDate: { lte: endUtc } }] }, { OR: [{ tenantId: null }, { tenant: { isActive: true } }] }],
+        AND: [
+          {
+            OR: [{ joinDate: null }, { joinDate: { lte: endUtc } }],
+          },
+          {
+            OR: [
+              { tenantId: null },
+              {
+                tenant: {
+                  isActive: true,
+                },
+              },
+            ],
+          },
+        ],
       },
-      select: { id: true, tenantId: true },
+      select: {
+        id: true,
+        tenantId: true,
+      },
     });
 
+    if (eligibleUsers.length === 0) {
+      return NextResponse.json({
+        message: "Attendance absent job completed",
+        created: 0,
+        targetDateStart: startUtc.toISOString(),
+        targetDateEnd: endUtc.toISOString(),
+      });
+    }
+
     const tenantIds = [...new Set(eligibleUsers.map((u) => u.tenantId).filter(Boolean))] as string[];
-    const [configs, overtimeConfigs, attendances] = await Promise.all([
-      prisma.attendanceConfig.findMany({ where: { OR: [{ tenantId: { in: tenantIds } }, { tenantId: null }] }, orderBy: { updatedAt: "desc" }, select: { tenantId: true, workingDays: true, officeEndTime: true } }),
-      prisma.overtimeConfig.findMany({ where: { OR: [{ tenantId: { in: tenantIds } }, { tenantId: null }] }, orderBy: { updatedAt: "desc" } }),
-      prisma.attendance.findMany({ where: { date: { gte: startUtc, lte: endUtc }, userId: { in: eligibleUsers.map((u) => u.id) } } }),
-    ]);
+    const configs = await prisma.attendanceConfig.findMany({
+      where: {
+        OR: [
+          { tenantId: { in: tenantIds } },
+          { tenantId: null },
+        ],
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      select: {
+        tenantId: true,
+        workingDays: true,
+      },
+    });
 
-    const configByTenant = new Map<string, { workingDays: string[]; officeEndTime: string }>();
-    let globalCfg: { workingDays: string[]; officeEndTime: string } = { workingDays: DEFAULT_WORKING_DAYS, officeEndTime: "17:00" };
+    const configByTenant = new Map<string, string[]>();
+    let globalConfigWorkingDays: string[] | null = null;
     for (const cfg of configs) {
-      const normalizedDays = Array.isArray(cfg.workingDays) && cfg.workingDays.length > 0 ? cfg.workingDays : DEFAULT_WORKING_DAYS;
-      const payload = { workingDays: normalizedDays, officeEndTime: cfg.officeEndTime || "17:00" };
+      const normalizedDays =
+        Array.isArray(cfg.workingDays) && cfg.workingDays.length > 0
+          ? cfg.workingDays
+          : DEFAULT_WORKING_DAYS;
+
       if (cfg.tenantId) {
-        if (!configByTenant.has(cfg.tenantId)) configByTenant.set(cfg.tenantId, payload);
-      } else {
-        globalCfg = payload;
-      }
-    }
-
-    const overtimeCfgByTenant = new Map<string, { overtimeHourlyRate: number; minimumOvertimeMinutes: number; autoCheckoutTime: string }>();
-    let globalOvertimeCfg = { overtimeHourlyRate: 100000, minimumOvertimeMinutes: 60, autoCheckoutTime: "23:59" };
-    for (const cfg of overtimeConfigs) {
-      const payload = { overtimeHourlyRate: cfg.overtimeHourlyRate, minimumOvertimeMinutes: cfg.minimumOvertimeMinutes, autoCheckoutTime: cfg.autoCheckoutTime };
-      if (cfg.tenantId) {
-        if (!overtimeCfgByTenant.has(cfg.tenantId)) overtimeCfgByTenant.set(cfg.tenantId, payload);
-      } else {
-        globalOvertimeCfg = payload;
-      }
-    }
-
-    const attendanceByUserId = new Map(attendances.map((a) => [a.userId, a]));
-    const createAbsent = [] as { userId: string; tenantId: string | null; date: Date; status: string; notes: string; workHours: string }[];
-    let autoCheckoutCount = 0;
-    let overtimeCreated = 0;
-
-    for (const user of eligibleUsers) {
-      const officeCfg = (user.tenantId ? configByTenant.get(user.tenantId) : null) || globalCfg;
-      if (!officeCfg.workingDays.includes(targetDayCode)) continue;
-
-      const existing = attendanceByUserId.get(user.id);
-      if (!existing) {
-        createAbsent.push({ userId: user.id, tenantId: user.tenantId ?? null, date: startUtc, status: "Absent", notes: "Auto generated by cron", workHours: "00:00" });
+        if (!configByTenant.has(cfg.tenantId)) {
+          configByTenant.set(cfg.tenantId, normalizedDays);
+        }
         continue;
       }
 
-      if (!existing.checkIn || existing.checkOut) continue;
-
-      const overtimeCfg = (user.tenantId ? overtimeCfgByTenant.get(user.tenantId) : null) || globalOvertimeCfg;
-      const autoCheckOutTime = dateAtHHMM(new Date(existing.date), overtimeCfg.autoCheckoutTime || "23:59");
-      const checkInTime = new Date(existing.checkIn);
-      const totalMinutes = Math.max(0, Math.floor((autoCheckOutTime.getTime() - checkInTime.getTime()) / 60000));
-      const workHours = `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
-
-      const officeEnd = dateAtHHMM(new Date(existing.date), officeCfg.officeEndTime || "17:00");
-      const wasLate = existing.status === "Late";
-      const isHalfDay = autoCheckOutTime < officeEnd;
-      let status = "Present";
-      if (wasLate && isHalfDay) status = "Late - Half Day";
-      else if (wasLate && !isHalfDay) status = "Late - Present";
-      else if (!wasLate && isHalfDay) status = "Half Day";
-
-      const updated = await prisma.attendance.update({
-        where: { id: existing.id },
-        data: { checkOut: autoCheckOutTime, status, workHours, notes: `${existing.notes ? `${existing.notes}; ` : ""}Auto checkout by cron` },
-      });
-      autoCheckoutCount += 1;
-
-      const overtimeStart = new Date(officeEnd.getTime() + (overtimeCfg.minimumOvertimeMinutes || 60) * 60000);
-      const durationMinutes = Math.floor((autoCheckOutTime.getTime() - overtimeStart.getTime()) / 60000);
-      if (durationMinutes > 0) {
-        const amount = (durationMinutes / 60) * overtimeCfg.overtimeHourlyRate;
-        await prisma.overtime.upsert({
-          where: { attendanceId: updated.id },
-          update: { startAt: overtimeStart, endAt: autoCheckOutTime, durationMinutes, hourlyRate: overtimeCfg.overtimeHourlyRate, amount, source: "AUTO_CHECKOUT", status: "PENDING" },
-          create: { attendanceId: updated.id, userId: user.id, tenantId: user.tenantId ?? null, date: updated.date, startAt: overtimeStart, endAt: autoCheckOutTime, durationMinutes, hourlyRate: overtimeCfg.overtimeHourlyRate, amount, source: "AUTO_CHECKOUT", status: "PENDING" },
-        });
-        overtimeCreated += 1;
+      if (!globalConfigWorkingDays) {
+        globalConfigWorkingDays = normalizedDays;
       }
     }
 
-    if (createAbsent.length) await prisma.attendance.createMany({ data: createAbsent, skipDuplicates: true });
+    const usersToProcess = eligibleUsers.filter((user) => {
+      const workingDays =
+        (user.tenantId ? configByTenant.get(user.tenantId) : null) ||
+        globalConfigWorkingDays ||
+        DEFAULT_WORKING_DAYS;
+      return workingDays.includes(targetDayCode);
+    });
 
-    return NextResponse.json({ message: "Attendance absent + auto-checkout job completed", absentCreated: createAbsent.length, autoCheckoutCount, overtimeCreated, targetDateStart: startUtc.toISOString(), targetDateEnd: endUtc.toISOString() });
+    if (usersToProcess.length === 0) {
+      return NextResponse.json({
+        message: "Attendance absent job completed",
+        created: 0,
+        targetDateStart: startUtc.toISOString(),
+        targetDateEnd: endUtc.toISOString(),
+        checkedUsers: eligibleUsers.length,
+        skippedByWorkingDay: eligibleUsers.length,
+        targetDayCode,
+      });
+    }
+
+    const existingAttendances = await prisma.attendance.findMany({
+      where: {
+        date: {
+          gte: startUtc,
+          lte: endUtc,
+        },
+        userId: {
+          in: usersToProcess.map((u) => u.id),
+        },
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    const existingUserIds = new Set(existingAttendances.map((a) => a.userId));
+    const attendanceToCreate = usersToProcess
+      .filter((u) => !existingUserIds.has(u.id))
+      .map((u) => ({
+        userId: u.id,
+        tenantId: u.tenantId ?? null,
+        date: startUtc,
+        status: "Absent",
+        notes: "Auto generated by cron",
+        workHours: "00:00",
+      }));
+
+    if (attendanceToCreate.length > 0) {
+      await prisma.attendance.createMany({
+        data: attendanceToCreate,
+        skipDuplicates: true,
+      });
+    }
+
+    return NextResponse.json({
+      message: "Attendance absent job completed",
+      created: attendanceToCreate.length,
+      targetDateStart: startUtc.toISOString(),
+      targetDateEnd: endUtc.toISOString(),
+      checkedUsers: usersToProcess.length,
+      skippedByWorkingDay: eligibleUsers.length - usersToProcess.length,
+      targetDayCode,
+    });
   } catch (error) {
     console.error("CRON ATTENDANCE ABSENT ERROR:", error);
-    return NextResponse.json({ message: "Failed to run attendance absent job" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Failed to run attendance absent job" },
+      { status: 500 },
+    );
   }
 }
