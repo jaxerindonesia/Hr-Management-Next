@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const usersToProcess = eligibleUsers.filter((user) => {
+    const usersToProcess = eligibleUsers.filter((user: any) => {
       const workingDays =
         (user.tenantId ? configByTenant.get(user.tenantId) : null) ||
         globalConfigWorkingDays ||
@@ -167,10 +167,10 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const existingUserIds = new Set(existingAttendances.map((a) => a.userId));
+    const existingUserIds = new Set(existingAttendances.map((a: any) => a.userId));
     const attendanceToCreate = usersToProcess
-      .filter((u) => !existingUserIds.has(u.id))
-      .map((u) => ({
+      .filter((u: any) => !existingUserIds.has(u.id))
+      .map((u: any) => ({
         userId: u.id,
         tenantId: u.tenantId ?? null,
         date: startUtc,
