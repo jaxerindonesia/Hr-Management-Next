@@ -12,6 +12,7 @@ import {
   Settings,
   Download,
   Search,
+  FileText,
 } from "lucide-react";
 import { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
@@ -25,6 +26,7 @@ import FormData from "./components/form-data";
 import { Button } from "@/components/ui/button";
 import { usePermission } from "@/lib/helper/check-role";
 import ModalDepartment from "./components/modal-department";
+import ModalRecap from "./components/modal-recap";
 import { DepartmentDto } from "@/lib/dto/department";
 import { Input } from "@/components/ui/input";
 
@@ -39,6 +41,7 @@ export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+  const [recapEmployee, setRecapEmployee] = useState<UserDto | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [employees, setEmployees] = useState<UserDto[]>([]);
   const [total, setTotal] = useState(0);
@@ -149,10 +152,10 @@ export default function EmployeesPage() {
               : emp.department?.name || "-",
           "Tanggal Bergabung": emp.joinDate
             ? new Date(emp.joinDate).toLocaleDateString("id-ID", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })
             : "-",
           Status: emp.status === "active" ? "Aktif" : "Tidak Aktif",
         };
@@ -355,11 +358,10 @@ export default function EmployeesPage() {
             <Button
               variant="outline"
               onClick={() => setShowFilterPanel(!showFilterPanel)}
-              className={`relative flex items-center gap-2 px-4 py-2 ${
-                showFilterPanel
-                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
-                  : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-              }`}
+              className={`relative flex items-center gap-2 px-4 py-2 ${showFilterPanel
+                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
+                }`}
             >
               <Filter className="w-4 h-4" />
               Filter
@@ -478,8 +480,8 @@ export default function EmployeesPage() {
                       Departemen:{" "}
                       {getDepartmentDisplayName(
                         filteredDepartments.find((d) => d.id === filterDepartment) ||
-                          departments.find((d) => d.id === filterDepartment) ||
-                          null,
+                        departments.find((d) => d.id === filterDepartment) ||
+                        null,
                       )}
                       <button
                         onClick={() => setFilterDepartment("all")}
@@ -540,6 +542,15 @@ export default function EmployeesPage() {
                     Posisi
                   </th>
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    No. Telepon
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Gender
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Tempat Lahir
+                  </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Departemen
                   </th>
                   {(isSuperAdmin || isAdmin) && (
@@ -582,6 +593,19 @@ export default function EmployeesPage() {
                         {emp.position || "-"}
                       </td>
                       <td className="p-3 dark:text-gray-300">
+                        {emp.phone || "-"}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
+                        {emp.gender === "male"
+                          ? "Laki-laki"
+                          : emp.gender === "female"
+                            ? "Perempuan"
+                            : "-"}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
+                        {emp.birthPlace || "-"}
+                      </td>
+                      <td className="p-3 dark:text-gray-300">
                         {emp.department?.name && isSuperAdmin
                           ? `${emp.department.name} - ${emp.tenant?.companyName || "-"}`
                           : emp.department?.name || "-"}
@@ -593,20 +617,27 @@ export default function EmployeesPage() {
                       )}
                       <td className="p-3">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            emp.status === "active"
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                              : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400"
-                          }`}
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === "active"
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400"
+                            }`}
                         >
                           {emp.status === "active" ? "Aktif" : "Tidak Aktif"}
                         </span>
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => setRecapEmployee(emp)}
+                            title="Rekap Karyawan"
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
                           {checkRole("users", "update") && (
                             <button
                               onClick={() => handleOpenModal(emp)}
+                              title="Edit"
                               className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
                             >
                               <Edit className="w-4 h-4" />
@@ -659,8 +690,8 @@ export default function EmployeesPage() {
                     <td
                       colSpan={
                         (isSuperAdmin ? 1 : 0) +
-                        5 + // email, nik, nama, posisi, departemen
-                        (isSuperAdmin ? 1 : 0) + // gaji
+                        8 + // email, nik, nama, posisi, no.telp, gender, tempat lahir, departemen
+                        ((isSuperAdmin || isAdmin) ? 1 : 0) + // gaji
                         1 + // status
                         (checkRoleMulti("users", ["update", "delete"]) ? 1 : 0) // aksi
                       }
@@ -755,6 +786,14 @@ export default function EmployeesPage() {
       {/* Department Management Modal */}
       {showDepartmentModal && (
         <ModalDepartment onClose={() => setShowDepartmentModal(false)} />
+      )}
+
+      {/* Recap Modal */}
+      {recapEmployee && (
+        <ModalRecap
+          employee={recapEmployee}
+          onClose={() => setRecapEmployee(null)}
+        />
       )}
     </>
   );

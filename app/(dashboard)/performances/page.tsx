@@ -168,6 +168,14 @@ export default function PerformancePage() {
     </div>
   );
 
+  const getRatingLabel = (rating: number) => {
+    if (rating >= 5) return "Sangat Baik";
+    if (rating >= 4) return "Baik";
+    if (rating >= 3) return "Cukup";
+    if (rating >= 2) return "Kurang Baik";
+    return "Sangat Kurang";
+  };
+
   const fetchPerformances = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -370,6 +378,9 @@ export default function PerformancePage() {
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Total Score
                   </th>
+                  <th className="text-left p-3 font-semibold dark:text-gray-300">
+                    Catatan
+                  </th>
                   {checkRoleMulti("performances", ["update", "delete"]) && (
                     <th className="text-right p-3 font-semibold dark:text-gray-300">
                       Aksi
@@ -389,21 +400,52 @@ export default function PerformancePage() {
                       </td>
                       <td className="p-3 dark:text-gray-300">{perf.period}</td>
                       <td className="p-3 dark:text-gray-300">
-                        <StarRating rating={perf.productivity} />
+                        <div className="space-y-1">
+                          <StarRating rating={perf.productivity} />
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {getRatingLabel(perf.productivity)}
+                          </p>
+                        </div>
                       </td>
                       <td className="p-3 dark:text-gray-300">
-                        <StarRating rating={perf.quality} />
+                        <div className="space-y-1">
+                          <StarRating rating={perf.quality} />
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {getRatingLabel(perf.quality)}
+                          </p>
+                        </div>
                       </td>
                       <td className="p-3 dark:text-gray-300">
-                        <StarRating rating={perf.teamwork} />
+                        <div className="space-y-1">
+                          <StarRating rating={perf.teamwork} />
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {getRatingLabel(perf.teamwork)}
+                          </p>
+                        </div>
                       </td>
                       <td className="p-3 dark:text-gray-300">
-                        <StarRating rating={perf.discipline} />
+                        <div className="space-y-1">
+                          <StarRating rating={perf.discipline} />
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {getRatingLabel(perf.discipline)}
+                          </p>
+                        </div>
                       </td>
                       <td className="p-3">
-                        <span className="font-bold text-blue-600 dark:text-blue-400">
-                          {perf.totalScore}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-blue-600 dark:text-blue-400">
+                            {perf.totalScore}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {getRatingLabel(Math.round(perf.totalScore))}
+                          </span>
+                        </div>
+                      </td>
+                      <td
+                        className="p-3 dark:text-gray-300 max-w-[260px] truncate"
+                        title={perf.notes || "-"}
+                      >
+                        {perf.notes || "-"}
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
@@ -460,7 +502,7 @@ export default function PerformancePage() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="p-8 text-center text-gray-500 dark:text-gray-400"
                     >
                       Tidak ada data penilaian yang ditemukan

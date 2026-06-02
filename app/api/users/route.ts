@@ -67,6 +67,10 @@ export async function GET(req: NextRequest) {
           position: true,
           joinDate: true,
           salary: true,
+          gender: true,
+          address: true,
+          birthDate: true,
+          birthPlace: true,
           avatarUrl: true,
           department: {
             select: {
@@ -118,6 +122,10 @@ export async function POST(req: NextRequest) {
       position,
       joinDate,
       salary,
+      gender,
+      address,
+      birthDate,
+      birthPlace,
       avatarUrl,
       tenantId,
     } = body;
@@ -159,6 +167,10 @@ export async function POST(req: NextRequest) {
         position,
         joinDate: joinDate ? new Date(joinDate) : null,
         salary,
+        gender: gender || null,
+        address: address || null,
+        birthDate: birthDate ? new Date(birthDate) : null,
+        birthPlace: birthPlace || null,
         avatarUrl: avatarUrl || null,
         currentToken: "",
         tenantId: finalTenantId,

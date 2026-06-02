@@ -7,10 +7,14 @@ import { formatCurrency } from "@/lib/helper/format-currency";
 
 interface SlipGajiModalProps {
     payroll: PayrollDto;
+    tenantConfig?: {
+        companyName?: string | null;
+        logoUrl?: string | null;
+    } | null;
     onClose: () => void;
 }
 
-export default function SlipGajiModal({ payroll, onClose }: SlipGajiModalProps) {
+export default function SlipGajiModal({ payroll, tenantConfig, onClose }: SlipGajiModalProps) {
     const monthName = months.find((m) => m.value === payroll.month)?.label ?? "-";
     const periodLabel = `${monthName} ${payroll.year}`;
     const isPaid = payroll.status === "paid";
@@ -60,7 +64,12 @@ export default function SlipGajiModal({ payroll, onClose }: SlipGajiModalProps) 
 
                     {/* Slip Preview */}
                     <div className="p-6">
-                        <SlipContent payroll={payroll} periodLabel={periodLabel} isPaid={isPaid} />
+                        <SlipContent
+                            payroll={payroll}
+                            tenantConfig={tenantConfig}
+                            periodLabel={periodLabel}
+                            isPaid={isPaid}
+                        />
                     </div>
                 </div>
             </div>
@@ -71,14 +80,21 @@ export default function SlipGajiModal({ payroll, onClose }: SlipGajiModalProps) 
 /* ---------- Reusable slip content ---------- */
 function SlipContent({
     payroll,
+    tenantConfig,
     periodLabel,
     isPaid,
 }: {
     payroll: PayrollDto;
+    tenantConfig?: {
+        companyName?: string | null;
+        logoUrl?: string | null;
+    } | null;
     periodLabel: string;
     isPaid: boolean;
 }) {
     const takeHomePay = payroll.basicSalary + payroll.allowances - payroll.deductions;
+    const companyName = tenantConfig?.companyName?.trim() || "JAXER GRUP INDONESIA";
+    const companyLogo = tenantConfig?.logoUrl || "/logo22.png";
 
     return (
         <div id="slip-print-area" className="bg-white rounded-xl overflow-hidden border border-gray-200 text-gray-800">
@@ -87,14 +103,11 @@ function SlipContent({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center">
-                            <img
-                                src="/logo22.png"
-                                alt="Logo Jaxer"
-                            />
+                            <img src={companyLogo} alt={`Logo ${companyName}`} />
                         </div>
 
                         <div>
-                            <h1 className="text-xl font-bold tracking-wide">JAXER GRUP INDONESIA</h1>
+                            <h1 className="text-xl font-bold tracking-wide">{companyName}</h1>
                             <p className="text-blue-200 text-sm">Human Resources Department</p>
                         </div>
                     </div>
@@ -243,7 +256,7 @@ function SlipContent({
                 </div>
 
                 <p className="text-center text-xs text-gray-400 mt-6">
-                    Dokumen ini dibuat secara otomatis oleh sistem HR Jaxer Grup Indonesia.
+                    Dokumen ini dibuat secara otomatis oleh sistem HR {companyName}.
                     Slip gaji ini sah tanpa tanda tangan basah.
                 </p>
             </div>

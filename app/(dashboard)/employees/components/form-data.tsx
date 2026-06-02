@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 import {
   Select,
@@ -68,6 +69,10 @@ export default function FormData({
       password: "",
       avatarUrl: "",
       tenantId: "",
+      gender: "",
+      address: "",
+      birthDate: "",
+      birthPlace: "",
     },
   );
 
@@ -447,6 +452,83 @@ export default function FormData({
                   })
                 }
                 required
+              />
+            </div>
+          </div>
+
+          {/* Gender & Birth Place */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Gender
+              </Label>
+              <Select
+                value={formData.gender || "unspecified"}
+                onValueChange={(val) =>
+                  setFormData({
+                    ...formData,
+                    gender: val === "unspecified" ? "" : val,
+                  })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih Gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unspecified">Belum diisi</SelectItem>
+                  <SelectItem value="male">Laki-laki</SelectItem>
+                  <SelectItem value="female">Perempuan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Tempat Lahir
+              </Label>
+              <Input
+                value={formData.birthPlace || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    birthPlace: e.target.value,
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          {/* Birth Date & Address */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Tanggal Lahir
+              </Label>
+              <Input
+                type="date"
+                value={formData.birthDate ? formData.birthDate.split("T")[0] : ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    birthDate: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="block text-sm font-medium dark:text-gray-300">
+                Alamat
+              </Label>
+              <Textarea
+                value={formData.address || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    address: e.target.value,
+                  })
+                }
+                rows={3}
               />
             </div>
           </div>

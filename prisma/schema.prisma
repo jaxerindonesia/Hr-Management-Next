@@ -83,6 +83,10 @@ model User {
   joinDate   DateTime? @map("join_date")
   salary     Float?
   avatarUrl  String? @map("avatar_url")
+  gender     String?
+  address    String?
+  birthDate  DateTime? @map("birth_date")
+  birthPlace String? @map("birth_place")
 
   password     String
   currentToken String? @map("current_token")
@@ -101,6 +105,8 @@ model User {
   performances Performance[]
   attendances  Attendance[]
   reimbursements Reimbursement[]
+  submissionApproverConfigs SubmissionApproverConfig[] @relation("submission_approver_user")
+  submissionApprovalDecisions SubmissionApprovalDecision[] @relation("submission_decision_user")
 
   @@index([tenantId])
   @@map("users")
@@ -122,9 +128,26 @@ model SubmissionType {
   tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   submissions Submission[]
+  approverConfigs SubmissionApproverConfig[]
 
   @@index([tenantId])
   @@map("submission_types")
+}
+
+model SubmissionApproverConfig {
+  id String @id @default(uuid()) @db.Uuid
+
+  submissionTypeId String @map("submission_type_id") @db.Uuid
+  submissionType SubmissionType @relation(fields: [submissionTypeId], references: [id], onDelete: Cascade)
+
+  approverUserId String @map("approver_user_id") @db.Uuid
+  approverUser User @relation("submission_approver_user", fields: [approverUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([submissionTypeId, approverUserId])
+  @@index([submissionTypeId])
+  @@map("submission_approver_configs")
 }
 
 // Konfigurasi batas maksimal hari cuti per jenis
@@ -170,9 +193,31 @@ model Submission {
 
   tenantId String? @map("tenant_id") @db.Uuid
   tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  approvalDecisions SubmissionApprovalDecision[]
 
   @@index([tenantId])
   @@map("submissions")
+}
+
+model SubmissionApprovalDecision {
+  id String @id @default(uuid()) @db.Uuid
+
+  submissionId String @map("submission_id") @db.Uuid
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  approverUserId String @map("approver_user_id") @db.Uuid
+  approverUser User @relation("submission_decision_user", fields: [approverUserId], references: [id], onDelete: Cascade)
+
+  status String @default("PENDING")
+  reason String?
+  decidedAt DateTime? @map("decided_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([submissionId, approverUserId])
+  @@index([submissionId])
+  @@map("submission_approval_decisions")
 }
 
 model Attendance {
