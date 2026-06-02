@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const tenantIds = [...new Set(eligibleUsers.map((u) => u.tenantId).filter(Boolean))] as string[];
+    const tenantIds = [...new Set(eligibleUsers.map((u: any) => u.tenantId).filter(Boolean))] as string[];
     const configs = await prisma.attendanceConfig.findMany({
       where: {
         OR: [
