@@ -39,6 +39,7 @@ export default function Sidebar() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [tenantConfig, setTenantConfig] = useState<TenantConfig>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Easter egg states
   const [showCredits, setShowCredits] = useState(false);
@@ -94,6 +95,7 @@ export default function Sidebar() {
     const raw = localStorage.getItem("hr_user_data");
     if (!raw) {
       setIsSuperAdmin(false);
+      setIsAdmin(false);
       return;
     }
 
@@ -103,8 +105,10 @@ export default function Sidebar() {
         typeof userData?.role === "string" ? userData.role : userData?.role?.name;
       const roleName = rawRoleName?.toLowerCase().replace(/\s/g, "") || "";
       setIsSuperAdmin(roleName === "superadmin");
+      setIsAdmin(roleName === "admin" || roleName === "superadmin");
     } catch {
       setIsSuperAdmin(false);
+      setIsAdmin(false);
     }
   }, []);
 
@@ -177,6 +181,13 @@ export default function Sidebar() {
         permissions: ["get-all", "get-by-id"],
       },
       {
+        id: "pettycash",
+        name: "Petty Cash",
+        icon: Wallet,
+        path: "/pettycash",
+        permissions: ["get-all", "get-by-id"],
+      },
+      {
         id: "performances",
         name: "Penilaian Kinerja",
         icon: TrendingUp,
@@ -193,13 +204,14 @@ export default function Sidebar() {
     ];
 
     return allItems.filter((item: any) => {
+      if (isAdmin) return true;
       if (!item.permissions) return true;
       if (item.superadminOnly) {
         return isSuperAdmin;
       }
       return checkRoleMulti(item.id, item.permissions);
     });
-  }, [permissions, checkRoleMulti, isSuperAdmin]);
+  }, [permissions, checkRoleMulti, isSuperAdmin, isAdmin]);
 
   return (
     <>

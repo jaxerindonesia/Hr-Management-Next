@@ -9,30 +9,31 @@ datasource db {
 model Tenant {
   id String @id @default(uuid()) @db.Uuid
 
-  companyName String @map("company_name")
-  adminEmail String @map("admin_email")
-  logoUrl String? @map("logo_url")
-  logoDarkUrl String? @map("logo_dark_url")
-  isActive Boolean @default(true) @map("is_active")
+  companyName       String    @map("company_name")
+  adminEmail        String    @map("admin_email")
+  logoUrl           String?   @map("logo_url")
+  logoDarkUrl       String?   @map("logo_dark_url")
+  isActive          Boolean   @default(true) @map("is_active")
   subscriptionStart DateTime? @map("subscription_start")
-  subscriptionEnd DateTime? @map("subscription_end")
+  subscriptionEnd   DateTime? @map("subscription_end")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  roles Role[]
-  departments Department[]
-  users User[]
-  submissionTypes SubmissionType[]
-  leaveConfigs LeaveConfig[]
-  submissions Submission[]
-  attendances Attendance[]
+  roles             Role[]
+  departments       Department[]
+  users             User[]
+  submissionTypes   SubmissionType[]
+  leaveConfigs      LeaveConfig[]
+  submissions       Submission[]
+  attendances       Attendance[]
   attendanceConfigs AttendanceConfig[]
-  payrolls Payroll[]
-  performances Performance[]
-  reimbursements Reimbursement[]
-  overtimeConfigs OvertimeConfig[]
-  overtimes Overtime[]
+  payrolls          Payroll[]
+  performances      Performance[]
+  reimbursements    Reimbursement[]
+  overtimeConfigs   OvertimeConfig[]
+  overtimes         Overtime[]
+  pettyCashes       PettyCash[]
 
   @@map("tenants")
 }
@@ -43,7 +44,7 @@ model Role {
   permission Json
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   users User[]
 
@@ -53,14 +54,14 @@ model Role {
 
 model Department {
   id   String @id @default(uuid()) @db.Uuid
-  name String 
+  name String
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   users User[]
 
@@ -74,41 +75,43 @@ model User {
   roleId String @map("role_id") @db.Uuid
   role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  departmentId String? @map("department_id") @db.Uuid
-  department Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  departmentId String?     @map("department_id") @db.Uuid
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
 
-  email      String @unique
+  email      String    @unique
   name       String
   nik        String?
   phone      String?
   position   String?
   joinDate   DateTime? @map("join_date")
   salary     Float?
-  avatarUrl  String? @map("avatar_url")
+  avatarUrl  String?   @map("avatar_url")
   gender     String?
   address    String?
   birthDate  DateTime? @map("birth_date")
-  birthPlace String? @map("birth_place")
+  birthPlace String?   @map("birth_place")
 
   password     String
   currentToken String? @map("current_token")
   salt         String
 
-  status    String   @default("active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  status    String    @default("active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
-  submissions  Submission[]
-  payrolls     Payroll[]
-  performances Performance[]
-  attendances  Attendance[]
-  reimbursements Reimbursement[]
-  submissionApproverConfigs SubmissionApproverConfig[] @relation("submission_approver_user")
+  submissions                 Submission[]
+  payrolls                    Payroll[]
+  performances                Performance[]
+  attendances                 Attendance[]
+  reimbursements              Reimbursement[]
+  pettyCashes                 PettyCash[]
+  submissionApproverConfigs   SubmissionApproverConfig[]   @relation("submission_approver_user")
   submissionApprovalDecisions SubmissionApprovalDecision[] @relation("submission_decision_user")
+  overtimes                   Overtime[]
 
   @@index([tenantId])
   @@map("users")
@@ -119,17 +122,17 @@ model SubmissionType {
   name String
 
   // Relasi ke konfigurasi batas cuti (opsional)
-  leaveConfigId String? @map("leave_config_id") @db.Uuid
+  leaveConfigId String?      @map("leave_config_id") @db.Uuid
   leaveConfig   LeaveConfig? @relation(fields: [leaveConfigId], references: [id], onDelete: SetNull)
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
-  submissions Submission[]
+  submissions     Submission[]
   approverConfigs SubmissionApproverConfig[]
 
   @@index([tenantId])
@@ -139,11 +142,11 @@ model SubmissionType {
 model SubmissionApproverConfig {
   id String @id @default(uuid()) @db.Uuid
 
-  submissionTypeId String @map("submission_type_id") @db.Uuid
-  submissionType SubmissionType @relation(fields: [submissionTypeId], references: [id], onDelete: Cascade)
+  submissionTypeId String         @map("submission_type_id") @db.Uuid
+  submissionType   SubmissionType @relation(fields: [submissionTypeId], references: [id], onDelete: Cascade)
 
   approverUserId String @map("approver_user_id") @db.Uuid
-  approverUser User @relation("submission_approver_user", fields: [approverUserId], references: [id], onDelete: Cascade)
+  approverUser   User   @relation("submission_approver_user", fields: [approverUserId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -154,16 +157,16 @@ model SubmissionApproverConfig {
 
 // Konfigurasi batas maksimal hari cuti per jenis
 model LeaveConfig {
-  id       String @id @default(uuid()) @db.Uuid
-  name     String // misal: "Batas Cuti Umum", "Batas Cuti Hamil"
-  maxDays  Int    @map("max_days") // maksimal hari
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String // misal: "Batas Cuti Umum", "Batas Cuti Hamil"
+  maxDays     Int     @map("max_days") // maksimal hari
   description String? // keterangan tambahan
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   submissionTypes SubmissionType[]
 
@@ -177,7 +180,7 @@ model Submission {
   userId String @map("user_id") @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  submissionTypeId String @map("submission_type_id") @db.Uuid
+  submissionTypeId String         @map("submission_type_id") @db.Uuid
   submissionType   SubmissionType @relation(fields: [submissionTypeId], references: [id], onDelete: Cascade)
 
   startDate DateTime @map("start_date")
@@ -189,12 +192,12 @@ model Submission {
   approvedBy String?   @map("approved_by")
   approvedAt DateTime? @map("approved_at")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenantId          String?                      @map("tenant_id") @db.Uuid
+  tenant            Tenant?                      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   approvalDecisions SubmissionApprovalDecision[]
 
   @@index([tenantId])
@@ -204,14 +207,14 @@ model Submission {
 model SubmissionApprovalDecision {
   id String @id @default(uuid()) @db.Uuid
 
-  submissionId String @map("submission_id") @db.Uuid
-  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submissionId String     @map("submission_id") @db.Uuid
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   approverUserId String @map("approver_user_id") @db.Uuid
-  approverUser User @relation("submission_decision_user", fields: [approverUserId], references: [id], onDelete: Cascade)
+  approverUser   User   @relation("submission_decision_user", fields: [approverUserId], references: [id], onDelete: Cascade)
 
-  status String @default("PENDING")
-  reason String?
+  status    String    @default("PENDING")
+  reason    String?
   decidedAt DateTime? @map("decided_at")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -237,77 +240,78 @@ model Attendance {
 
   workHours String? @map("work_hours")
 
-  checkInLocation  Json? @map("check_in_location")
-  checkOutLocation Json? @map("check_out_location")
-  checkInFaceImage String? @map("check_in_face_image")
+  checkInLocation   Json?   @map("check_in_location")
+  checkOutLocation  Json?   @map("check_out_location")
+  checkInFaceImage  String? @map("check_in_face_image")
   checkOutFaceImage String? @map("check_out_face_image")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenantId String?   @map("tenant_id") @db.Uuid
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  overtime Overtime?
 
-  @@index([tenantId])
   @@unique([userId, date], map: "attendances_user_id_date_key")
+  @@index([tenantId])
   @@map("attendances")
 }
 
 model AttendanceConfig {
   id String @id @default(uuid()) @db.Uuid
 
-  officeStartTime String @map("office_start_time")
-  officeEndTime String @map("office_end_time")
-  lateToleranceMinutes Int @map("late_tolerance_minutes")
-  workingDays String[] @default(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]) @map("working_days")
+  officeStartTime      String   @map("office_start_time")
+  officeEndTime        String   @map("office_end_time")
+  lateToleranceMinutes Int      @map("late_tolerance_minutes")
+  workingDays          String[] @default(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]) @map("working_days")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@map("attendance_configs")
 }
 
 model OvertimeConfig {
-  id String @id @default(uuid()) @db.Uuid
-  overtimeHourlyRate Float @default(100000) @map("overtime_hourly_rate")
-  minimumOvertimeMinutes Int @default(60) @map("minimum_overtime_minutes")
-  autoCheckoutTime String @default("23:59") @map("auto_checkout_time")
+  id                     String @id @default(uuid()) @db.Uuid
+  overtimeHourlyRate     Float  @default(100000) @map("overtime_hourly_rate")
+  minimumOvertimeMinutes Int    @default(60) @map("minimum_overtime_minutes")
+  autoCheckoutTime       String @default("23:59") @map("auto_checkout_time")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@map("overtime_configs")
 }
 
 model Overtime {
-  id String @id @default(uuid()) @db.Uuid
-  userId String @map("user_id") @db.Uuid
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attendanceId String? @unique @map("attendance_id") @db.Uuid
-  attendance Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @map("user_id") @db.Uuid
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendanceId String?     @unique @map("attendance_id") @db.Uuid
+  attendance   Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
 
-  date DateTime
-  startAt DateTime @map("start_at")
-  endAt DateTime @map("end_at")
-  durationMinutes Int @map("duration_minutes")
-  hourlyRate Float @map("hourly_rate")
-  amount Float
-  source String @default("AUTO_CHECKOUT")
-  status String @default("PENDING")
+  date            DateTime
+  startAt         DateTime @map("start_at")
+  endAt           DateTime @map("end_at")
+  durationMinutes Int      @map("duration_minutes")
+  hourlyRate      Float    @map("hourly_rate")
+  amount          Float
+  source          String   @default("AUTO_CHECKOUT")
+  status          String   @default("PENDING")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([userId, date])
@@ -327,16 +331,16 @@ model Payroll {
   allowances  Float @default(0)
   deductions  Float @default(0)
 
-  totalSalary Float @map("total_salary")
-  status      String @default("pending")
+  totalSalary Float     @map("total_salary")
+  status      String    @default("pending")
   paidAt      DateTime? @map("paid_at")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@map("payrolls")
@@ -357,44 +361,92 @@ model Performance {
 
   totalScore Float @map("total_score")
 
-  notes String?
+  notes       String?
   evaluatedBy String   @map("evaluated_by")
   evaluatedAt DateTime @map("evaluated_at")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@map("performances")
 }
 
 model Reimbursement {
-  id          String    @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  userId      String    @map("user_id") @db.Uuid
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   title       String
   category    String
   amount      Float
   date        DateTime
   description String?
-  receiptUrl  String?   @map("receipt_url")
-  status      String    @default("pending")
+  receiptUrl  String?  @map("receipt_url")
+  status      String   @default("pending")
 
-  approvedBy  String?   @map("approved_by")
-  approvedAt  DateTime? @map("approved_at")
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   tenantId String? @map("tenant_id") @db.Uuid
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@map("reimbursements")
+}
+
+model PettyCash {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  purpose       String
+  category      String
+  amount        Float
+  transferDate  DateTime? @map("transfer_date")
+  bankName      String    @map("bank_name")
+  accountNumber String    @map("account_number")
+
+  status String @default("PENDING")
+
+  createdBy String? @map("created_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenantId String? @map("tenant_id") @db.Uuid
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  usages PettyCashUsage[]
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("petty_cashes")
+}
+
+model PettyCashUsage {
+  id String @id @default(uuid()) @db.Uuid
+
+  pettyCashId String    @map("petty_cash_id") @db.Uuid
+  pettyCash   PettyCash @relation(fields: [pettyCashId], references: [id], onDelete: Cascade)
+
+  description String
+  amount      Float
+  usageDate   DateTime @map("usage_date")
+  receiptUrl  String?  @map("receipt_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([pettyCashId])
+  @@map("petty_cash_usages")
 }

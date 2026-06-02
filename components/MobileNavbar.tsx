@@ -87,6 +87,18 @@ export default function MobileNavbar() {
       path: "/payrolls",
     },
     {
+      id: "reimbursements",
+      name: "Reimbursement",
+      icon: Receipt,
+      path: "/reimbursements",
+    },
+    {
+      id: "pettycash",
+      name: "Petty Cash",
+      icon: Wallet,
+      path: "/pettycash",
+    },
+    {
       id: "performances",
       name: "Penilaian Kinerja",
       icon: TrendingUp,
