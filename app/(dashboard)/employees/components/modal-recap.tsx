@@ -323,7 +323,7 @@ export default function ModalRecap({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="w-[60vw] sm:!max-w-[90rem] h-[94vh] overflow-y-auto p-4 md:p-6">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-4 md:p-6">
         <DialogHeader>
           <DialogTitle className="text-lg sr-only">
             Rekap Karyawan — {employee.name}
