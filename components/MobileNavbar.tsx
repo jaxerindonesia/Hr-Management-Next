@@ -18,7 +18,6 @@ import {
   LogOut,
   Home,
   ClipboardCheck,
-  Shield,
   ListTodo,
   Receipt,
   Shield,

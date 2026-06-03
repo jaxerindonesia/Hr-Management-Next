@@ -1,10 +1,22 @@
+export interface PettyCashUsageDto {
+  id?: string;
+  pettyCashId?: string;
+  description: string;
+  amount: number;
+  usageDate: string | Date;
+  receiptUrl?: string | null;
+  createdAt?: Date | null;
+  updatedAt?: Date | null;
+}
+
 export interface PettyCashDto {
-  id?: string | null;
+  id?: string;
+  tenantId?: string | null;
   userId: string;
   purpose: string;
   category: string;
   amount: number;
-  transferDate?: string | null;
+  transferDate?: string | Date | null;
   bankName: string;
   accountNumber: string;
   status: string;
@@ -24,15 +36,4 @@ export interface PettyCashDto {
       | null;
   } | null;
   usages?: PettyCashUsageDto[];
-}
-
-export interface PettyCashUsageDto {
-  id?: string | null;
-  pettyCashId: string;
-  description: string;
-  amount: number;
-  usageDate: string;
-  receiptUrl?: string | null;
-  createdAt?: Date | null;
-  updatedAt?: Date | null;
 }
