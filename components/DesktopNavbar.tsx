@@ -60,10 +60,9 @@ const PasswordField = ({
           setPasswordForm((prev) => ({ ...prev, [field]: e.target.value }))
         }
         className={`w-full px-4 py-2.5 pr-10 rounded-lg border text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none transition-all
-          ${
-            errors[field]
-              ? "border-red-400 focus:ring-2 focus:ring-red-200 dark:focus:ring-red-900"
-              : "border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 focus:border-blue-400"
+          ${errors[field]
+            ? "border-red-400 focus:ring-2 focus:ring-red-200 dark:focus:ring-red-900"
+            : "border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 focus:border-blue-400"
           }`}
         placeholder={`Masukkan ${label.toLowerCase()}`}
       />
@@ -118,6 +117,7 @@ export default function DesktopNavbar() {
       dashboard: "Dashboard",
       employees: "Data Karyawan",
       submissions: "Pengajuan Ketidakhadiran",
+      pettycash: "Petty Cash",
       attendances: "Kehadiran",
       payrolls: "Payroll",
       performances: "Penilaian Kinerja",

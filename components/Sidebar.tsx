@@ -23,6 +23,7 @@ import {
   ClipboardCheck,
   Receipt,
   Building2,
+  Banknote,
 } from "lucide-react";
 import { usePermission } from "@/lib/helper/check-role";
 
@@ -174,6 +175,13 @@ export default function Sidebar() {
         name: "Reimbursement",
         icon: Receipt,
         path: "/reimbursements",
+        permissions: ["get-all", "get-by-id"],
+      },
+      {
+        id: "pettycash",
+        name: "Petty Cash",
+        icon: Banknote,
+        path: "/pettycash",
         permissions: ["get-all", "get-by-id"],
       },
       {
