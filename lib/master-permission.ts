@@ -24,6 +24,10 @@ export const MASTER_PERMISSIONS = [
     actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
   {
+    model: "task-managements",
+    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+  },
+  {
     model: "payrolls",
     actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },

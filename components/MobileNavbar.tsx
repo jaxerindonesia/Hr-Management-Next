@@ -18,6 +18,8 @@ import {
   LogOut,
   Home,
   ClipboardCheck,
+  Shield,
+  ListTodo,
   Receipt,
   Shield,
   Banknote,
@@ -76,6 +78,12 @@ export default function MobileNavbar() {
       path: "/attendances",
     },
     {
+      id: "task-managements",
+      name: "Manajemen Tugas",
+      icon: ListTodo,
+      path: "/task-managements",
+    },
+    {
       id: "payrolls",
       name: "Payroll",
       icon: Wallet,
@@ -104,6 +112,7 @@ export default function MobileNavbar() {
   const bottomNavItems = [
     { icon: Home, path: "/dashboard", label: "Home" },
     { icon: ClipboardCheck, path: "/attendances", label: "Kehadiran" },
+    { icon: ListTodo, path: "/task-managements", label: "Tugas" },
     { icon: Calendar, path: "/submissions", label: "Cuti" },
     { icon: Receipt, path: "/reimbursements", label: "Reimbursement" },
     { icon: TrendingUp, path: "/performances", label: "Kinerja" },

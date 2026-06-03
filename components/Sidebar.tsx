@@ -24,6 +24,7 @@ import {
   Receipt,
   Building2,
   Banknote,
+  ListTodo,
 } from "lucide-react";
 import { usePermission } from "@/lib/helper/check-role";
 
@@ -161,6 +162,13 @@ export default function Sidebar() {
         name: "Kehadiran",
         icon: ClipboardCheck,
         path: "/attendances",
+        permissions: ["get-all", "get-by-id"],
+      },
+      {
+        id: "task-managements",
+        name: "Manajemen Tugas",
+        icon: ListTodo,
+        path: "/task-managements",
         permissions: ["get-all", "get-by-id"],
       },
       {
