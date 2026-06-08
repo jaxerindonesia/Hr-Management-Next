@@ -28,9 +28,10 @@ model Tenant {
   submissions       Submission[]
   attendances       Attendance[]
   attendanceConfigs AttendanceConfig[]
-  payrolls Payroll[]
-  performances Performance[]
-  reimbursements Reimbursement[]
+  payrolls          Payroll[]
+  performances      Performance[]
+  reimbursements    Reimbursement[]
+  pettyCashes       PettyCash[]
 
   @@map("tenants")
 }
@@ -108,7 +109,6 @@ model User {
   pettyCashes                 PettyCash[]
   submissionApproverConfigs   SubmissionApproverConfig[]   @relation("submission_approver_user")
   submissionApprovalDecisions SubmissionApprovalDecision[] @relation("submission_decision_user")
-  overtimes                   Overtime[]
 
   @@index([tenantId])
   @@map("users")
@@ -245,9 +245,8 @@ model Attendance {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tenantId String?   @map("tenant_id") @db.Uuid
-  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
-  overtime Overtime?
+  tenantId String? @map("tenant_id") @db.Uuid
+  tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@unique([userId, date], map: "attendances_user_id_date_key")
   @@index([tenantId])
