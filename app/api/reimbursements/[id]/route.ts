@@ -2,9 +2,8 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import path from "path";
-import fs from "fs";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { uploadBufferToMinio, deleteFromMinio, BUCKET_AVATARS } from "@/lib/minio";
 
 type Params = { params: { id: string } };
 
@@ -125,27 +124,27 @@ export async function PUT(req: Request, { params }: Params) {
       const bytes = await newFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      const fileName = `reimbursement-${p.id}-${Date.now()}-${newFile.name}`;
-      const uploadPath = path.join(process.cwd(), "public/uploads", fileName);
+      const fileName = `reimbursements/receipt-${p.id}-${Date.now()}-${newFile.name.replace(/\s+/g, "_")}`;
+      
+      receiptUrl = await uploadBufferToMinio(
+        buffer,
+        fileName,
+        BUCKET_AVATARS,
+        newFile.type || "application/octet-stream"
+      );
 
-      await fs.promises.writeFile(uploadPath, buffer);
-
-      receiptUrl = `/uploads/${fileName}`;
-
-      // 🔥 HAPUS FILE LAMA
+      
       if (existing.receiptUrl) {
-        const oldPath = path.join(process.cwd(), "public", existing.receiptUrl);
-        if (fs.existsSync(oldPath)) {
-          await fs.promises.unlink(oldPath);
+        if (existing.receiptUrl.includes(BUCKET_AVATARS)) {
+          await deleteFromMinio(existing.receiptUrl);
         }
       }
     }
 
     if (removeReceipt) {
       if (existing.receiptUrl) {
-        const oldPath = path.join(process.cwd(), "public", existing.receiptUrl);
-        if (fs.existsSync(oldPath)) {
-          await fs.promises.unlink(oldPath);
+        if (existing.receiptUrl.includes(BUCKET_AVATARS)) {
+          await deleteFromMinio(existing.receiptUrl);
         }
       }
       receiptUrl = null;
@@ -180,9 +179,13 @@ export async function DELETE(_: Request, { params }: Params) {
 
     const existing = await prisma.reimbursement.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
-      select: { id: true },
+      select: { id: true, receiptUrl: true },
     });
     if (!existing) return NextResponse.json({ message: "Reimbursement not found" }, { status: 404 });
+
+    if (existing.receiptUrl && existing.receiptUrl.includes(BUCKET_AVATARS)) {
+      await deleteFromMinio(existing.receiptUrl);
+    }
 
     await prisma.reimbursement.delete({ where: { id: p.id } });
     return NextResponse.json({ message: "Reimbursement successfully deleted" });

@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
-import { uploadBufferToMinio, BUCKET_AVATARS } from "@/lib/minio";
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,7 +17,7 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category") || "";
     const status = searchParams.get("status") || "";
 
-    const where: Prisma.ReimbursementWhereInput = {};
+    const where: Prisma.PettyCashWhereInput = {};
     const scopedTenantId = ensureTenantScope(auth.user);
     if (scopedTenantId) where.tenantId = scopedTenantId;
 
@@ -29,7 +28,7 @@ export async function GET(req: NextRequest) {
 
     if (search) {
       where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
+        { purpose: { contains: search, mode: "insensitive" } },
         { user: { name: { contains: search, mode: "insensitive" } } },
       ];
     }
@@ -42,8 +41,8 @@ export async function GET(req: NextRequest) {
       where.status = status;
     }
 
-    const [reimbursements, total] = await Promise.all([
-      prisma.reimbursement.findMany({
+    const [pettyCashes, total] = await Promise.all([
+      prisma.pettyCash.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
@@ -52,21 +51,25 @@ export async function GET(req: NextRequest) {
           user: {
             select: { id: true, name: true, position: true, department: true },
           },
+          usages: {
+            orderBy: { usageDate: "asc" },
+          },
         },
       }),
-      prisma.reimbursement.count({ where }),
+      prisma.pettyCash.count({ where }),
     ]);
 
     return NextResponse.json({
-      message: "Reimbursements retrieved successfully",
-      data: reimbursements,
+      message: "Petty cash retrieved successfully",
+      data: pettyCashes,
       total,
       page,
       limit,
     });
   } catch (error) {
+    console.error("GET petty cash error:", error);
     return NextResponse.json(
-      { message: "Failed to retrieve reimbursements data" },
+      { message: "Failed to retrieve petty cash data" },
       { status: 500 },
     );
   }
@@ -77,74 +80,76 @@ export async function POST(req: NextRequest) {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
 
-    const formData = await req.formData();
-
-    const userId = formData.get("userId") as string;
-    const title = formData.get("title") as string;
-    const category = formData.get("category") as string;
-    const amount = formData.get("amount") as string;
-    const date = formData.get("date") as string;
-    const description = formData.get("description") as string;
-    const file = formData.get("file") as File | null;
-
-    if (!userId || !title || !category || !amount || !date) {
+    // Admin-only can create petty cash
+    const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
+    const isAdminRole =
+      normalizedRole === "superadmin" || normalizedRole === "admin";
+    if (!isAdminRole) {
       return NextResponse.json(
-        { message: "Field wajib belum lengkap" },
+        { message: "Forbidden: Only Admin can create petty cash" },
+        { status: 403 },
+      );
+    }
+
+    const body = await req.json();
+    const {
+      userId,
+      purpose,
+      category,
+      amount,
+      transferDate,
+      bankName,
+      accountNumber,
+      status,
+    } = body;
+
+    if (!userId || !purpose || !category || !amount || !bankName || !accountNumber) {
+      return NextResponse.json(
+        { message: "Required fields are missing" },
         { status: 400 },
       );
     }
 
     const scopedTenantId = ensureTenantScope(auth.user);
-    const finalTenantId = scopedTenantId;
 
-    const reimbursement = await prisma.reimbursement.create({
+    const creatorUser = await prisma.user.findUnique({
+      where: { id: auth.user.id },
+      select: { name: true },
+    });
+    const creatorName = creatorUser?.name || "Admin";
+
+    const pettyCash = await prisma.pettyCash.create({
       data: {
-        tenantId: finalTenantId,
+        tenantId: scopedTenantId,
         userId,
-        title,
+        purpose,
         category,
         amount: Number(amount),
-        date: new Date(date),
-        description: description || null,
-        status: "pending",
+        transferDate: transferDate ? new Date(transferDate) : null,
+        bankName,
+        accountNumber,
+        status: status || "PENDING",
+        createdBy: creatorName,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, position: true, department: true },
+        },
+        usages: true,
       },
     });
 
-    let receiptUrl: string | null = null;
-
-    if (file && file.size > 0) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      const fileName = `reimbursements/receipt-${reimbursement.id}-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-      
-      receiptUrl = await uploadBufferToMinio(
-        buffer,
-        fileName,
-        BUCKET_AVATARS,
-        file.type || "application/octet-stream"
-      );
-
-      await prisma.reimbursement.update({
-        where: { id: reimbursement.id },
-        data: { receiptUrl },
-      });
-    }
-
     return NextResponse.json(
       {
-        message: "Reimbursement berhasil dibuat",
-        data: {
-          ...reimbursement,
-          receiptUrl,
-        },
+        message: "Petty Cash created successfully",
+        data: pettyCash,
       },
       { status: 201 },
     );
   } catch (error) {
-    console.error(error);
+    console.error("POST petty cash error:", error);
     return NextResponse.json(
-      { message: "Failed to create reimbursement" },
+      { message: "Failed to create petty cash" },
       { status: 500 },
     );
   }

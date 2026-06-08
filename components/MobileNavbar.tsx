@@ -20,14 +20,9 @@ import {
   ClipboardCheck,
   Receipt,
   Shield,
+  Banknote,
 } from "lucide-react";
 
-/**
- * Mobile Navbar Component
- * Displays a fixed top navbar with logo, theme toggle, and hamburger menu
- * Includes a bottom navigation bar for quick access to main sections
- * Only visible on mobile devices (< 1024px)
- */
 export default function MobileNavbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -87,10 +82,22 @@ export default function MobileNavbar() {
       path: "/payrolls",
     },
     {
+      id: "reimbursements",
+      name: "Reimbursement",
+      icon: Receipt,
+      path: "/reimbursements",
+    },
+    {
       id: "performances",
       name: "Penilaian Kinerja",
       icon: TrendingUp,
       path: "/performances",
+    },
+    {
+      id: "pettycash",
+      name: "Petty Cash",
+      icon: Banknote,
+      path: "/pettycash",
     },
   ];
 
@@ -205,17 +212,15 @@ export default function MobileNavbar() {
       <>
         {/* Backdrop */}
         <div
-          className={`lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 top-14 transition-opacity duration-300 ${
-            isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          }`}
+          className={`lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 top-14 transition-opacity duration-300 ${isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            }`}
           onClick={closeMenu}
         />
 
         {/* Slide-in Menu */}
-        <div 
-          className={`lg:hidden fixed top-14 right-0 bottom-0 w-72 bg-white dark:bg-gray-800 shadow-2xl z-50 transition-transform duration-300 ease-in-out overflow-y-auto mobile-menu-scroll flex flex-col ${
-            isMenuOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+        <div
+          className={`lg:hidden fixed top-14 right-0 bottom-0 w-72 bg-white dark:bg-gray-800 shadow-2xl z-50 transition-transform duration-300 ease-in-out overflow-y-auto mobile-menu-scroll flex flex-col ${isMenuOpen ? "translate-x-0" : "translate-x-full"
+            }`}
         >
           {/* Menu Items */}
           <nav className="flex-1 p-4 space-y-1">
@@ -229,11 +234,10 @@ export default function MobileNavbar() {
                   key={item.id}
                   href={item.path}
                   onClick={closeMenu}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
+                    ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.name}</span>
@@ -286,10 +290,9 @@ export default function MobileNavbar() {
       </>
 
       {/* Mobile Bottom Navigation Bar */}
-      <div 
-        className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-transform duration-300 ease-in-out ${
-          isMenuOpen ? "translate-y-full" : "translate-y-0"
-        }`}
+      <div
+        className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-transform duration-300 ease-in-out ${isMenuOpen ? "translate-y-full" : "translate-y-0"
+          }`}
       >
         <div className="flex items-center justify-around px-2 py-2">
           {bottomNavItems.map((item) => {
@@ -301,11 +304,10 @@ export default function MobileNavbar() {
               <Link
                 key={item.path}
                 href={item.path}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 min-w-[60px] ${
-                  isActive
-                    ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                }`}
+                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 min-w-[60px] ${isActive
+                  ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  }`}
               >
                 <Icon
                   className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`}
