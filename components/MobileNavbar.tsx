@@ -23,12 +23,6 @@ import {
   Banknote,
 } from "lucide-react";
 
-/**
- * Mobile Navbar Component
- * Displays a fixed top navbar with logo, theme toggle, and hamburger menu
- * Includes a bottom navigation bar for quick access to main sections
- * Only visible on mobile devices (< 1024px)
- */
 export default function MobileNavbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -92,12 +86,6 @@ export default function MobileNavbar() {
       name: "Reimbursement",
       icon: Receipt,
       path: "/reimbursements",
-    },
-    {
-      id: "pettycash",
-      name: "Petty Cash",
-      icon: Wallet,
-      path: "/pettycash",
     },
     {
       id: "performances",
