@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
         port: "1608",
         pathname: "/**",
       },
+      {
+        protocol: 'https',
+        hostname: 's3-jaxer.tetrabit.my.id',
+      },
     ],
   },
 };

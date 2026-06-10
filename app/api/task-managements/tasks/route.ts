@@ -29,12 +29,11 @@ async function resolveList(listId: string, departmentId: string, tenantId: strin
   return prisma.taskList.findFirst({
     where: {
       id: listId,
-      departmentId,
-      ...(tenantId ? { tenantId } : {}),
+      ...(tenantId ? { board: { tenantId } } : {}),
     },
     include: {
-      department: {
-        select: { id: true, tenantId: true },
+      board: {
+        select: { id: true, departmentId: true, tenantId: true },
       },
     },
   });
@@ -58,6 +57,22 @@ async function validateMembers(memberIds: string[], departmentId: string, tenant
   return uniqueIds;
 }
 
+async function validateCategories(categoryIds: string[], departmentId: string) {
+  const uniqueIds = Array.from(new Set(categoryIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return [];
+
+  const categories = await prisma.taskCategory.findMany({
+    where: {
+      id: { in: uniqueIds },
+      departmentId,
+    },
+    select: { id: true },
+  });
+
+  if (categories.length !== uniqueIds.length) return null;
+  return uniqueIds;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
@@ -77,7 +92,11 @@ export async function POST(req: NextRequest) {
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const list = await resolveList(listId, departmentId, scopedTenantId);
-    if (!list) {
+    if (
+      !list ||
+      list.board.departmentId !== departmentId ||
+      (scopedTenantId && list.board.tenantId !== scopedTenantId)
+    ) {
       return NextResponse.json(
         { message: "Task list not found" },
         { status: 404 },
@@ -96,6 +115,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const categoryIds = await validateCategories(
+      Array.isArray(body.categoryIds) ? body.categoryIds.map(String) : [],
+      departmentId,
+    );
+    if (categoryIds === null) {
+      return NextResponse.json(
+        { message: "Selected categories must belong to this department" },
+        { status: 400 },
+      );
+    }
+
     const attachments = normalizeAttachments(body.attachments);
     const position =
       body.position !== undefined
@@ -106,29 +136,35 @@ export async function POST(req: NextRequest) {
       data: {
         title,
         description: body.description ? String(body.description) : null,
+        startDate: body.startDate ? new Date(body.startDate) : new Date(),
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
-        labelColor: body.labelColor ? String(body.labelColor) : "#2563eb",
         position,
         listId,
         departmentId,
-        tenantId: list.department.tenantId,
-        assignees: {
+        createdById: auth.user.id,
+        tenantId: list.board.tenantId,
+        members: {
           create: memberIds.map((userId) => ({ userId })),
+        },
+        categories: {
+          create: categoryIds.map((categoryId) => ({ categoryId })),
         },
         attachments: {
           create: attachments.map((attachment) => ({
             name: attachment.name,
             url: attachment.url,
             type: attachment.type || null,
-            tenantId: list.department.tenantId,
           })),
         },
       },
       include: {
-        assignees: {
+        members: {
           include: {
             user: { select: { id: true, name: true, email: true, position: true, avatarUrl: true } },
           },
+        },
+        categories: {
+          include: { category: true },
         },
         attachments: true,
       },

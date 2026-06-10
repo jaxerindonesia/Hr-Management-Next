@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { deleteFromMinio, BUCKET_AVATARS } from "@/lib/minio";
 
 type Params = {
   params: {
@@ -31,6 +32,20 @@ function normalizeAttachments(value: unknown): AttachmentInput[] {
     .filter((item) => item.name && item.url);
 }
 
+function isMinioUrl(url: string) {
+  return url.includes(BUCKET_AVATARS);
+}
+
+async function deleteTaskAttachments(attachments: { url: string | null }[]) {
+  await Promise.all(
+    attachments.map(async (attachment) => {
+      if (attachment.url && isMinioUrl(attachment.url)) {
+        await deleteFromMinio(attachment.url);
+      }
+    }),
+  );
+}
+
 async function findScopedTask(id: string, tenantId: string | null) {
   return prisma.task.findFirst({
     where: {
@@ -38,7 +53,10 @@ async function findScopedTask(id: string, tenantId: string | null) {
       ...(tenantId ? { tenantId } : {}),
     },
     include: {
-      list: { select: { id: true, departmentId: true } },
+      list: { select: { id: true, board: { select: { id: true, departmentId: true, tenantId: true } } } },
+      categories: {
+        include: { category: true },
+      },
     },
   });
 }
@@ -47,10 +65,14 @@ async function validateList(listId: string, departmentId: string, tenantId: stri
   return prisma.taskList.findFirst({
     where: {
       id: listId,
-      departmentId,
-      ...(tenantId ? { tenantId } : {}),
+      ...(tenantId ? { board: { tenantId } } : {}),
     },
-    select: { id: true },
+    select: {
+      id: true,
+      board: {
+        select: { id: true, departmentId: true, tenantId: true },
+      },
+    },
   });
 }
 
@@ -69,6 +91,22 @@ async function validateMembers(memberIds: string[], departmentId: string, tenant
   });
 
   if (users.length !== uniqueIds.length) return null;
+  return uniqueIds;
+}
+
+async function validateCategories(categoryIds: string[], departmentId: string) {
+  const uniqueIds = Array.from(new Set(categoryIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return [];
+
+  const categories = await prisma.taskCategory.findMany({
+    where: {
+      id: { in: uniqueIds },
+      departmentId,
+    },
+    select: { id: true },
+  });
+
+  if (categories.length !== uniqueIds.length) return null;
   return uniqueIds;
 }
 
@@ -92,10 +130,14 @@ export async function PUT(req: Request, { params }: Params) {
     if (nextListId !== existing.listId) {
       const nextList = await validateList(
         nextListId,
-        existing.departmentId,
+        existing.list.board.departmentId,
         scopedTenantId,
       );
-      if (!nextList) {
+      if (
+        !nextList ||
+        nextList.board.departmentId !== existing.list.board.departmentId ||
+        (scopedTenantId && nextList.board.tenantId !== scopedTenantId)
+      ) {
         return NextResponse.json(
           { message: "Target list not found for this department" },
           { status: 400 },
@@ -106,8 +148,8 @@ export async function PUT(req: Request, { params }: Params) {
     const updateData: {
       title?: string;
       description?: string | null;
+      startDate?: Date;
       dueDate?: Date | null;
-      labelColor?: string;
       position?: number;
       listId?: string;
     } = {};
@@ -124,11 +166,11 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.description !== undefined) {
       updateData.description = body.description ? String(body.description) : null;
     }
+    if (body.startDate !== undefined) {
+      updateData.startDate = body.startDate ? new Date(body.startDate) : new Date();
+    }
     if (body.dueDate !== undefined) {
       updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
-    }
-    if (body.labelColor !== undefined) {
-      updateData.labelColor = String(body.labelColor);
     }
     if (body.position !== undefined) {
       updateData.position = Number(body.position);
@@ -140,7 +182,7 @@ export async function PUT(req: Request, { params }: Params) {
     const memberIds = body.memberIds
       ? await validateMembers(
           Array.isArray(body.memberIds) ? body.memberIds.map(String) : [],
-          existing.departmentId,
+          existing.list.board.departmentId,
           scopedTenantId,
         )
       : undefined;
@@ -152,22 +194,55 @@ export async function PUT(req: Request, { params }: Params) {
       );
     }
 
+    const categoryIds =
+      body.categoryIds !== undefined
+        ? await validateCategories(
+            Array.isArray(body.categoryIds) ? body.categoryIds.map(String) : [],
+            existing.list.board.departmentId,
+          )
+        : undefined;
+
+    if (categoryIds === null) {
+      return NextResponse.json(
+        { message: "Selected categories must belong to this department" },
+        { status: 400 },
+      );
+    }
+
     const attachments =
       body.attachments !== undefined
         ? normalizeAttachments(body.attachments)
         : undefined;
 
+    const oldAttachments =
+      attachments !== undefined
+        ? await prisma.taskAttachment.findMany({
+            where: { taskId: p.id },
+            select: { url: true },
+          })
+        : [];
+
     const task = await prisma.$transaction(async (tx) => {
       if (memberIds !== undefined) {
-        await tx.taskAssignee.deleteMany({ where: { taskId: p.id } });
+        await tx.taskMember.deleteMany({ where: { taskId: p.id } });
         if (memberIds.length > 0) {
-          await tx.taskAssignee.createMany({
+          await tx.taskMember.createMany({
             data: memberIds.map((userId) => ({ taskId: p.id, userId })),
           });
         }
       }
 
+      if (categoryIds !== undefined) {
+        await tx.taskCategoryOnTask.deleteMany({ where: { taskId: p.id } });
+        if (categoryIds.length > 0) {
+          await tx.taskCategoryOnTask.createMany({
+            data: categoryIds.map((categoryId) => ({ taskId: p.id, categoryId })),
+          });
+        }
+      }
+
       if (attachments !== undefined) {
+        await deleteTaskAttachments(oldAttachments);
         await tx.taskAttachment.deleteMany({ where: { taskId: p.id } });
         if (attachments.length > 0) {
           await tx.taskAttachment.createMany({
@@ -176,7 +251,6 @@ export async function PUT(req: Request, { params }: Params) {
               name: attachment.name,
               url: attachment.url,
               type: attachment.type,
-              tenantId: existing.tenantId,
             })),
           });
         }
@@ -186,10 +260,13 @@ export async function PUT(req: Request, { params }: Params) {
         where: { id: p.id },
         data: updateData,
         include: {
-          assignees: {
+          members: {
             include: {
               user: { select: { id: true, name: true, email: true, position: true, avatarUrl: true } },
             },
+          },
+          categories: {
+            include: { category: true },
           },
           attachments: true,
         },
@@ -221,6 +298,12 @@ export async function DELETE(_: Request, { params }: Params) {
     if (!existing) {
       return NextResponse.json({ message: "Task not found" }, { status: 404 });
     }
+
+    const attachments = await prisma.taskAttachment.findMany({
+      where: { taskId: p.id },
+      select: { url: true },
+    });
+    await deleteTaskAttachments(attachments);
 
     await prisma.task.delete({ where: { id: p.id } });
 

@@ -30,9 +30,30 @@ async function ensureDepartment(departmentId: string, tenantId: string | null) {
   });
 }
 
-async function ensureDefaultLists(departmentId: string, tenantId: string | null) {
+async function ensureBoard(departmentId: string, tenantId: string | null) {
+  const board = await prisma.taskBoard.findFirst({
+    where: {
+      departmentId,
+      ...(tenantId ? { tenantId } : {}),
+    },
+    select: { id: true, departmentId: true, tenantId: true },
+  });
+
+  if (board) return board;
+
+  return prisma.taskBoard.create({
+    data: {
+      departmentId,
+      tenantId,
+      name: "Task Board",
+    },
+    select: { id: true, departmentId: true, tenantId: true },
+  });
+}
+
+async function ensureDefaultLists(boardId: string) {
   const lists = await prisma.taskList.findMany({
-    where: { departmentId },
+    where: { boardId },
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     select: { id: true, name: true, position: true },
   });
@@ -42,8 +63,7 @@ async function ensureDefaultLists(departmentId: string, tenantId: string | null)
       data: DEFAULT_LISTS.map((name, index) => ({
         name,
         position: index,
-        departmentId,
-        tenantId,
+        boardId,
       })),
     });
     return;
@@ -66,14 +86,13 @@ async function ensureDefaultLists(departmentId: string, tenantId: string | null)
       data: missingDefaults.map((name, index) => ({
         name,
         position: lists.length + index,
-        departmentId,
-        tenantId,
+        boardId,
       })),
     });
   }
 
   const refreshedLists = await prisma.taskList.findMany({
-    where: { departmentId },
+    where: { boardId },
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     select: { id: true, name: true },
   });
@@ -100,7 +119,7 @@ const listInclude = {
   tasks: {
     orderBy: [{ position: "asc" as const }, { createdAt: "desc" as const }],
     include: {
-      assignees: {
+      members: {
         include: {
           user: {
             select: { id: true, name: true, email: true, position: true, avatarUrl: true },
@@ -109,6 +128,11 @@ const listInclude = {
       },
       attachments: {
         orderBy: { createdAt: "asc" as const },
+      },
+      categories: {
+        include: {
+          category: true,
+        },
       },
     },
   },
@@ -136,10 +160,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    await ensureDefaultLists(departmentId, department.tenantId);
+    const board = await ensureBoard(departmentId, department.tenantId);
+    await ensureDefaultLists(board.id);
 
     const lists = await prisma.taskList.findMany({
-      where: { departmentId },
+      where: { boardId: board.id },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       include: listInclude,
     });
@@ -148,6 +173,7 @@ export async function GET(req: NextRequest) {
       message: "Task board retrieved successfully",
       data: {
         department,
+        board,
         lists,
       },
     });
@@ -185,17 +211,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const board = await ensureBoard(departmentId, department.tenantId);
     const position =
       body.position !== undefined
         ? Number(body.position)
-        : await prisma.taskList.count({ where: { departmentId } });
+        : await prisma.taskList.count({ where: { boardId: board.id } });
 
     const list = await prisma.taskList.create({
       data: {
         name,
         position,
-        departmentId,
-        tenantId: department.tenantId,
+        boardId: board.id,
       },
     });
 

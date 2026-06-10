@@ -64,11 +64,10 @@ model Department {
   tenantId String? @map("tenant_id") @db.Uuid
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
-  users User[]
+  users      User[]
   taskBoards TaskBoard[]
+  taskCategories TaskCategory[]
   tasks      Task[]
-  createdTasks Task[]       @relation("task_creator")
-  taskMembers  TaskMember[]
 
   @@index([tenantId])
   @@map("departments")
@@ -114,6 +113,8 @@ model User {
   attendances                 Attendance[]
   reimbursements              Reimbursement[]
   pettyCashes                 PettyCash[]
+  createdTasks                Task[]                       @relation("task_creator")
+  taskMembers                 TaskMember[]
   submissionApproverConfigs   SubmissionApproverConfig[]   @relation("submission_approver_user")
   submissionApprovalDecisions SubmissionApprovalDecision[] @relation("submission_decision_user")
 
@@ -441,7 +442,7 @@ model TaskList {
   board   TaskBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
 
   name     String
-  position Int @default(0)
+  position Int    @default(0)
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -464,11 +465,9 @@ model Task {
 
   title       String
   description String?
+  startDate   DateTime  @map("start_date")
   dueDate     DateTime? @map("due_date")
   position    Int       @default(0)
-
-  labelName  String? @map("label_name")
-  labelColor String? @map("label_color")
 
   createdById String @map("created_by_id") @db.Uuid
   createdBy   User   @relation("task_creator", fields: [createdById], references: [id], onDelete: Cascade)
@@ -481,6 +480,7 @@ model Task {
   tenant   Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   members     TaskMember[]
+  categories  TaskCategoryOnTask[]
   attachments TaskAttachment[]
 
   @@index([listId])
@@ -488,6 +488,41 @@ model Task {
   @@index([createdById])
   @@index([tenantId])
   @@map("tasks")
+}
+
+model TaskCategory {
+  id String @id @default(uuid()) @db.Uuid
+
+  departmentId String     @map("department_id") @db.Uuid
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  name String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  taskLinks TaskCategoryOnTask[]
+
+  @@unique([departmentId, name])
+  @@index([departmentId])
+  @@map("task_categories")
+}
+
+model TaskCategoryOnTask {
+  id String @id @default(uuid()) @db.Uuid
+
+  taskId String @map("task_id") @db.Uuid
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  categoryId String       @map("category_id") @db.Uuid
+  category   TaskCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([taskId, categoryId])
+  @@index([taskId])
+  @@index([categoryId])
+  @@map("task_category_on_tasks")
 }
 
 model TaskMember {

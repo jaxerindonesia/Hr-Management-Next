@@ -14,9 +14,14 @@ async function findScopedList(id: string, tenantId: string | null) {
   return prisma.taskList.findFirst({
     where: {
       id,
-      ...(tenantId ? { tenantId } : {}),
+      ...(tenantId ? { board: { tenantId } } : {}),
     },
-    select: { id: true },
+    select: {
+      id: true,
+      board: {
+        select: { id: true, tenantId: true },
+      },
+    },
   });
 }
 
