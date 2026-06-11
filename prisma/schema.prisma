@@ -298,24 +298,6 @@ model Reimbursement {
   @@map("petty_cashes")
 }
 
-model PettyCashUsage {
-  id String @id @default(uuid()) @db.Uuid
-
-  pettyCashId String    @map("petty_cash_id") @db.Uuid
-  pettyCash   PettyCash @relation(fields: [pettyCashId], references: [id], onDelete: Cascade)
-
-  description String
-  amount      Float
-  usageDate   DateTime @map("usage_date")
-  receiptUrl  String?  @map("receipt_url")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([pettyCashId])
-  @@map("petty_cash_usages")
-}
-
 model PettyCash {
   id            String           @id @default(uuid()) @db.Uuid
   userId        String           @map("user_id") @db.Uuid
