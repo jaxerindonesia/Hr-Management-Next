@@ -130,6 +130,7 @@ export default function DesktopNavbar() {
       performances: "Penilaian Kinerja",
       roles: "Roles",
       reimbursements: "Reimbursement",
+      overtimes: "Lembur",
       tenants: "Tenant",
     };
     return titles[path || "dashboard"] || "Dashboard";

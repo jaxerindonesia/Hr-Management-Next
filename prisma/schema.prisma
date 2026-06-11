@@ -19,6 +19,8 @@ model Tenant {
   logoDarkUrl       String?            @map("logo_dark_url")
   attendanceConfigs AttendanceConfig[]
   attendances       Attendance[]
+  overtimeConfigs   OvertimeConfig[]
+  overtimes         Overtime[]
   departments       Department[]
   leaveConfigs      LeaveConfig[]
   payrolls          Payroll[]
@@ -197,6 +199,7 @@ model Attendance {
   date              DateTime
   checkIn           DateTime? @map("check_in")
   checkOut          DateTime? @map("check_out")
+  autoCheckout      Boolean   @default(false) @map("auto_checkout")
   status            String
   notes             String?
   workHours         String?   @map("work_hours")
@@ -228,6 +231,52 @@ model AttendanceConfig {
 
   @@index([tenantId])
   @@map("attendance_configs")
+}
+
+model OvertimeConfig {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String?  @map("tenant_id") @db.Uuid
+  payMethod      String   @map("pay_method") @default("PER_HOUR")
+  hourlyRate     Float    @map("hourly_rate") @default(0)
+  dailyRate      Float    @map("daily_rate") @default(0)
+  overtimeBuffer Int      @map("overtime_buffer") @default(60)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  tenant         Tenant?  @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("overtime_configs")
+}
+
+model Overtime {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String?   @map("tenant_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  attendanceId     String?   @map("attendance_id") @db.Uuid
+  overtimeDate     DateTime  @map("overtime_date")
+  startTime        DateTime  @map("start_time")
+  endTime          DateTime  @map("end_time")
+  overtimeMinutes  Int       @map("overtime_minutes")
+  requestedMinutes  Int      @map("requested_minutes")
+  description      String?
+  rejectReason     String?   @map("reject_reason")
+  payMethod        String    @map("pay_method")
+  hourlyRate       Float     @map("hourly_rate")
+  dailyRate        Float     @map("daily_rate")
+  payoutAmount     Float     @map("payout_amount")
+  status           String    @default("PENDING")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendance       Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  tenant           Tenant?   @relation(fields: [tenantId], references: [id])
+
+  @@unique([attendanceId])
+  @@index([tenantId])
+  @@index([userId, overtimeDate])
+  @@map("overtimes")
 }
 
 model Payroll {

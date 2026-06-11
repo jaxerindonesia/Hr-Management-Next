@@ -12,11 +12,37 @@ const DEFAULT_CONFIG = {
   lateToleranceMinutes: 15,
 };
 
+const DEFAULT_OVERTIME_CONFIG = {
+  payMethod: "PER_HOUR",
+  hourlyRate: 0,
+  dailyRate: 0,
+  overtimeBuffer: 60,
+};
+
+const WEEKDAY_MAP = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+] as const;
+
 function getDateAtTime(baseDate: Date, hhmm: string) {
   const [h, m] = hhmm.split(":").map(Number);
   const d = new Date(baseDate);
   d.setHours(h || 0, m || 0, 0, 0);
   return d;
+}
+
+function getDurationMinutes(start: Date, end: Date) {
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / (1000 * 60)));
+}
+
+function getJakartaWeekday(date: Date) {
+  const shifted = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+  return WEEKDAY_MAP[shifted.getUTCDay()];
 }
 
 export async function POST(req: NextRequest) {
@@ -96,9 +122,16 @@ export async function POST(req: NextRequest) {
         orderBy: { updatedAt: "desc" },
       })) ??
       DEFAULT_CONFIG;
+    const overtimeCfg =
+      (await prisma.overtimeConfig.findFirst({
+        where: finalTenantId ? { tenantId: finalTenantId } : {},
+        orderBy: { updatedAt: "desc" },
+      })) ??
+      DEFAULT_OVERTIME_CONFIG;
     const officeEnd = getDateAtTime(now, cfg.officeEndTime);
     const isHalfDay = now < officeEnd;
     const wasLate = attendance.status === "Late";
+    const isWorkingDay = (cfg.workingDays || []).includes(getJakartaWeekday(now));
 
     let status: string;
     if (wasLate && isHalfDay) {
@@ -111,16 +144,63 @@ export async function POST(req: NextRequest) {
       status = "Present";
     }
 
+    const overtimeStart = isWorkingDay
+      ? new Date(officeEnd.getTime() + overtimeCfg.overtimeBuffer * 60 * 1000)
+      : new Date(attendance.checkIn!);
+    const overtimeMinutes = isWorkingDay
+      ? getDurationMinutes(overtimeStart, now)
+      : getDurationMinutes(new Date(attendance.checkIn!), now);
+    const requestedMinutes = overtimeMinutes;
+    const payoutAmount =
+      overtimeCfg.payMethod === "PER_DAY"
+        ? Number(overtimeCfg.dailyRate || 0)
+        : Number(overtimeCfg.hourlyRate || 0) * (overtimeMinutes / 60);
+
     const updated = await prisma.attendance.update({
       where: { id: attendance.id },
       data: {
         checkOut: now.toISOString(),
+        autoCheckout: false,
         status,
         workHours: formattedWorkHours,
         checkOutLocation,
         checkOutFaceImage,
       },
     });
+
+    if (overtimeMinutes > 0) {
+      await prisma.overtime.upsert({
+        where: { attendanceId: attendance.id },
+        create: {
+          tenantId: finalTenantId,
+          userId: attendance.userId,
+          attendanceId: attendance.id,
+          overtimeDate: new Date(now),
+          startTime: overtimeStart,
+          endTime: now,
+          overtimeMinutes,
+          requestedMinutes,
+          description: attendance.notes ?? null,
+          payMethod: overtimeCfg.payMethod,
+          hourlyRate: Number(overtimeCfg.hourlyRate || 0),
+          dailyRate: Number(overtimeCfg.dailyRate || 0),
+          payoutAmount,
+          status: "PENDING",
+        },
+        update: {
+          overtimeDate: new Date(now),
+          startTime: overtimeStart,
+          endTime: now,
+          overtimeMinutes,
+          requestedMinutes,
+          payMethod: overtimeCfg.payMethod,
+          hourlyRate: Number(overtimeCfg.hourlyRate || 0),
+          dailyRate: Number(overtimeCfg.dailyRate || 0),
+          payoutAmount,
+          status: "PENDING",
+        },
+      });
+    }
 
     return NextResponse.json({
       message: "Check Out successful",

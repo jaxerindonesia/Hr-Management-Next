@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/attendance-absent",
       "schedule": "10 17 * * *"
+    },
+    {
+      "path": "/api/cron/attendance-auto-checkout",
+      "schedule": "59 16 * * *"
     }
   ]
 }
