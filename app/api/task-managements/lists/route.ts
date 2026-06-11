@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { canManageTaskDepartment } from "@/lib/auth/task-management";
 
 const DEFAULT_LISTS = ["To Do", "On Progress", "Review", "Done"];
 
@@ -159,7 +160,6 @@ export async function GET(req: NextRequest) {
         { status: 404 },
       );
     }
-
     const board = await ensureBoard(departmentId, department.tenantId);
     await ensureDefaultLists(board.id);
 
@@ -209,6 +209,9 @@ export async function POST(req: NextRequest) {
         { message: "Department not found" },
         { status: 404 },
       );
+    }
+    if (!canManageTaskDepartment(auth.user, departmentId)) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     const board = await ensureBoard(departmentId, department.tenantId);

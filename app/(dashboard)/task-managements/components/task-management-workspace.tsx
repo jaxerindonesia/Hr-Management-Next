@@ -100,10 +100,26 @@ type Props = {
   setDraggedTaskId: Dispatch<SetStateAction<string>>;
   setEditingListId: Dispatch<SetStateAction<string>>;
   setEditingListName: Dispatch<SetStateAction<string>>;
+  canManageSelectedDepartment: boolean;
 };
 
 function getCalendarTaskColor(task: TaskCard, getTaskListTheme: (listId: string) => ListTheme) {
   return getTaskListTheme(task.listId).accent;
+}
+
+function getMemberInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : parts[0]?.slice(0, 2);
+  return initials?.toUpperCase() || "?";
+}
+
+function getMemberBadgeColor(index: number) {
+  return [
+    "bg-blue-600 text-white",
+    "bg-emerald-600 text-white",
+    "bg-violet-600 text-white",
+    "bg-amber-500 text-white",
+  ][index % 4];
 }
 
 export function TaskManagementWorkspace({
@@ -139,6 +155,7 @@ export function TaskManagementWorkspace({
   setDraggedTaskId,
   setEditingListId,
   setEditingListName,
+  canManageSelectedDepartment,
 }: Props) {
   return (
     <div className="space-y-6">
@@ -220,10 +237,13 @@ export function TaskManagementWorkspace({
               <section
                 key={list.id}
                 onDragEnter={(event) => {
-                  if (draggedListId) event.preventDefault();
+                  if (canManageSelectedDepartment && draggedListId) event.preventDefault();
                 }}
-                onDragOver={(event) => event.preventDefault()}
+                onDragOver={(event) => {
+                  if (canManageSelectedDepartment) event.preventDefault();
+                }}
                 onDrop={() => {
+                  if (!canManageSelectedDepartment) return;
                   if (draggedListId) {
                     void moveList(list.id);
                     setDraggedListId("");
@@ -261,10 +281,10 @@ export function TaskManagementWorkspace({
                     <div className="flex items-center justify-between gap-2">
                       <div
                         className="flex min-w-0 cursor-grab items-start gap-2 active:cursor-grabbing"
-                        draggable
+                        draggable={canManageSelectedDepartment}
                         onDragStart={() => setDraggedListId(list.id)}
                         onDragEnd={() => setDraggedListId("")}
-                        title="Drag untuk mengubah urutan list"
+                        title={canManageSelectedDepartment ? "Drag untuk mengubah urutan list" : undefined}
                       >
                         <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
                         <div className="min-w-0">
@@ -279,28 +299,30 @@ export function TaskManagementWorkspace({
                           </p>
                         </div>
                       </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => {
-                            setEditingListId(list.id);
-                            setEditingListName(list.name);
-                          }}
-                          title="Edit list"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => void deleteList(list)}
-                          title="Hapus list"
-                          className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {canManageSelectedDepartment && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => {
+                              setEditingListId(list.id);
+                              setEditingListName(list.name);
+                            }}
+                            title="Edit list"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => void deleteList(list)}
+                            title="Hapus list"
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -310,7 +332,7 @@ export function TaskManagementWorkspace({
                     list.tasks.map((task) => (
                       <article
                         key={task.id}
-                        draggable
+                        draggable={canManageSelectedDepartment}
                         onDragStart={() => setDraggedTaskId(task.id)}
                         onDragEnd={() => setDraggedTaskId("")}
                         className="rounded-lg border border-gray-100 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-950"
@@ -343,25 +365,27 @@ export function TaskManagementWorkspace({
                           <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
                             {task.title}
                           </h4>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => openEditTask(task)}
-                              title="Edit task"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => void deleteTask(task.id)}
-                              title="Hapus task"
-                              className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          {canManageSelectedDepartment && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => openEditTask(task)}
+                                title="Edit task"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => void deleteTask(task.id)}
+                                title="Hapus task"
+                                className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
 
                         {task.description && (
@@ -408,9 +432,22 @@ export function TaskManagementWorkspace({
                         )}
 
                         <div className="mt-3 flex items-center justify-between gap-2">
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                            {task.members.length} member
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex -space-x-2">
+                              {task.members.slice(0, 2).map((member, index) => (
+                                <div
+                                  key={member.user.id}
+                                  title={member.user.name}
+                                  className={`flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold shadow-sm dark:border-gray-950 ${getMemberBadgeColor(index)}`}
+                                >
+                                  {getMemberInitials(member.user.name)}
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                              {task.members.length} member
+                            </p>
+                          </div>
                           {task.dueDate && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                               <CalendarDays className="h-3.5 w-3.5" />
@@ -437,16 +474,18 @@ export function TaskManagementWorkspace({
                   )}
                 </div>
 
-                <div className="border-t border-gray-100 p-3 dark:border-gray-800">
-                  <Button
-                    variant="outline"
-                    className="h-11 w-full rounded-lg"
-                    onClick={() => openCreateTask(list.id)}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Tambah Task
-                  </Button>
-                </div>
+                {canManageSelectedDepartment && (
+                  <div className="border-t border-gray-100 p-3 dark:border-gray-800">
+                    <Button
+                      variant="outline"
+                      className="h-11 w-full rounded-lg"
+                      onClick={() => openCreateTask(list.id)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Tambah Task
+                    </Button>
+                  </div>
+                )}
               </section>
             );
           })}

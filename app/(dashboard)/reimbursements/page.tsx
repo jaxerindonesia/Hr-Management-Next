@@ -225,11 +225,12 @@ export default function ReimbursementsPage() {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data Reimbursement");
 
       // Auto column width
+      type Row = (typeof rows)[number];
       const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
         wch:
           Math.max(
             key.length,
-            ...rows.map((r) => String((r as any)[key] ?? "").length),
+            ...rows.map((r) => String(r[key as keyof Row] ?? "").length),
           ) + 2,
       }));
       worksheet["!cols"] = colWidths;
@@ -250,7 +251,7 @@ export default function ReimbursementsPage() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data reimbursement`);
-    } catch (err) {
+    } catch {
       toast.error("Gagal mengexport data");
     } finally {
       setIsExporting(false);

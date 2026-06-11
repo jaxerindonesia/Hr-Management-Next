@@ -1,5 +1,4 @@
 import { Dispatch, RefObject, SetStateAction } from "react";
-import Image from "next/image";
 import { Eye, Plus, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -59,8 +58,6 @@ type Props = {
   taskForm: TaskFormState;
   taskFormListName: string;
   attachmentFileInputRef: RefObject<HTMLInputElement | null>;
-  isImageUrl: (url: string) => boolean;
-  isPdfUrl: (url: string) => boolean;
   formatDate: (value?: string | null) => string;
   openAttachmentPicker: () => void;
   createList: () => Promise<void>;
@@ -79,6 +76,7 @@ type Props = {
   updateAttachment: (index: number, field: "name" | "url" | "type", value: string) => void;
   uploadAttachmentFile: (file: File) => Promise<{ name: string; url: string; type: string | null; size: number }>;
   confirmDelete: () => Promise<void>;
+  canManageSelectedDepartment: boolean;
 };
 
 export function TaskManagementDialogs({
@@ -95,8 +93,6 @@ export function TaskManagementDialogs({
   taskForm,
   taskFormListName,
   attachmentFileInputRef,
-  isImageUrl,
-  isPdfUrl,
   openAttachmentPicker,
   createList,
   createCategory,
@@ -114,10 +110,11 @@ export function TaskManagementDialogs({
   updateAttachment,
   uploadAttachmentFile,
   confirmDelete,
+  canManageSelectedDepartment,
 }: Props) {
   return (
     <>
-      <Dialog open={listDialogOpen} onOpenChange={setListDialogOpen}>
+      <Dialog open={listDialogOpen && canManageSelectedDepartment} onOpenChange={setListDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Tambah List</DialogTitle>
@@ -147,7 +144,7 @@ export function TaskManagementDialogs({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+      <Dialog open={categoryDialogOpen && canManageSelectedDepartment} onOpenChange={setCategoryDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Tambah Kategori</DialogTitle>
@@ -206,7 +203,7 @@ export function TaskManagementDialogs({
         </DialogContent>
       </Dialog>
 
-      {taskModalOpen && board && (
+      {taskModalOpen && board && canManageSelectedDepartment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => !savingTask && closeTaskModal()} />
           <div className="relative max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900">
@@ -263,11 +260,11 @@ export function TaskManagementDialogs({
                 <div className="flex gap-4 sm:col-span-2">
                   <div className="flex-1">
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Start Date</label>
-                    <Input type="date" value={taskForm.startDate} onChange={(e) => setTaskForm((prev) => ({ ...prev, startDate: e.target.value }))} className="h-11 rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950" />
+                    <Input type="date" value={taskForm.startDate} onChange={(e) => setTaskForm((prev) => ({ ...prev, startDate: e.target.value }))} className="h-11 rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950 dark:[color-scheme:dark]" />
                   </div>
                   <div className="flex-1">
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Due Date</label>
-                    <Input type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm((prev) => ({ ...prev, dueDate: e.target.value }))} className="h-11 rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950" />
+                    <Input type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm((prev) => ({ ...prev, dueDate: e.target.value }))} className="h-11 rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950 dark:[color-scheme:dark]" />
                   </div>
                 </div>
 

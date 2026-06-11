@@ -135,6 +135,20 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   display: none;
 }
 
+/* Make native date picker controls readable in dark mode */
+input[type="date"] {
+  color-scheme: light;
+}
+
+.dark input[type="date"] {
+  color-scheme: dark;
+}
+
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.85;
+}
+
 /* Login error & entrance animations */
 @keyframes shake {
 
@@ -257,27 +271,17 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 
 /* ===== PRINT STYLES — Slip Gaji ===== */
 @media print {
-
-  /* Hide EVERYTHING on the page using visibility (not display)
-     so nested elements can still be made visible */
   body * {
     visibility: hidden !important;
   }
 
-  /* Show only the slip card and all its children */
-  #slip-print-area,
-  #slip-print-area *,
-
   #reimburse-print-area,
-  #reimburse-print-area *,
-  #temp-print-area,
-  #temp-print-area * {
+  #reimburse-print-area * {
     visibility: visible !important;
   }
 
-  /* Position the slip at the very top-left of the printed page */
-  #slip-print-area,
   #reimburse-print-area,
+  #slip-print-area,
   #temp-print-area {
     position: fixed !important;
     top: 0 !important;

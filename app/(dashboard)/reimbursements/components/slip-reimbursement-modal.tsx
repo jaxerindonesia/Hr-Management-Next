@@ -61,12 +61,15 @@ export default function SlipReimbursementModal({
                         </div>
                     </div>
 
-                    {/* Slip Preview */}
-                    <div className="p-6">
-                        <SlipContent reimbursement={reimbursement} tenantConfig={tenantConfig} />
-                    </div>
-                </div>
+            {/* Slip Preview */}
+            <div className="p-6">
+                <SlipContent
+                    reimbursement={reimbursement}
+                    tenantConfig={tenantConfig}
+                />
             </div>
+        </div>
+    </div>
         </>
     );
 }
@@ -100,10 +103,7 @@ function SlipContent({
     const { label, color, Icon } = statusConfig;
 
     return (
-        <div
-            id="reimburse-print-area"
-            className="bg-white rounded-xl overflow-hidden border border-gray-200 text-gray-800"
-        >
+        <div id="reimburse-print-area" className="bg-white rounded-xl overflow-hidden border border-gray-200 text-gray-800">
             {/* ---- Header ---- */}
             <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white px-8 py-6">
                 <div className="flex items-center justify-between">

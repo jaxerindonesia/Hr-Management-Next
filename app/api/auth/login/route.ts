@@ -103,6 +103,7 @@ export async function POST(req: NextRequest) {
         permissions: user.role.permission,
         avatarUrl: user.avatarUrl ?? "",
         tenantId: user.tenantId ?? null,
+        departmentId: user.departmentId ?? null,
       },
     });
 
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
     }
 
     return response;
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { message: "Failed to login user" },
       { status: 500 },

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { canManageTaskDepartment } from "@/lib/auth/task-management";
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,7 +26,6 @@ export async function GET(req: NextRequest) {
     if (!department) {
       return NextResponse.json({ message: "Department not found" }, { status: 404 });
     }
-
     const categories = await prisma.taskCategory.findMany({
       where: { departmentId },
       orderBy: { name: "asc" },
@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
     });
     if (!department) {
       return NextResponse.json({ message: "Department not found" }, { status: 404 });
+    }
+    if (!canManageTaskDepartment(auth.user, departmentId)) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     const category = await prisma.taskCategory.create({

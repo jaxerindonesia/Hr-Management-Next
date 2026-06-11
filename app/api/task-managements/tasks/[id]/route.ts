@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { canManageTaskDepartment } from "@/lib/auth/task-management";
 import { deleteFromMinio, BUCKET_AVATARS } from "@/lib/minio";
 
 type Params = {
@@ -34,6 +35,11 @@ function normalizeAttachments(value: unknown): AttachmentInput[] {
 
 function isMinioUrl(url: string) {
   return url.includes(BUCKET_AVATARS);
+}
+
+function canUseAnyDepartment(roleName: string) {
+  const normalized = roleName.toLowerCase().replace(/\s/g, "");
+  return normalized === "superadmin" || normalized === "admin";
 }
 
 async function deleteTaskAttachments(attachments: { url: string | null }[]) {
@@ -122,12 +128,19 @@ export async function PUT(req: Request, { params }: Params) {
     if (!existing) {
       return NextResponse.json({ message: "Task not found" }, { status: 404 });
     }
+    if (!canUseAnyDepartment(auth.user.roleName) && auth.user.departmentId !== existing.list.board.departmentId) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
 
     const body = await req.json();
     const nextListId =
       body.listId !== undefined ? String(body.listId) : existing.listId;
 
     if (nextListId !== existing.listId) {
+      if (!canManageTaskDepartment(auth.user, existing.list.board.departmentId)) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      }
+
       const nextList = await validateList(
         nextListId,
         existing.list.board.departmentId,
@@ -297,6 +310,9 @@ export async function DELETE(_: Request, { params }: Params) {
     const existing = await findScopedTask(p.id, scopedTenantId);
     if (!existing) {
       return NextResponse.json({ message: "Task not found" }, { status: 404 });
+    }
+    if (!canUseAnyDepartment(auth.user.roleName) && auth.user.departmentId !== existing.list.board.departmentId) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     const attachments = await prisma.taskAttachment.findMany({

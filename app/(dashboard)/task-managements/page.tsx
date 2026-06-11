@@ -13,6 +13,7 @@ import {
   List,
   ListPlus,
   Plus,
+  Download,
   Search,
   TimerReset,
   Users,
@@ -163,14 +164,6 @@ function normalizeAttachmentType(url: string) {
   return "Link";
 }
 
-function isImageUrl(url: string) {
-  return /\.(png|jpg|jpeg|webp|gif)$/i.test(url.split("?")[0] || "");
-}
-
-function isPdfUrl(url: string) {
-  return /\.pdf$/i.test(url.split("?")[0] || "");
-}
-
 function getListTheme(name: string, index: number) {
   const key = name.toLowerCase();
   if (key.includes("to do")) {
@@ -242,6 +235,8 @@ export default function TaskManagementPage() {
   const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [loadingBoard, setLoadingBoard] = useState(false);
   const [categories, setCategories] = useState<TaskCategory[]>([]);
+  const [currentUserRole, setCurrentUserRole] = useState("");
+  const [currentUserDepartmentId, setCurrentUserDepartmentId] = useState("");
   const [newListName, setNewListName] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [listDialogOpen, setListDialogOpen] = useState(false);
@@ -251,6 +246,7 @@ export default function TaskManagementPage() {
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [taskForm, setTaskForm] = useState<TaskFormState>(EMPTY_TASK_FORM);
   const [savingTask, setSavingTask] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState("");
   const [draggedListId, setDraggedListId] = useState("");
   const attachmentFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -266,6 +262,19 @@ export default function TaskManagementPage() {
     [departments, selectedDepartmentId],
   );
 
+  const canManageSelectedDepartment = useMemo(() => {
+    const normalizedRole = currentUserRole.toLowerCase().replace(/\s/g, "");
+    if (normalizedRole === "superadmin" || normalizedRole === "admin") {
+      return true;
+    }
+
+    return Boolean(
+      selectedDepartmentId &&
+        currentUserDepartmentId &&
+        currentUserDepartmentId === selectedDepartmentId,
+    );
+  }, [currentUserDepartmentId, currentUserRole, selectedDepartmentId]);
+
   useEffect(() => {
     if (routeDepartmentId && routeDepartmentId !== selectedDepartmentId) {
       setSelectedDepartmentId(routeDepartmentId);
@@ -274,6 +283,24 @@ export default function TaskManagementPage() {
       setSelectedDepartmentId("");
     }
   }, [routeDepartmentId, selectedDepartmentId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const rawUser = localStorage.getItem("hr_user_data");
+    if (!rawUser) return;
+
+    try {
+      const userData = JSON.parse(rawUser);
+      const rawRoleName =
+        typeof userData?.role === "string" ? userData.role : userData?.role?.name;
+      setCurrentUserRole(rawRoleName || "");
+      setCurrentUserDepartmentId(userData?.departmentId || "");
+    } catch {
+      setCurrentUserRole("");
+      setCurrentUserDepartmentId("");
+    }
+  }, []);
 
   const taskDashboardStats = useMemo(() => {
     const today = new Date();
@@ -710,6 +737,68 @@ export default function TaskManagementPage() {
     [board?.lists, taskForm.listId],
   );
 
+  const handleExportExcel = async () => {
+    if (!board) return;
+
+    try {
+      setExportingExcel(true);
+      const XLSX = await import("xlsx");
+
+      const rows = board.lists.flatMap((list) =>
+        list.tasks.map((task) => ({
+          Department: board.department.name || "-",
+          "Task Name": task.title || "-",
+          Description: task.description || "-",
+          "Start Date": task.startDate
+            ? new Date(task.startDate).toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })
+            : "-",
+          "Due Date": task.dueDate
+            ? new Date(task.dueDate).toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })
+            : "-",
+          Status: list.name || "-",
+          Members: task.members.length
+            ? task.members.map((item) => item.user.name).join(", ")
+            : "-",
+          Categories: task.categories.length
+            ? task.categories.map((item) => item.category.name).join(", ")
+            : "-",
+          Attachments: task.attachments.length
+            ? task.attachments.map((item) => item.name).join(", ")
+            : "-",
+        })),
+      );
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Task Management");
+
+      const keys = rows[0] ? Object.keys(rows[0]) : [];
+      worksheet["!cols"] = keys.map((key) => ({
+        wch:
+          Math.max(
+            key.length,
+            ...rows.map((row) => String(row[key as keyof (typeof rows)[number]] ?? "").length),
+          ) + 2,
+      }));
+
+      const fileName = `data-task-management-${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      toast.success(`Berhasil mengekspor ${rows.length} task`);
+    } catch {
+      toast.error("Gagal mengekspor data task");
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   const monthDays = useMemo(() => {
     const lastDay = new Date(
       timelineMonth.getFullYear(),
@@ -1041,21 +1130,33 @@ export default function TaskManagementPage() {
 
           <div className="flex w-full flex-col gap-3 sm:flex-row xl:w-auto">
             <Button
-              onClick={() => setListDialogOpen(true)}
-              disabled={!selectedDepartmentId}
-              className="h-10 rounded-lg bg-blue-600 px-4 text-white shadow-sm hover:bg-blue-700"
+              onClick={handleExportExcel}
+              disabled={!selectedDepartmentId || exportingExcel || !board}
+              className="h-10 rounded-lg bg-emerald-600 px-4 text-white shadow-sm hover:bg-emerald-700"
             >
-              <ListPlus className="h-4 w-4" />
-              Tambah List
+              <Download className="h-4 w-4" />
+              {exportingExcel ? "Mengekspor..." : "Export Excel"}
             </Button>
-            <Button
-              onClick={() => setCategoryDialogOpen(true)}
-              disabled={!selectedDepartmentId}
-              className="h-10 rounded-lg bg-slate-900 px-4 text-white shadow-sm hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
-            >
-              <Plus className="h-4 w-4" />
-              Tambah Kategori
-            </Button>
+            {canManageSelectedDepartment && (
+              <Button
+                onClick={() => setListDialogOpen(true)}
+                disabled={!selectedDepartmentId}
+                className="h-10 rounded-lg bg-blue-600 px-4 text-white shadow-sm hover:bg-blue-700"
+              >
+                <ListPlus className="h-4 w-4" />
+                Tambah List
+              </Button>
+            )}
+            {canManageSelectedDepartment && (
+              <Button
+                onClick={() => setCategoryDialogOpen(true)}
+                disabled={!selectedDepartmentId}
+                className="h-10 rounded-lg bg-slate-900 px-4 text-white shadow-sm hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+              >
+                <Plus className="h-4 w-4" />
+                Tambah Kategori
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1092,6 +1193,7 @@ export default function TaskManagementPage() {
           setDraggedTaskId={setDraggedTaskId}
           setEditingListId={setEditingListId}
           setEditingListName={setEditingListName}
+          canManageSelectedDepartment={canManageSelectedDepartment}
         />
 
         <TaskManagementDialogs
@@ -1108,8 +1210,6 @@ export default function TaskManagementPage() {
           taskForm={taskForm}
           taskFormListName={taskFormListName}
           attachmentFileInputRef={attachmentFileInputRef}
-          isImageUrl={isImageUrl}
-          isPdfUrl={isPdfUrl}
           formatDate={formatDate}
           openAttachmentPicker={openAttachmentPicker}
           createList={createList}
@@ -1128,6 +1228,7 @@ export default function TaskManagementPage() {
           updateAttachment={updateAttachment}
           uploadAttachmentFile={uploadAttachmentFile}
           confirmDelete={confirmDelete}
+          canManageSelectedDepartment={canManageSelectedDepartment}
         />
       </div>
     </>

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { canManageTaskDepartment } from "@/lib/auth/task-management";
 
 type AttachmentInput = {
   name: string;
@@ -91,6 +92,12 @@ export async function POST(req: NextRequest) {
     }
 
     const scopedTenantId = ensureTenantScope(auth.user);
+    if (!canManageTaskDepartment(auth.user, departmentId)) {
+      return NextResponse.json(
+        { message: "Forbidden" },
+        { status: 403 },
+      );
+    }
     const list = await resolveList(listId, departmentId, scopedTenantId);
     if (
       !list ||
