@@ -23,11 +23,11 @@ model Tenant {
   leaveConfigs      LeaveConfig[]
   payrolls          Payroll[]
   performances      Performance[]
-  pettyCashes       PettyCash[]
   reimbursements    Reimbursement[]
   roles             Role[]
   submissionTypes   SubmissionType[]
   submissions       Submission[]
+  pettyCashes       PettyCash[]
   taskBoards        TaskBoard[]
   tasks             Task[]
   users             User[]
@@ -295,7 +295,7 @@ model Reimbursement {
 
   @@index([tenantId])
   @@index([userId])
-  @@map("petty_cashes")
+  @@map("reimbursements")
 }
 
 model PettyCash {
