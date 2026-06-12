@@ -123,8 +123,8 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
               >
                 <option value="">Pilih user approver...</option>
                 {approverUsers
-                  .filter((u) => !approverUserIds.includes(u.id))
-                  .map((u) => (
+                  .filter((u: any) => !approverUserIds.includes(u.id))
+                  .map((u: any) => (
                     <option key={u.id} value={u.id}>
                       {u.name} ({u.email})
                     </option>
@@ -132,7 +132,7 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
               </select>
               <div className="my-2 flex flex-wrap gap-2">
                 {approverUserIds.map((id) => {
-                  const user = users.find((u) => u.id === id);
+                  const user = users.find((u: any) => u.id === id);
                   if (!user) return null;
                   return (
                     <span
