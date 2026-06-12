@@ -9,8 +9,8 @@ import {
   ChevronRight,
   Filter,
   X,
-  FileText,
   Download,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PayrollDto } from "@/lib/dto/payroll";
@@ -574,7 +574,7 @@ export default function PayrollPage() {
                             className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
                             title="Cetak Slip Gaji"
                           >
-                            <FileText className="w-4 h-4" />
+                            <Printer className="w-4 h-4" />
                           </button>
                           {checkRole("payrolls", "update") && (
                             <button

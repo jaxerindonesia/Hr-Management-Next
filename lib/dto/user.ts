@@ -4,6 +4,7 @@ export interface UserDto {
   roleId: string;
   departmentId?: string | null;
   department?: { id: string; name: string } | null;
+  role?: { id: string; name: string } | null;
   tenant?: { id: string; companyName: string } | null;
   email: string;
   name: string;

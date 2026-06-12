@@ -15,8 +15,6 @@ import {
   Wallet,
   Receipt,
   CheckCircle,
-  Clock,
-  Send,
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -64,7 +62,7 @@ const STATUS_COLOR: Record<string, string> = {
 const ITEMS_PER_PAGE = 10;
 
 export default function PettyCashPage() {
-  const { checkRole } = usePermission();
+  usePermission();
   const [pettyCashes, setPettyCashes] = useState<PettyCashDto[]>([]);
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
@@ -72,6 +70,7 @@ export default function PettyCashPage() {
   const [showUsageModal, setShowUsageModal] = useState(false);
   const [selectedPettyCashId, setSelectedPettyCashId] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<PettyCashDto | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
@@ -122,16 +121,24 @@ export default function PettyCashPage() {
       const json = await res.json();
       setPettyCashes(json.data || []);
       setTotal(json.total || 0);
-
-      // If viewing detail, refresh the detail item
-      if (detailItem) {
-        const updatedDetail = (json.data || []).find((item: PettyCashDto) => item.id === detailItem.id);
-        if (updatedDetail) setDetailItem(updatedDetail);
-      }
     } catch {
       toast.error("Gagal memuat data petty cash");
     }
-  }, [currentPage, searchTerm, filterCategory, filterStatus, detailItem]);
+  }, [currentPage, searchTerm, filterCategory, filterStatus]);
+
+  const fetchDetail = useCallback(async (id: string) => {
+    try {
+      setDetailLoading(true);
+      const res = await fetch(`/api/pettycash/${id}`);
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      setDetailItem(json.data || null);
+    } catch {
+      toast.error("Gagal memuat detail petty cash");
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
 
   const handleOpenModal = (data?: PettyCashDto) => {
     setFormData(
@@ -217,11 +224,12 @@ export default function PettyCashPage() {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data Petty Cash");
 
       // Auto column width
+      type Row = (typeof rows)[number];
       const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
         wch:
           Math.max(
             key.length,
-            ...rows.map((r) => String((r as any)[key] ?? "").length),
+            ...rows.map((r) => String(r[key as keyof Row] ?? "").length),
           ) + 2,
       }));
       worksheet["!cols"] = colWidths;
@@ -230,7 +238,7 @@ export default function PettyCashPage() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data petty cash`);
-    } catch (err) {
+    } catch {
       toast.error("Gagal mengexport data");
     } finally {
       setIsExporting(false);
@@ -441,6 +449,7 @@ export default function PettyCashPage() {
                             onClick={() => {
                               setDetailItem(r);
                               setShowDetailModal(true);
+                              void fetchDetail(r.id!);
                             }}
                             className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
                             title="Detail & Laporan Penggunaan"
@@ -632,11 +641,16 @@ export default function PettyCashPage() {
           setDetailItem(null);
           setShowDetailModal(false);
         }}>
-          <DialogContent className="w-[40vw] sm:!max-w-[90rem] max-h-[94vh] overflow-y-auto p-4 md:p-6">
+          <DialogContent className="w-[50vw] sm:!max-w-[100rem] max-h-[94vh] overflow-y-auto p-4 md:p-6">
             <DialogHeader>
               <DialogTitle>Detail Petty Cash</DialogTitle>
             </DialogHeader>
 
+            {detailLoading ? (
+              <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                Memuat detail petty cash...
+              </div>
+            ) : (
             <div className="space-y-6 pt-3">
               {/* Header Info Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -778,6 +792,7 @@ export default function PettyCashPage() {
                 )}
               </div>
             </div>
+            )}
           </DialogContent>
         </Dialog>
       )}

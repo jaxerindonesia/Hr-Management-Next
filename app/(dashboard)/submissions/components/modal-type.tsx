@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SubmissionTypeDto } from "@/lib/dto/submission-type";
+import { UserDto } from "@/lib/dto/user";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -17,7 +18,7 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
   );
   const [newType, setNewType] = useState("");
   const [loading, setLoading] = useState(false);
-  const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [users, setUsers] = useState<UserDto[]>([]);
   const [approverUserIds, setApproverUserIds] = useState<string[]>([]);
 
   const handleAddType = async (e: React.FormEvent) => {
@@ -87,16 +88,15 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
     fetch("/api/users?limit=9999")
       .then((r) => r.json())
       .then((j) =>
-        setUsers(
-          (j.data || []).map((u: { id: string; name: string; email: string }) => ({
-            id: u.id,
-            name: u.name,
-            email: u.email,
-          })),
-        ),
+        setUsers(j.data || []),
       )
       .catch(() => setUsers([]));
   }, []);
+
+  const approverUsers = users.filter((u) => {
+    const roleName = u.role?.name?.trim().toLowerCase();
+    return roleName && roleName !== "karyawan";
+  });
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -122,9 +122,9 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
                 className="w-full border rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="">Pilih user approver...</option>
-                {users
-                  .filter((u) => !approverUserIds.includes(u.id))
-                  .map((u) => (
+                {approverUsers
+                  .filter((u: any) => !approverUserIds.includes(u.id))
+                  .map((u: any) => (
                     <option key={u.id} value={u.id}>
                       {u.name} ({u.email})
                     </option>
@@ -132,7 +132,7 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
               </select>
               <div className="my-2 flex flex-wrap gap-2">
                 {approverUserIds.map((id) => {
-                  const user = users.find((u) => u.id === id);
+                  const user = users.find((u: any) => u.id === id);
                   if (!user) return null;
                   return (
                     <span

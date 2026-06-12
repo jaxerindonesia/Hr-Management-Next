@@ -78,6 +78,12 @@ export async function GET(req: NextRequest) {
               name: true,
             },
           },
+          role: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           tenant: {
             select: {
               id: true,

@@ -61,14 +61,22 @@ export async function PUT(req: Request, { params }: Params) {
 
       const allDecisions = await prisma.submissionApprovalDecision.findMany({ where: { submissionId: p.id } });
       const hasRejected = allDecisions.some((d) => d.status === "REJECTED");
-      const allApproved = allDecisions.length > 0 && allDecisions.every((d) => d.status === "APPROVED");
+      const allApproved =
+        existing.submissionType.approverConfigs.length > 0 &&
+        allDecisions.length >= existing.submissionType.approverConfigs.length &&
+        allDecisions.every((d) => d.status === "APPROVED");
 
       const finalStatus = hasRejected ? "REJECTED" : allApproved ? "APPROVED" : "PENDING";
-      const lastApproverId = nextStatus === "APPROVED" || nextStatus === "REJECTED" ? approverUserId : null;
+      const lastApproverId =
+        finalStatus === "APPROVED" || finalStatus === "REJECTED" ? approverUserId : null;
 
       const updated = await prisma.submission.update({
         where: { id: p.id },
-        data: { status: finalStatus, approvedBy: lastApproverId, approvedAt: new Date() },
+        data: {
+          status: finalStatus,
+          approvedBy: lastApproverId,
+          approvedAt: finalStatus === "PENDING" ? null : new Date(),
+        },
       });
 
       return NextResponse.json({ message: "Approval berhasil diproses", data: updated });

@@ -7,7 +7,6 @@ import Link from "next/link";
 import {
   Sun,
   Moon,
-  User,
   ChevronDown,
   KeyRound,
   LogOut,
@@ -111,6 +110,13 @@ export default function DesktopNavbar() {
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    const initials =
+      parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : parts[0]?.slice(0, 2);
+    return initials?.toUpperCase() || "?";
+  };
+
   const getPageTitle = () => {
     const path = pathname.split("/").pop();
     const titles: { [key: string]: string } = {
@@ -119,6 +125,7 @@ export default function DesktopNavbar() {
       submissions: "Pengajuan Ketidakhadiran",
       pettycash: "Petty Cash",
       attendances: "Kehadiran",
+      "task-managements": "Manajemen Tugas",
       payrolls: "Payroll",
       performances: "Penilaian Kinerja",
       roles: "Roles",
@@ -280,8 +287,8 @@ export default function DesktopNavbar() {
                 onClick={() => setDropdownOpen((prev) => !prev)}
                 className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
-                  <User className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs text-white font-bold ring-2 ring-blue-100 dark:ring-blue-900">
+                  {getInitials(user.name)}
                 </div>
                 <div className="text-left hidden xl:block">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">

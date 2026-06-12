@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { BUCKET_AVATARS, deleteFromMinio } from "@/lib/minio";
 
 type Params = {
   params: {
@@ -91,9 +92,19 @@ export async function DELETE(_: Request, { params }: Params) {
 
     const existing = await prisma.attendance.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
-      select: { id: true },
+      select: {
+        id: true,
+        checkInFaceImage: true,
+        checkOutFaceImage: true,
+      },
     });
     if (!existing) return NextResponse.json({ message: "Attendance not found" }, { status: 404 });
+
+    const evidenceUrls = [existing.checkInFaceImage, existing.checkOutFaceImage].filter(
+      (url): url is string => typeof url === "string" && url.includes(BUCKET_AVATARS),
+    );
+
+    await Promise.all(evidenceUrls.map((url) => deleteFromMinio(url)));
 
     await prisma.attendance.delete({
       where: { id: p.id },

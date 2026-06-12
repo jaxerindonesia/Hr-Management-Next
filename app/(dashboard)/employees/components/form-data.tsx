@@ -46,6 +46,7 @@ export default function FormData({
   const [roles, setRoles] = useState<RoleDto[]>([]);
   const [tenants, setTenants] = useState<TenantDto[]>([]);
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
+  const [departmentsLoaded, setDepartmentsLoaded] = useState(false);
   const [rePassword, setRePassword] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentTenantId, setCurrentTenantId] = useState<string>("");
@@ -95,6 +96,8 @@ export default function FormData({
       setDepartments(json.data || []);
     } catch {
       toast.error("Gagal memuat departemen");
+    } finally {
+      setDepartmentsLoaded(true);
     }
   };
 
@@ -223,6 +226,10 @@ export default function FormData({
             tenantId: userTenantId,
           }));
         }
+
+        if (initialData?.id && !userTenantId && initialData.tenantId) {
+          setCurrentTenantId(initialData.tenantId);
+        }
       } catch {
         setIsSuperAdmin(false);
         setCurrentTenantId("");
@@ -231,7 +238,7 @@ export default function FormData({
 
     fetchRoles();
     fetchDepartments();
-  }, [initialData?.id]);
+  }, [initialData?.id, initialData?.tenantId]);
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -249,7 +256,7 @@ export default function FormData({
 
   const selectedTenantId = isSuperAdmin
     ? formData.tenantId || ""
-    : currentTenantId || formData.tenantId || "";
+    : currentTenantId || formData.tenantId || initialData?.tenantId || "";
 
   const filteredDepartments = departments.filter((dept) => {
     if (!selectedTenantId) return false;
@@ -258,6 +265,7 @@ export default function FormData({
 
   useEffect(() => {
     if (!formData.departmentId) return;
+    if (!departmentsLoaded) return;
 
     const isDepartmentStillValid = filteredDepartments.some(
       (dept) => dept.id === formData.departmentId,
@@ -269,7 +277,7 @@ export default function FormData({
         departmentId: "",
       }));
     }
-  }, [filteredDepartments, formData.departmentId]);
+  }, [departmentsLoaded, filteredDepartments, formData.departmentId]);
 
   return (
     <Dialog open onOpenChange={onClose}>

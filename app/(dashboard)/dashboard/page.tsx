@@ -112,9 +112,6 @@ const statusLabel: Record<string, string> = {
   rejected: "Ditolak",
 };
 
-// ──────────────────────────────────
-// Sub-components
-// ──────────────────────────────────
 function StatCard({
   title,
   value,
@@ -148,9 +145,6 @@ function StatCard({
   );
 }
 
-// ──────────────────────────────────
-// Main Page
-// ──────────────────────────────────
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -236,7 +230,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── Header greeting ── */}
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold dark:text-white">
           Selamat datang kembali,{" "}
@@ -261,7 +254,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* ── Stat Cards ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {canViewEmployeeStats && (
           <>
@@ -301,9 +293,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* ── Charts row ── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Attendance Bar Chart — spans 2 cols */}
         <div className="col-span-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:col-span-2">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-blue-500" />

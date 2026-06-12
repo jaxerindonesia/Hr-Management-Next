@@ -11,6 +11,7 @@ export type SessionUser = {
   id: string;
   roleName: string;
   tenantId: string | null;
+  departmentId: string | null;
 };
 
 export async function getSessionUser(): Promise<SessionUser | null> {
@@ -34,6 +35,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       id: user.id,
       roleName: user.role.name,
       tenantId: user.tenantId ?? null,
+      departmentId: user.departmentId ?? null,
     };
   } catch {
     return null;

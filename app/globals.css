@@ -125,6 +125,43 @@
   }
 }
 
+@media print {
+  html,
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #slip-print-area,
+  #slip-print-area * {
+    visibility: visible !important;
+  }
+
+  #slip-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 12mm;
+  }
+}
+
 /* Hide browser native password reveal button (Edge & Chrome) */
 input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear {
@@ -133,6 +170,20 @@ input[type="password"]::-ms-clear {
 
 input[type="password"]::-webkit-credentials-auto-fill-button {
   display: none;
+}
+
+/* Make native date picker controls readable in dark mode */
+input[type="date"] {
+  color-scheme: light;
+}
+
+.dark input[type="date"] {
+  color-scheme: dark;
+}
+
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.85;
 }
 
 /* Login error & entrance animations */
@@ -255,29 +306,25 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   }
 }
 
-/* ===== PRINT STYLES — Slip Gaji ===== */
 @media print {
+  html,
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 
-  /* Hide EVERYTHING on the page using visibility (not display)
-     so nested elements can still be made visible */
   body * {
     visibility: hidden !important;
   }
 
-  /* Show only the slip card and all its children */
-  #slip-print-area,
-  #slip-print-area *,
-
   #reimburse-print-area,
-  #reimburse-print-area *,
-  #temp-print-area,
-  #temp-print-area * {
+  #reimburse-print-area * {
     visibility: visible !important;
   }
 
-  /* Position the slip at the very top-left of the printed page */
-  #slip-print-area,
   #reimburse-print-area,
+  #slip-print-area,
   #temp-print-area {
     position: fixed !important;
     top: 0 !important;
@@ -287,15 +334,6 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
     box-shadow: none !important;
     border-radius: 0 !important;
     overflow: visible !important;
-  }
-
-  /* Fix: white background to prevent dark/black bleed-through */
-  /* Fix: height 0 + overflow hidden to collapse body = no blank page 2 */
-  body,
-  html {
-    background: white !important;
-    height: 0 !important;
-    overflow: hidden !important;
   }
 
   /* Force colors to print correctly */
