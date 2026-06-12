@@ -572,9 +572,11 @@ export default function SubmissionsPage() {
                           ? "Disetujui"
                           : decision?.status === "REJECTED"
                             ? `Ditolak${decision.reason ? `: ${decision.reason}` : ""}`
-                            : cfg
-                              ? "Menunggu"
-                              : "-";
+                            : emp.status === "REJECTED"
+                              ? "Tidak diproses"
+                              : cfg
+                                ? "Menunggu"
+                                : "-";
                       return (
                         <td key={`${emp.id}-${name}`} className="p-3 text-sm dark:text-gray-300">
                           {text}

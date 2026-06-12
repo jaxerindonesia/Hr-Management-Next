@@ -125,6 +125,43 @@
   }
 }
 
+@media print {
+  html,
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #slip-print-area,
+  #slip-print-area * {
+    visibility: visible !important;
+  }
+
+  #slip-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 12mm;
+  }
+}
+
 /* Hide browser native password reveal button (Edge & Chrome) */
 input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear {
@@ -269,8 +306,14 @@ input[type="date"] {
   }
 }
 
-/* ===== PRINT STYLES — Slip Gaji ===== */
 @media print {
+  html,
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   body * {
     visibility: hidden !important;
   }
@@ -291,15 +334,6 @@ input[type="date"] {
     box-shadow: none !important;
     border-radius: 0 !important;
     overflow: visible !important;
-  }
-
-  /* Fix: white background to prevent dark/black bleed-through */
-  /* Fix: height 0 + overflow hidden to collapse body = no blank page 2 */
-  body,
-  html {
-    background: white !important;
-    height: 0 !important;
-    overflow: hidden !important;
   }
 
   /* Force colors to print correctly */

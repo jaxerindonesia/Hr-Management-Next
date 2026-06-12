@@ -20,7 +20,71 @@ export default function SlipGajiModal({ payroll, tenantConfig, onClose }: SlipGa
     const isPaid = payroll.status === "paid";
 
     const handlePrint = () => {
-        window.print();
+        const slip = document.getElementById("slip-print-area");
+        if (!slip) {
+            window.print();
+            return;
+        }
+
+        const printWindow = window.open("", "_blank", "width=1200,height=900");
+        if (!printWindow) {
+            window.print();
+            return;
+        }
+
+        const styles = Array.from(
+            document.querySelectorAll('link[rel="stylesheet"], style'),
+        )
+            .map((el) => el.outerHTML)
+            .join("");
+
+        printWindow.document.open();
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Slip Gaji</title>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              ${styles}
+              <style>
+                html, body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: white !important;
+                }
+                #slip-print-area {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  box-sizing: border-box !important;
+                }
+              </style>
+            </head>
+            <body style="margin:0;padding:0;background:#fff;">
+              ${slip.outerHTML}
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+
+        const doPrint = () => {
+          try {
+            printWindow.focus();
+            printWindow.print();
+            printWindow.onafterprint = () => printWindow.close();
+          } catch {
+            printWindow.close();
+          }
+        };
+
+        const schedulePrint = () => {
+          if (printWindow.document.readyState === "complete") {
+            setTimeout(doPrint, 250);
+            return;
+          }
+          printWindow.onload = () => setTimeout(doPrint, 250);
+        };
+
+        schedulePrint();
     };
 
     return (
@@ -97,13 +161,26 @@ function SlipContent({
     const companyLogo = tenantConfig?.logoUrl || "/logo22.png";
 
     return (
-        <div id="slip-print-area" className="bg-white rounded-xl overflow-hidden border border-gray-200 text-gray-800">
+        <div
+            id="slip-print-area"
+            className="bg-white rounded-xl overflow-hidden border border-gray-200 text-gray-800"
+            style={{ backgroundColor: "#fff", color: "#1f2937" }}
+        >
             {/* ---- Header ---- */}
-            <div className="bg-gradient-to-r from-blue-700 to-blue-500 text-white px-8 py-6">
+            <div
+                className="px-8 py-6 text-white"
+                style={{
+                    background: "linear-gradient(90deg, #1d4ed8 0%, #3b82f6 100%)",
+                }}
+            >
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center">
-                            <img src={companyLogo} alt={`Logo ${companyName}`} />
+                        <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center overflow-hidden">
+                            <img
+                                src={companyLogo}
+                                alt={`Logo ${companyName}`}
+                                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                            />
                         </div>
 
                         <div>

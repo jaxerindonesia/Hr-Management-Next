@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         where: {
           ...(finalTenantId ? { tenantId: finalTenantId } : {}),
           role: {
-            name: { in: ["Admin", "Super Admin"] },
+            name: { not: "Karyawan" },
           },
         },
         select: { id: true },
