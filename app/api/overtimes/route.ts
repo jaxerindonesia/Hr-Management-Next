@@ -42,12 +42,17 @@ export async function POST(req: NextRequest) {
     if (auth.error) return auth.error;
     const scopedTenantId = ensureTenantScope(auth.user);
     const body = await req.json();
+    const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
+    const isAdmin = ["superadmin", "admin"].includes(normalizedRole);
 
     const required = ["userId", "overtimeDate", "startTime", "endTime", "requestedMinutes", "overtimeMinutes", "payMethod", "hourlyRate", "dailyRate", "payoutAmount"];
     for (const key of required) {
       if (body[key] === undefined || body[key] === null || body[key] === "") {
         return NextResponse.json({ message: `${key} is required` }, { status: 400 });
       }
+    }
+    if (!isAdmin && body.userId !== auth.user.id) {
+      return NextResponse.json({ message: "Anda hanya bisa mengajukan lembur untuk diri sendiri" }, { status: 403 });
     }
 
     const overtime = await prisma.overtime.create({
@@ -65,7 +70,7 @@ export async function POST(req: NextRequest) {
         hourlyRate: Number(body.hourlyRate),
         dailyRate: Number(body.dailyRate),
         payoutAmount: Number(body.payoutAmount),
-        status: body.status || "PENDING",
+        status: "PENDING",
       },
       include: {
         user: { select: { id: true, name: true } },

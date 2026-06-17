@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 
 const JAKARTA_UTC_OFFSET_HOURS = 7;
@@ -131,7 +132,7 @@ export async function GET(req: NextRequest) {
             data: {
               checkOut: autoCheckoutTime,
               autoCheckout: true,
-              checkOutLocation: null,
+              checkOutLocation: Prisma.JsonNull,
               checkOutFaceImage: null,
               workHours: attendance.checkIn
                 ? (() => {

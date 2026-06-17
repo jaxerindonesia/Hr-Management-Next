@@ -11,6 +11,7 @@ import {
   CheckCircle,
   XCircle,
   Edit,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AttendanceDto } from "@/lib/dto/attendance";
 import { OvertimeConfigDto, OvertimeDto } from "@/lib/dto/overtime";
 import { formatCurrency } from "@/lib/helper/format-currency";
 
@@ -67,12 +69,18 @@ export default function OvertimesPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
   const [editingItem, setEditingItem] = useState<OvertimeDto | null>(null);
   const [userData, setUserData] = useState({ id: "", role: "" });
   const [config, setConfig] = useState<OvertimeConfigDto>(DEFAULT_CONFIG);
   const [description, setDescription] = useState("");
+  const [requestDescription, setRequestDescription] = useState("");
+  const [selectedAttendanceId, setSelectedAttendanceId] = useState("");
+  const [attendanceOptions, setAttendanceOptions] = useState<AttendanceDto[]>([]);
+  const [requestLoading, setRequestLoading] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+  const isAdmin = ["Super Admin", "Admin"].includes(userData.role);
   const activeFilterCount = useMemo(
     () => [searchQuery !== "", filterStatus !== "all"].filter(Boolean).length,
     [searchQuery, filterStatus],
@@ -144,6 +152,53 @@ export default function OvertimesPage() {
     setShowEditModal(true);
   };
 
+  const handleOpenRequest = async () => {
+    try {
+      if (!userData.id) return;
+      setRequestLoading(true);
+      const res = await fetch("/api/overtimes/request-options");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || "Gagal memuat data kehadiran");
+      const options = json.data || [];
+      setAttendanceOptions(options);
+      setSelectedAttendanceId(options[0]?.id || "");
+      setRequestDescription("");
+      setShowRequestModal(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat data kehadiran untuk pengajuan lembur");
+    } finally {
+      setRequestLoading(false);
+    }
+  };
+
+  const handleSubmitRequest = async () => {
+    try {
+      if (!selectedAttendanceId) {
+        toast.error("Pilih data kehadiran terlebih dahulu");
+        return;
+      }
+
+      const res = await fetch("/api/overtimes/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          attendanceId: selectedAttendanceId,
+          description: requestDescription,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || "Gagal mengajukan lembur");
+
+      toast.success("Pengajuan lembur dikirim dan menunggu approval atasan");
+      setShowRequestModal(false);
+      setSelectedAttendanceId("");
+      setRequestDescription("");
+      loadData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengajukan lembur");
+    }
+  };
+
   const handleSaveEdit = async () => {
     try {
       if (!editingItem?.id) return;
@@ -200,13 +255,26 @@ export default function OvertimesPage() {
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-            <Button
-              onClick={() => setShowConfigModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-              Konfigurasi Tarif Lembur
-            </Button>
+            {!isAdmin && userData.id && (
+              <Button
+                onClick={handleOpenRequest}
+                disabled={requestLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Tambah
+              </Button>
+            )}
+
+            {isAdmin && (
+              <Button
+                onClick={() => setShowConfigModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <Settings className="w-4 h-4" />
+                Konfigurasi Tarif Lembur
+              </Button>
+            )}
 
             <div className="flex-1"></div>
 
@@ -343,7 +411,7 @@ export default function OvertimesPage() {
                               <Edit className="w-4 h-4" />
                             </button>
                           )}
-                          {["Super Admin", "Admin"].includes(userData.role) && item.status === "PENDING" && (
+                          {isAdmin && item.status === "PENDING" && (
                             <>
                               <Button size="icon" variant="ghost" onClick={() => handleApprove(item.id || "")}>
                                 <CheckCircle className="w-4 h-4 text-green-600" />
@@ -533,6 +601,61 @@ export default function OvertimesPage() {
           </div>
           <div className="mt-4 flex justify-end">
             <Button onClick={handleSaveConfig}>Simpan Konfigurasi</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRequestModal} onOpenChange={setShowRequestModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Ajukan Lembur</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Data Kehadiran</Label>
+              <Select value={selectedAttendanceId} onValueChange={setSelectedAttendanceId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih tanggal kehadiran" />
+                </SelectTrigger>
+                <SelectContent>
+                  {attendanceOptions.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {new Date(item.date).toLocaleDateString("id-ID", {
+                        weekday: "short",
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}{" "}
+                      - {item.checkIn ? new Date(item.checkIn).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}
+                      {" / "}
+                      {item.checkOut ? new Date(item.checkOut).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {attendanceOptions.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Belum ada data kehadiran yang sudah check out untuk diajukan lembur.
+                </p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label>Keterangan</Label>
+              <Textarea
+                value={requestDescription}
+                onChange={(e) => setRequestDescription(e.target.value)}
+                placeholder="Tuliskan alasan lembur"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowRequestModal(false)}>
+              <X className="mr-2 h-4 w-4" />
+              Batal
+            </Button>
+            <Button onClick={handleSubmitRequest} disabled={!selectedAttendanceId}>
+              Ajukan
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

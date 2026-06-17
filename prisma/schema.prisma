@@ -91,6 +91,7 @@ model User {
   birthPlace                  String?                      @map("birth_place")
   gender                      String?
   attendances                 Attendance[]
+  overtimes                   Overtime[]
   payrolls                    Payroll[]
   performances                Performance[]
   pettyCashes                 PettyCash[]
@@ -210,6 +211,7 @@ model Attendance {
   checkInFaceImage  String?   @map("check_in_face_image")
   checkOutFaceImage String?   @map("check_out_face_image")
   tenantId          String?   @map("tenant_id") @db.Uuid
+  overtime          Overtime?
   tenant            Tenant?   @relation(fields: [tenantId], references: [id])
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -38,16 +38,27 @@ export async function PUT(req: Request, { params }: Params) {
     if (!existing) return NextResponse.json({ message: "Overtime not found" }, { status: 404 });
 
     const body = await req.json();
+    const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
+    const isAdmin = ["superadmin", "admin"].includes(normalizedRole);
+    if (!isAdmin && existing.userId !== auth.user.id) {
+      return NextResponse.json({ message: "Anda tidak memiliki akses ke overtime ini" }, { status: 403 });
+    }
     const updateData: any = {};
-    if (body.description !== undefined) updateData.description = body.description;
-    if (body.status !== undefined) updateData.status = body.status;
-    if (body.rejectReason !== undefined) updateData.rejectReason = body.rejectReason;
-    if (body.payMethod !== undefined) updateData.payMethod = body.payMethod;
-    if (body.hourlyRate !== undefined) updateData.hourlyRate = Number(body.hourlyRate);
-    if (body.dailyRate !== undefined) updateData.dailyRate = Number(body.dailyRate);
-    if (body.payoutAmount !== undefined) updateData.payoutAmount = Number(body.payoutAmount);
+    if (body.description !== undefined) {
+      if (!isAdmin && existing.status !== "PENDING") {
+        return NextResponse.json({ message: "Keterangan hanya bisa diubah saat overtime masih menunggu approval" }, { status: 400 });
+      }
+      updateData.description = body.description;
+    }
+    if (isAdmin && body.status !== undefined) updateData.status = body.status;
+    if (isAdmin && body.rejectReason !== undefined) updateData.rejectReason = body.rejectReason;
+    if (isAdmin && body.payMethod !== undefined) updateData.payMethod = body.payMethod;
+    if (isAdmin && body.hourlyRate !== undefined) updateData.hourlyRate = Number(body.hourlyRate);
+    if (isAdmin && body.dailyRate !== undefined) updateData.dailyRate = Number(body.dailyRate);
+    if (isAdmin && body.payoutAmount !== undefined) updateData.payoutAmount = Number(body.payoutAmount);
 
     if (body.approvalAction) {
+      if (!isAdmin) return NextResponse.json({ message: "Anda tidak memiliki akses approval overtime" }, { status: 403 });
       const action = String(body.approvalAction).toUpperCase();
       updateData.status = action === "APPROVE" ? "APPROVED" : "REJECTED";
       updateData.approvedBy = auth.user.id;
