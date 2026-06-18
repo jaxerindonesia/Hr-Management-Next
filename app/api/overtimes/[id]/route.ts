@@ -18,6 +18,10 @@ export async function GET(_: Request, { params }: Params) {
       include: {
         user: { select: { id: true, name: true } },
         attendance: { select: { id: true, date: true, checkIn: true, checkOut: true } },
+        approvalDecisions: {
+          include: { approverUser: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 
@@ -34,13 +38,17 @@ export async function PUT(req: Request, { params }: Params) {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
     const scopedTenantId = ensureTenantScope(auth.user);
-    const existing = await prisma.overtime.findFirst({ where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) } });
+    const existing = await prisma.overtime.findFirst({
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      include: { approvalDecisions: true },
+    });
     if (!existing) return NextResponse.json({ message: "Overtime not found" }, { status: 404 });
 
     const body = await req.json();
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
     const isAdmin = ["superadmin", "admin"].includes(normalizedRole);
-    if (!isAdmin && existing.userId !== auth.user.id) {
+    const isApprover = existing.approvalDecisions.some((decision) => decision.approverUserId === auth.user.id);
+    if (!isAdmin && existing.userId !== auth.user.id && !isApprover) {
       return NextResponse.json({ message: "Anda tidak memiliki akses ke overtime ini" }, { status: 403 });
     }
     const updateData: any = {};
@@ -58,15 +66,36 @@ export async function PUT(req: Request, { params }: Params) {
     if (isAdmin && body.payoutAmount !== undefined) updateData.payoutAmount = Number(body.payoutAmount);
 
     if (body.approvalAction) {
-      if (!isAdmin) return NextResponse.json({ message: "Anda tidak memiliki akses approval overtime" }, { status: 403 });
+      const approverUserId = auth.user.id;
+      if (!isApprover) return NextResponse.json({ message: "Anda tidak memiliki akses approval overtime" }, { status: 403 });
       const action = String(body.approvalAction).toUpperCase();
-      updateData.status = action === "APPROVE" ? "APPROVED" : "REJECTED";
-      updateData.approvedBy = auth.user.id;
-      updateData.approvedAt = new Date();
-      updateData.rejectReason = updateData.status === "REJECTED" ? String(body.rejectionReason || "").trim() : null;
-      if (updateData.status === "REJECTED" && !updateData.rejectReason) {
+      const nextStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
+      const rejectReason = nextStatus === "REJECTED" ? String(body.rejectionReason || "").trim() : null;
+      if (nextStatus === "REJECTED" && !rejectReason) {
         return NextResponse.json({ message: "Alasan penolakan wajib diisi" }, { status: 400 });
       }
+
+      await prisma.overtimeApprovalDecision.upsert({
+        where: { overtimeId_approverUserId: { overtimeId: p.id, approverUserId } },
+        create: { overtimeId: p.id, approverUserId, status: nextStatus, reason: rejectReason, decidedAt: new Date() },
+        update: { status: nextStatus, reason: rejectReason, decidedAt: new Date() },
+      });
+
+      const allDecisions = await prisma.overtimeApprovalDecision.findMany({ where: { overtimeId: p.id } });
+      const hasRejected = allDecisions.some((decision) => decision.status === "REJECTED");
+      const allApproved = allDecisions.length > 0 && allDecisions.every((decision) => decision.status === "APPROVED");
+      const finalStatus = hasRejected ? "REJECTED" : allApproved ? "APPROVED" : "PENDING";
+
+      const updated = await prisma.overtime.update({
+        where: { id: p.id },
+        data: {
+          status: finalStatus,
+          approvedBy: approverUserId,
+          approvedAt: new Date(),
+          rejectReason: hasRejected ? rejectReason : null,
+        },
+      });
+      return NextResponse.json({ message: "Approval overtime berhasil diproses", data: updated });
     }
 
     const updated = await prisma.overtime.update({ where: { id: p.id }, data: updateData });
@@ -82,6 +111,12 @@ export async function DELETE(_: Request, { params }: Params) {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
     const scopedTenantId = ensureTenantScope(auth.user);
+    const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
+    const isAdmin = ["superadmin", "admin"].includes(normalizedRole);
+
+    if (!isAdmin) {
+      return NextResponse.json({ message: "Anda tidak memiliki akses menghapus overtime" }, { status: 403 });
+    }
 
     const existing = await prisma.overtime.findFirst({ where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) }, select: { id: true } });
     if (!existing) return NextResponse.json({ message: "Overtime not found" }, { status: 404 });

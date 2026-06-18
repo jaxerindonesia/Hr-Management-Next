@@ -12,12 +12,18 @@ import {
   XCircle,
   Edit,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -31,7 +37,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AttendanceDto } from "@/lib/dto/attendance";
 import { OvertimeConfigDto, OvertimeDto } from "@/lib/dto/overtime";
 import { formatCurrency } from "@/lib/helper/format-currency";
 
@@ -53,7 +58,6 @@ const DEFAULT_CONFIG: OvertimeConfigDto = {
   payMethod: "PER_HOUR",
   hourlyRate: 0,
   dailyRate: 0,
-  overtimeBuffer: 60,
 };
 
 function formatNumberInput(value: number | string | null | undefined) {
@@ -75,9 +79,16 @@ export default function OvertimesPage() {
   const [config, setConfig] = useState<OvertimeConfigDto>(DEFAULT_CONFIG);
   const [description, setDescription] = useState("");
   const [requestDescription, setRequestDescription] = useState("");
-  const [selectedAttendanceId, setSelectedAttendanceId] = useState("");
-  const [attendanceOptions, setAttendanceOptions] = useState<AttendanceDto[]>([]);
+  const [requestDate, setRequestDate] = useState("");
+  const [requestStartTime, setRequestStartTime] = useState("");
+  const [requestEndTime, setRequestEndTime] = useState("");
   const [requestLoading, setRequestLoading] = useState(false);
+  const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [approverUserIds, setApproverUserIds] = useState<string[]>([]);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedRejectId, setSelectedRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
   const isAdmin = ["Super Admin", "Admin"].includes(userData.role);
@@ -85,6 +96,25 @@ export default function OvertimesPage() {
     () => [searchQuery !== "", filterStatus !== "all"].filter(Boolean).length,
     [searchQuery, filterStatus],
   );
+  const approverColumns = useMemo(() => {
+    const map = new Map<string, string>();
+
+    (config.approverConfigs || []).forEach((cfg) => {
+      if (cfg.approverUserId) {
+        map.set(cfg.approverUserId, cfg.approverUser?.name || "Approver");
+      }
+    });
+
+    items.forEach((item) => {
+      (item.approvalDecisions || []).forEach((decision) => {
+        if (decision.approverUserId) {
+          map.set(decision.approverUserId, decision.approverUser?.name || "Approver");
+        }
+      });
+    });
+
+    return Array.from(map, ([id, name]) => ({ id, name }));
+  }, [config.approverConfigs, items]);
 
   const loadData = async () => {
     try {
@@ -104,7 +134,9 @@ export default function OvertimesPage() {
 
       setItems(overtimeJson.data || []);
       setTotal(overtimeJson.total || 0);
-      setConfig(configJson.data || DEFAULT_CONFIG);
+      const nextConfig = configJson.data || DEFAULT_CONFIG;
+      setConfig(nextConfig);
+      setApproverUserIds((nextConfig.approverConfigs || []).map((cfg: { approverUserId: string }) => cfg.approverUserId));
     } catch {
       toast.error("Gagal memuat data overtime");
     }
@@ -135,7 +167,12 @@ export default function OvertimesPage() {
       const res = await fetch("/api/overtime-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify({
+          payMethod: config.payMethod,
+          hourlyRate: config.hourlyRate,
+          dailyRate: config.dailyRate,
+          approverUserIds,
+        }),
       });
       if (!res.ok) throw new Error();
       toast.success("Konfigurasi tarif lembur tersimpan");
@@ -152,37 +189,39 @@ export default function OvertimesPage() {
     setShowEditModal(true);
   };
 
-  const handleOpenRequest = async () => {
-    try {
-      if (!userData.id) return;
-      setRequestLoading(true);
-      const res = await fetch("/api/overtimes/request-options");
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || "Gagal memuat data kehadiran");
-      const options = json.data || [];
-      setAttendanceOptions(options);
-      setSelectedAttendanceId(options[0]?.id || "");
-      setRequestDescription("");
-      setShowRequestModal(true);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal memuat data kehadiran untuk pengajuan lembur");
-    } finally {
-      setRequestLoading(false);
-    }
+  const handleAddApprover = (userId: string) => {
+    if (!userId) return;
+    setApproverUserIds((prev) => (prev.includes(userId) ? prev : [...prev, userId]));
+  };
+
+  const handleRemoveApprover = (userId: string) => {
+    setApproverUserIds((prev) => prev.filter((id) => id !== userId));
+  };
+
+  const handleOpenRequest = () => {
+    const today = new Date().toISOString().split("T")[0];
+    setRequestDate(today);
+    setRequestStartTime("");
+    setRequestEndTime("");
+    setRequestDescription("");
+    setShowRequestModal(true);
   };
 
   const handleSubmitRequest = async () => {
     try {
-      if (!selectedAttendanceId) {
-        toast.error("Pilih data kehadiran terlebih dahulu");
+      if (!requestDate || !requestStartTime || !requestEndTime) {
+        toast.error("Tanggal, jam mulai, dan jam selesai wajib diisi");
         return;
       }
 
+      setRequestLoading(true);
       const res = await fetch("/api/overtimes/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          attendanceId: selectedAttendanceId,
+          overtimeDate: requestDate,
+          startTime: requestStartTime,
+          endTime: requestEndTime,
           description: requestDescription,
         }),
       });
@@ -191,11 +230,15 @@ export default function OvertimesPage() {
 
       toast.success("Pengajuan lembur dikirim dan menunggu approval atasan");
       setShowRequestModal(false);
-      setSelectedAttendanceId("");
+      setRequestDate("");
+      setRequestStartTime("");
+      setRequestEndTime("");
       setRequestDescription("");
       loadData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal mengajukan lembur");
+    } finally {
+      setRequestLoading(false);
     }
   };
 
@@ -218,6 +261,20 @@ export default function OvertimesPage() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/overtimes/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Overtime berhasil dihapus");
+      setOpenPopoverId(null);
+      loadData();
+    } catch {
+      toast.error("Gagal menghapus overtime");
+    }
+  };
+
   const handleApprove = async (id: string) => {
     try {
       const res = await fetch(`/api/overtimes/${id}`, {
@@ -233,14 +290,20 @@ export default function OvertimesPage() {
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleReject = async (id: string, rejectionReason: string) => {
+    if (!rejectionReason.trim()) {
+      toast.error("Alasan penolakan wajib diisi");
+      return;
+    }
+
     try {
-      const reason = window.prompt("Masukkan alasan penolakan");
-      if (!reason) return;
       const res = await fetch(`/api/overtimes/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approvalAction: "REJECT", rejectionReason: reason }),
+        body: JSON.stringify({
+          approvalAction: "REJECT",
+          rejectionReason: rejectionReason.trim(),
+        }),
       });
       if (!res.ok) throw new Error();
       toast.success("Overtime ditolak");
@@ -249,6 +312,31 @@ export default function OvertimesPage() {
       toast.error("Gagal menolak overtime");
     }
   };
+
+  const openRejectDialog = (id: string) => {
+    setSelectedRejectId(id);
+    setRejectReason("");
+    setRejectDialogOpen(true);
+  };
+
+  const getApproverDecision = (item: OvertimeDto) =>
+    (item.approvalDecisions || []).find((decision) => decision.approverUserId === userData.id);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/users?limit=9999")
+      .then((res) => res.json())
+      .then((json) =>
+        setUsers(
+          (json.data || []).map((user: { id: string; name: string; email: string }) => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          })),
+        ),
+      )
+      .catch(() => setUsers([]));
+  }, [isAdmin]);
 
   return (
     <>
@@ -368,6 +456,17 @@ export default function OvertimesPage() {
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Keterangan
                   </th>
+                  {approverColumns.length > 0 ? (
+                    approverColumns.map((approver) => (
+                      <th key={approver.id} className="text-left p-3 font-semibold dark:text-gray-300">
+                        Approval {approver.name}
+                      </th>
+                    ))
+                  ) : (
+                    <th className="text-left p-3 font-semibold dark:text-gray-300">
+                      Approval
+                    </th>
+                  )}
                   <th className="text-right p-3 font-semibold dark:text-gray-300">
                     Aksi
                   </th>
@@ -400,9 +499,27 @@ export default function OvertimesPage() {
                       <td className="p-3 dark:text-gray-300 max-w-[280px] truncate">
                         {item.description || "-"}
                       </td>
+                      {approverColumns.length > 0 ? (
+                        approverColumns.map((approver) => {
+                          const decision = (item.approvalDecisions || []).find(
+                            (itemDecision) => itemDecision.approverUserId === approver.id,
+                          );
+                          const text = decision
+                            ? `${STATUS_LABEL[decision.status] || decision.status}${decision.status === "REJECTED" && decision.reason ? `: ${decision.reason}` : ""}`
+                            : "-";
+
+                          return (
+                            <td key={`${item.id}-${approver.id}`} className="p-3 text-sm dark:text-gray-300">
+                              {text}
+                            </td>
+                          );
+                        })
+                      ) : (
+                        <td className="p-3 text-sm text-gray-400">Belum ada approver</td>
+                      )}
                       <td className="p-3 text-right">
                         <div className="flex justify-end gap-2">
-                          {item.status === "PENDING" && (
+                          {item.status === "PENDING" && item.userId === userData.id && (
                             <button
                               onClick={() => handleOpenEdit(item)}
                               title="Edit Keterangan"
@@ -411,15 +528,51 @@ export default function OvertimesPage() {
                               <Edit className="w-4 h-4" />
                             </button>
                           )}
-                          {isAdmin && item.status === "PENDING" && (
+                          {item.status === "PENDING" && getApproverDecision(item)?.status === "PENDING" && (
                             <>
                               <Button size="icon" variant="ghost" onClick={() => handleApprove(item.id || "")}>
                                 <CheckCircle className="w-4 h-4 text-green-600" />
                               </Button>
-                              <Button size="icon" variant="ghost" onClick={() => handleReject(item.id || "")}>
+                              <Button size="icon" variant="ghost" onClick={() => openRejectDialog(item.id || "")}>
                                 <XCircle className="w-4 h-4 text-red-600" />
                               </Button>
                             </>
+                          )}
+                          {isAdmin && (
+                            <Popover
+                              open={openPopoverId === item.id}
+                              onOpenChange={(isOpen) => setOpenPopoverId(isOpen ? item.id || null : null)}
+                            >
+                              <PopoverTrigger asChild>
+                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </PopoverTrigger>
+
+                              <PopoverContent className="w-56 space-y-3">
+                                <p className="text-sm">
+                                  Yakin ingin menghapus overtime ini?
+                                </p>
+
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setOpenPopoverId(null)}
+                                  >
+                                    Batal
+                                  </Button>
+
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDelete(item.id || "")}
+                                  >
+                                    Hapus
+                                  </Button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           )}
                         </div>
                       </td>
@@ -428,7 +581,7 @@ export default function OvertimesPage() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={7 + Math.max(1, approverColumns.length)}
                       className="p-8 text-center text-gray-500 dark:text-gray-400"
                     >
                       Belum ada overtime.
@@ -522,22 +675,56 @@ export default function OvertimesPage() {
           </DialogHeader>
           <div className="grid gap-5 py-2 md:grid-cols-1 md:items-start">
             <div className="grid gap-2">
-              <Label>Buffer Menit</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={formatNumberInput(config.overtimeBuffer)}
-                onChange={(e) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    overtimeBuffer: Number(e.target.value.replace(/\D/g, "")) || 0,
-                  }))
-                }
-                disabled={config.payMethod === "PER_DAY"}
-              />
+              <Label>Pemberi Persetujuan</Label>
               <p className="text-xs text-muted-foreground">
-                Buffer ini hanya dipakai pada hari kerja normal sebagai toleransi setelah jam pulang.
+                Pilih satu atau beberapa approver. Semua approver harus menyetujui agar lembur menjadi disetujui.
               </p>
+              <select
+                defaultValue=""
+                onChange={(e) => {
+                  handleAddApprover(e.target.value);
+                  e.currentTarget.value = "";
+                }}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+              >
+                <option value="">Pilih approver...</option>
+                {users
+                  .filter((user) => !approverUserIds.includes(user.id))
+                  .map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.email})
+                    </option>
+                  ))}
+              </select>
+              <div className="flex flex-wrap gap-2">
+                {approverUserIds.map((id) => {
+                  const user = users.find((item) => item.id === id);
+                  const configUser = config.approverConfigs?.find((cfg) => cfg.approverUserId === id)?.approverUser;
+                  const name = user?.name || configUser?.name || "Approver";
+                  const email = user?.email || configUser?.email || "";
+                  return (
+                    <span
+                      key={id}
+                      className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                    >
+                      {name}{email ? ` (${email})` : ""}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveApprover(id)}
+                        className="hover:text-blue-900 dark:hover:text-blue-100"
+                        aria-label={`Hapus ${name}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+                {approverUserIds.length === 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    Jika kosong, sistem akan memakai Admin/Super Admin sebagai approver.
+                  </span>
+                )}
+              </div>
             </div>
             <hr className="my-2 border-gray-200 dark:border-gray-700" />
             <div className="grid gap-2">
@@ -612,32 +799,30 @@ export default function OvertimesPage() {
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label>Data Kehadiran</Label>
-              <Select value={selectedAttendanceId} onValueChange={setSelectedAttendanceId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Pilih tanggal kehadiran" />
-                </SelectTrigger>
-                <SelectContent>
-                  {attendanceOptions.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {new Date(item.date).toLocaleDateString("id-ID", {
-                        weekday: "short",
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}{" "}
-                      - {item.checkIn ? new Date(item.checkIn).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}
-                      {" / "}
-                      {item.checkOut ? new Date(item.checkOut).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {attendanceOptions.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Belum ada data kehadiran yang sudah check out untuk diajukan lembur.
-                </p>
-              )}
+              <Label>Tanggal Lembur</Label>
+              <Input
+                type="date"
+                value={requestDate}
+                onChange={(e) => setRequestDate(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Jam Mulai</Label>
+                <Input
+                  type="time"
+                  value={requestStartTime}
+                  onChange={(e) => setRequestStartTime(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Jam Selesai</Label>
+                <Input
+                  type="time"
+                  value={requestEndTime}
+                  onChange={(e) => setRequestEndTime(e.target.value)}
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label>Keterangan</Label>
@@ -653,7 +838,10 @@ export default function OvertimesPage() {
               <X className="mr-2 h-4 w-4" />
               Batal
             </Button>
-            <Button onClick={handleSubmitRequest} disabled={!selectedAttendanceId}>
+            <Button
+              onClick={handleSubmitRequest}
+              disabled={requestLoading || !requestDate || !requestStartTime || !requestEndTime}
+            >
               Ajukan
             </Button>
           </div>
@@ -681,6 +869,37 @@ export default function OvertimesPage() {
               Batal
             </Button>
             <Button onClick={handleSaveEdit}>Simpan</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alasan Penolakan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Tulis alasan penolakan..."
+              rows={4}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+                Batal
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (!selectedRejectId) return;
+                  await handleReject(selectedRejectId, rejectReason);
+                  setRejectDialogOpen(false);
+                }}
+              >
+                Tolak Pengajuan
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

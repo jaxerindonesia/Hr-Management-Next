@@ -4,42 +4,18 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
-const DEFAULT_ATTENDANCE_CONFIG = {
-  officeEndTime: "17:00",
-  workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-};
-
 const DEFAULT_OVERTIME_CONFIG = {
   payMethod: "PER_HOUR",
   hourlyRate: 0,
   dailyRate: 0,
-  overtimeBuffer: 60,
 };
-
-const WEEKDAY_MAP = [
-  "SUNDAY",
-  "MONDAY",
-  "TUESDAY",
-  "WEDNESDAY",
-  "THURSDAY",
-  "FRIDAY",
-  "SATURDAY",
-] as const;
-
-function getDateAtTime(baseDate: Date, hhmm: string) {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date(baseDate);
-  d.setHours(h || 0, m || 0, 0, 0);
-  return d;
-}
 
 function getDurationMinutes(start: Date, end: Date) {
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / (1000 * 60)));
 }
 
-function getJakartaWeekday(date: Date) {
-  const shifted = new Date(date.getTime() + 7 * 60 * 60 * 1000);
-  return WEEKDAY_MAP[shifted.getUTCDay()];
+function buildDateTime(date: string, time: string) {
+  return new Date(`${date}T${time}:00`);
 }
 
 export async function POST(req: NextRequest) {
@@ -48,71 +24,54 @@ export async function POST(req: NextRequest) {
     if (auth.error) return auth.error;
 
     const body = await req.json();
-    const attendanceId = String(body.attendanceId || "");
-    if (!attendanceId) {
-      return NextResponse.json({ message: "Attendance wajib dipilih" }, { status: 400 });
-    }
+    const overtimeDate = String(body.overtimeDate || "");
+    const start = String(body.startTime || "");
+    const end = String(body.endTime || "");
 
     const scopedTenantId = ensureTenantScope(auth.user);
-    const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
-    const isAdmin = ["superadmin", "admin"].includes(normalizedRole);
 
-    const attendance = await prisma.attendance.findFirst({
-      where: {
-        id: attendanceId,
-        ...(scopedTenantId ? { tenantId: scopedTenantId } : {}),
-        ...(isAdmin ? {} : { userId: auth.user.id }),
-      },
-      select: {
-        id: true,
-        tenantId: true,
-        userId: true,
-        checkIn: true,
-        checkOut: true,
-        notes: true,
-      },
-    });
-
-    if (!attendance) {
-      return NextResponse.json({ message: "Data kehadiran tidak ditemukan" }, { status: 404 });
-    }
-    if (!attendance.checkIn || !attendance.checkOut) {
-      return NextResponse.json({ message: "Lembur hanya bisa diajukan setelah check out" }, { status: 400 });
+    if (!overtimeDate || !start || !end) {
+      return NextResponse.json({ message: "Tanggal, jam mulai, dan jam selesai wajib diisi" }, { status: 400 });
     }
 
-    const existing = await prisma.overtime.findUnique({
-      where: { attendanceId },
-      select: { id: true, status: true },
-    });
-    if (existing) {
-      return NextResponse.json({ message: `Lembur untuk attendance ini sudah diajukan (${existing.status})` }, { status: 409 });
-    }
-
-    const finalTenantId = attendance.tenantId ?? scopedTenantId ?? null;
-    const attendanceCfg =
-      (await prisma.attendanceConfig.findFirst({
-        where: finalTenantId ? { tenantId: finalTenantId } : {},
-        orderBy: { updatedAt: "desc" },
-      })) ?? DEFAULT_ATTENDANCE_CONFIG;
+    const finalTenantId = scopedTenantId ?? null;
     const overtimeCfg =
       (await prisma.overtimeConfig.findFirst({
         where: finalTenantId ? { tenantId: finalTenantId } : {},
         orderBy: { updatedAt: "desc" },
       })) ?? DEFAULT_OVERTIME_CONFIG;
+    const approverConfigs = await prisma.overtimeApproverConfig.findMany({
+      where: finalTenantId ? { tenantId: finalTenantId } : { tenantId: null },
+      select: { approverUserId: true },
+    });
+    let approverUserIds = approverConfigs.map((cfg) => cfg.approverUserId);
+    if (approverUserIds.length === 0) {
+      const defaultApprovers = await prisma.user.findMany({
+        where: {
+          ...(finalTenantId ? { tenantId: finalTenantId } : {}),
+          role: { name: { in: ["Admin", "Super Admin"] } },
+        },
+        select: { id: true },
+      });
+      approverUserIds = defaultApprovers.map((u) => u.id);
+    }
+    if (approverUserIds.length === 0) {
+      return NextResponse.json({ message: "Belum ada approver lembur yang dikonfigurasi" }, { status: 400 });
+    }
 
-    const checkIn = new Date(attendance.checkIn);
-    const checkOut = new Date(attendance.checkOut);
-    const officeEnd = getDateAtTime(checkOut, attendanceCfg.officeEndTime);
-    const isWorkingDay = (attendanceCfg.workingDays || []).includes(getJakartaWeekday(checkOut));
-    const startTime = isWorkingDay
-      ? new Date(officeEnd.getTime() + Number(overtimeCfg.overtimeBuffer || 0) * 60 * 1000)
-      : checkIn;
-    const overtimeMinutes = isWorkingDay
-      ? getDurationMinutes(startTime, checkOut)
-      : getDurationMinutes(checkIn, checkOut);
+    const startTime = buildDateTime(overtimeDate, start);
+    let endTime = buildDateTime(overtimeDate, end);
+    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
+      return NextResponse.json({ message: "Format tanggal atau jam tidak valid" }, { status: 400 });
+    }
+    if (endTime <= startTime) {
+      endTime = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+    }
+
+    const overtimeMinutes = getDurationMinutes(startTime, endTime);
 
     if (overtimeMinutes <= 0) {
-      return NextResponse.json({ message: "Tidak ada durasi lembur yang bisa diajukan" }, { status: 400 });
+      return NextResponse.json({ message: "Durasi lembur harus lebih dari 0 menit" }, { status: 400 });
     }
 
     const payoutAmount =
@@ -123,28 +82,43 @@ export async function POST(req: NextRequest) {
     const overtime = await prisma.overtime.create({
       data: {
         tenantId: finalTenantId,
-        userId: attendance.userId,
-        attendanceId: attendance.id,
-        overtimeDate: checkOut,
+        userId: auth.user.id,
+        attendanceId: null,
+        overtimeDate: startTime,
         startTime,
-        endTime: checkOut,
+        endTime,
         overtimeMinutes,
         requestedMinutes: overtimeMinutes,
-        description: String(body.description || attendance.notes || "").trim() || null,
+        description: String(body.description || "").trim() || null,
         payMethod: overtimeCfg.payMethod,
         hourlyRate: Number(overtimeCfg.hourlyRate || 0),
         dailyRate: Number(overtimeCfg.dailyRate || 0),
         payoutAmount,
         status: "PENDING",
+        approvalDecisions: {
+          createMany: {
+            data: approverUserIds.map((approverUserId) => ({ approverUserId, status: "PENDING" })),
+          },
+        },
       },
       include: {
         user: { select: { id: true, name: true } },
         attendance: { select: { id: true, date: true, checkIn: true, checkOut: true } },
+        approvalDecisions: true,
       },
     });
 
     return NextResponse.json({ message: "Pengajuan lembur berhasil dibuat", data: overtime }, { status: 201 });
-  } catch {
-    return NextResponse.json({ message: "Gagal mengajukan lembur" }, { status: 500 });
+  } catch (error) {
+    console.error("CREATE OVERTIME REQUEST ERROR:", error);
+    return NextResponse.json(
+      {
+        message:
+          error instanceof Error
+            ? error.message
+            : "Gagal mengajukan lembur",
+      },
+      { status: 500 },
+    );
   }
 }

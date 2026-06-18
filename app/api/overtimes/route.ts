@@ -15,7 +15,12 @@ export async function GET(req: NextRequest) {
     const where: any = {};
     if (scopedTenantId) where.tenantId = scopedTenantId;
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
-    if (!["superadmin", "admin"].includes(normalizedRole)) where.userId = auth.user.id;
+    if (!["superadmin", "admin"].includes(normalizedRole)) {
+      where.OR = [
+        { userId: auth.user.id },
+        { approvalDecisions: { some: { approverUserId: auth.user.id } } },
+      ];
+    }
     if (status) where.status = status;
 
     const [overtimes, total] = await Promise.all([
@@ -25,6 +30,10 @@ export async function GET(req: NextRequest) {
         include: {
           user: { select: { id: true, name: true } },
           attendance: { select: { id: true, date: true, checkIn: true, checkOut: true } },
+          approvalDecisions: {
+            include: { approverUser: { select: { id: true, name: true } } },
+            orderBy: { createdAt: "asc" },
+          },
         },
       }),
       prisma.overtime.count({ where }),

@@ -20,6 +20,7 @@ model Tenant {
   attendanceConfigs AttendanceConfig[]
   attendances       Attendance[]
   overtimeConfigs   OvertimeConfig[]
+  overtimeApproverConfigs OvertimeApproverConfig[]
   overtimes         Overtime[]
   departments       Department[]
   leaveConfigs      LeaveConfig[]
@@ -92,6 +93,8 @@ model User {
   gender                      String?
   attendances                 Attendance[]
   overtimes                   Overtime[]
+  overtimeApprovalDecisions   OvertimeApprovalDecision[] @relation("overtime_decision_user")
+  overtimeApproverConfigs     OvertimeApproverConfig[]   @relation("overtime_approver_user")
   payrolls                    Payroll[]
   performances                Performance[]
   pettyCashes                 PettyCash[]
@@ -250,6 +253,19 @@ model OvertimeConfig {
   @@map("overtime_configs")
 }
 
+model OvertimeApproverConfig {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String?  @map("tenant_id") @db.Uuid
+  approverUserId String   @map("approver_user_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  tenant         Tenant?  @relation(fields: [tenantId], references: [id])
+  approverUser   User     @relation("overtime_approver_user", fields: [approverUserId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, approverUserId])
+  @@index([tenantId])
+  @@map("overtime_approver_configs")
+}
+
 model Overtime {
   id               String    @id @default(uuid()) @db.Uuid
   tenantId         String?   @map("tenant_id") @db.Uuid
@@ -271,6 +287,7 @@ model Overtime {
   approvedAt       DateTime? @map("approved_at")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
+  approvalDecisions OvertimeApprovalDecision[]
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   attendance       Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
   tenant           Tenant?   @relation(fields: [tenantId], references: [id])
@@ -279,6 +296,23 @@ model Overtime {
   @@index([tenantId])
   @@index([userId, overtimeDate])
   @@map("overtimes")
+}
+
+model OvertimeApprovalDecision {
+  id             String    @id @default(uuid()) @db.Uuid
+  overtimeId     String    @map("overtime_id") @db.Uuid
+  approverUserId String    @map("approver_user_id") @db.Uuid
+  status         String    @default("PENDING")
+  reason         String?
+  decidedAt      DateTime? @map("decided_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  approverUser   User      @relation("overtime_decision_user", fields: [approverUserId], references: [id], onDelete: Cascade)
+  overtime       Overtime  @relation(fields: [overtimeId], references: [id], onDelete: Cascade)
+
+  @@unique([overtimeId, approverUserId])
+  @@index([overtimeId])
+  @@map("overtime_approval_decisions")
 }
 
 model Payroll {
