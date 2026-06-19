@@ -10,13 +10,29 @@ const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
   lateToleranceMinutes: 15,
+  workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
 };
+
+const WEEKDAY_MAP = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+] as const;
 
 function getDateAtTime(baseDate: Date, hhmm: string) {
   const [h, m] = hhmm.split(":").map(Number);
   const d = new Date(baseDate);
   d.setHours(h || 0, m || 0, 0, 0);
   return d;
+}
+
+function getJakartaWeekday(date: Date) {
+  const shifted = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+  return WEEKDAY_MAP[shifted.getUTCDay()];
 }
 
 export async function POST(req: NextRequest) {
@@ -99,6 +115,7 @@ export async function POST(req: NextRequest) {
     const officeEnd = getDateAtTime(now, cfg.officeEndTime);
     const isHalfDay = now < officeEnd;
     const wasLate = attendance.status === "Late";
+    const isWorkingDay = (cfg.workingDays || []).includes(getJakartaWeekday(now));
 
     let status: string;
     if (wasLate && isHalfDay) {
@@ -115,6 +132,7 @@ export async function POST(req: NextRequest) {
       where: { id: attendance.id },
       data: {
         checkOut: now.toISOString(),
+        autoCheckout: false,
         status,
         workHours: formattedWorkHours,
         checkOutLocation,
