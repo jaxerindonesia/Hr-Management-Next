@@ -4,12 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
-const DEFAULT_OVERTIME_CONFIG = {
-  payMethod: "PER_HOUR",
-  hourlyRate: 0,
-  dailyRate: 0,
-};
-
 function getDurationMinutes(start: Date, end: Date) {
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / (1000 * 60)));
 }
@@ -35,11 +29,6 @@ export async function POST(req: NextRequest) {
     }
 
     const finalTenantId = scopedTenantId ?? null;
-    const overtimeCfg =
-      (await prisma.overtimeConfig.findFirst({
-        where: finalTenantId ? { tenantId: finalTenantId } : {},
-        orderBy: { updatedAt: "desc" },
-      })) ?? DEFAULT_OVERTIME_CONFIG;
     const approverConfigs = await prisma.overtimeApproverConfig.findMany({
       where: finalTenantId ? { tenantId: finalTenantId } : { tenantId: null },
       select: { approverUserId: true },
@@ -74,11 +63,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Durasi lembur harus lebih dari 0 menit" }, { status: 400 });
     }
 
-    const payoutAmount =
-      overtimeCfg.payMethod === "PER_DAY"
-        ? Number(overtimeCfg.dailyRate || 0)
-        : Number(overtimeCfg.hourlyRate || 0) * (overtimeMinutes / 60);
-
     const overtime = await prisma.overtime.create({
       data: {
         tenantId: finalTenantId,
@@ -90,10 +74,10 @@ export async function POST(req: NextRequest) {
         overtimeMinutes,
         requestedMinutes: overtimeMinutes,
         description: String(body.description || "").trim() || null,
-        payMethod: overtimeCfg.payMethod,
-        hourlyRate: Number(overtimeCfg.hourlyRate || 0),
-        dailyRate: Number(overtimeCfg.dailyRate || 0),
-        payoutAmount,
+        payMethod: "PER_HOUR",
+        hourlyRate: 0,
+        dailyRate: 0,
+        payoutAmount: 0,
         status: "PENDING",
         approvalDecisions: {
           createMany: {

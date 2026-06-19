@@ -89,6 +89,9 @@ export default function OvertimesPage() {
   const [selectedRejectId, setSelectedRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [approvingItem, setApprovingItem] = useState<OvertimeDto | null>(null);
+  const [approvePayMethod, setApprovePayMethod] = useState<"PER_HOUR" | "PER_DAY">("PER_HOUR");
 
   const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
   const isAdmin = ["Super Admin", "Admin"].includes(userData.role);
@@ -168,7 +171,6 @@ export default function OvertimesPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          payMethod: config.payMethod,
           hourlyRate: config.hourlyRate,
           dailyRate: config.dailyRate,
           approverUserIds,
@@ -275,18 +277,24 @@ export default function OvertimesPage() {
     }
   };
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, payMethod?: "PER_HOUR" | "PER_DAY") => {
     try {
       const res = await fetch(`/api/overtimes/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approvalAction: "APPROVE" }),
+        body: JSON.stringify({
+          approvalAction: "APPROVE",
+          ...(payMethod ? { payMethod } : {}),
+        }),
       });
-      if (!res.ok) throw new Error();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || "Gagal menyetujui overtime");
       toast.success("Overtime disetujui");
+      setApproveDialogOpen(false);
+      setApprovingItem(null);
       loadData();
-    } catch {
-      toast.error("Gagal menyetujui overtime");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menyetujui overtime");
     }
   };
 
@@ -321,6 +329,29 @@ export default function OvertimesPage() {
 
   const getApproverDecision = (item: OvertimeDto) =>
     (item.approvalDecisions || []).find((decision) => decision.approverUserId === userData.id);
+
+  const isFinalApproval = (item: OvertimeDto) => {
+    const decisions = item.approvalDecisions || [];
+    const currentDecision = decisions.find((decision) => decision.approverUserId === userData.id);
+    return (
+      currentDecision?.status === "PENDING" &&
+      decisions.filter((decision) => decision.status === "PENDING").length === 1 &&
+      decisions.every(
+        (decision) => decision.approverUserId === userData.id || decision.status === "APPROVED",
+      )
+    );
+  };
+
+  const handleApproveClick = (item: OvertimeDto) => {
+    if (!item.id) return;
+    if (isFinalApproval(item)) {
+      setApprovingItem(item);
+      setApprovePayMethod("PER_HOUR");
+      setApproveDialogOpen(true);
+      return;
+    }
+    handleApprove(item.id);
+  };
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -530,7 +561,7 @@ export default function OvertimesPage() {
                           )}
                           {item.status === "PENDING" && getApproverDecision(item)?.status === "PENDING" && (
                             <>
-                              <Button size="icon" variant="ghost" onClick={() => handleApprove(item.id || "")}>
+                              <Button size="icon" variant="ghost" onClick={() => handleApproveClick(item)}>
                                 <CheckCircle className="w-4 h-4 text-green-600" />
                               </Button>
                               <Button size="icon" variant="ghost" onClick={() => openRejectDialog(item.id || "")}>
@@ -728,62 +759,35 @@ export default function OvertimesPage() {
             </div>
             <hr className="my-2 border-gray-200 dark:border-gray-700" />
             <div className="grid gap-2">
-              <Label>Metode</Label>
-              <Select
-                value={config.payMethod}
-                onValueChange={(v) =>
-                  setConfig((prev) => ({ ...prev, payMethod: v as "PER_HOUR" | "PER_DAY" }))
+              <Label>Tarif / Jam</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={formatNumberInput(config.hourlyRate)}
+                onChange={(e) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    hourlyRate: Number(e.target.value.replace(/\D/g, "")) || 0,
+                  }))
                 }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PER_HOUR">Per Jam</SelectItem>
-                  <SelectItem value="PER_DAY">Per Hari</SelectItem>
-                </SelectContent>
-              </Select>
+              />
             </div>
             <div className="grid gap-2">
-              {config.payMethod === "PER_HOUR" ? (
-                <>
-                  <Label>Tarif / Jam</Label>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    value={formatNumberInput(config.hourlyRate)}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        hourlyRate: Number(e.target.value.replace(/\D/g, "")) || 0,
-                        dailyRate: 0,
-                      }))
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Hanya tarif per jam yang dipakai saat metode ini aktif.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Label>Tarif / Hari</Label>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    value={formatNumberInput(config.dailyRate)}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        dailyRate: Number(e.target.value.replace(/\D/g, "")) || 0,
-                        hourlyRate: 0,
-                      }))
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Hanya tarif per hari yang dipakai saat metode ini aktif.
-                  </p>
-                </>
-              )}
+              <Label>Tarif / Hari</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={formatNumberInput(config.dailyRate)}
+                onChange={(e) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    dailyRate: Number(e.target.value.replace(/\D/g, "")) || 0,
+                  }))
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Approval terakhir akan memilih metode Per Jam atau Per Hari memakai tarif ini.
+              </p>
             </div>
           </div>
           <div className="mt-4 flex justify-end">
@@ -869,6 +873,49 @@ export default function OvertimesPage() {
               Batal
             </Button>
             <Button onClick={handleSaveEdit}>Simpan</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pilih Metode Lembur</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Metode</Label>
+              <Select
+                value={approvePayMethod}
+                onValueChange={(value) => setApprovePayMethod(value as "PER_HOUR" | "PER_DAY")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PER_HOUR">Per Jam</SelectItem>
+                  <SelectItem value="PER_DAY">Per Hari</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {approvePayMethod === "PER_HOUR"
+                  ? `Tarif / Jam: ${formatCurrency(config.hourlyRate || 0)}`
+                  : `Tarif / Hari: ${formatCurrency(config.dailyRate || 0)}`}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                if (!approvingItem?.id) return;
+                handleApprove(approvingItem.id, approvePayMethod);
+              }}
+            >
+              Approve
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

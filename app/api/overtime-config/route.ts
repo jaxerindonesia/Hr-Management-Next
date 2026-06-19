@@ -39,14 +39,10 @@ export async function PUT(req: NextRequest) {
     const scopedTenantId = ensureTenantScope(auth.user);
     const body = await req.json();
 
-    const payMethod = String(body.payMethod || "").toUpperCase();
     const hourlyRate = Number(body.hourlyRate);
     const dailyRate = Number(body.dailyRate);
     const approverUserIds = Array.isArray(body.approverUserIds) ? body.approverUserIds : [];
 
-    if (!["PER_HOUR", "PER_DAY"].includes(payMethod)) {
-      return NextResponse.json({ message: "Metode pembayaran lembur tidak valid" }, { status: 400 });
-    }
     if (!Number.isFinite(hourlyRate) || hourlyRate < 0 || !Number.isFinite(dailyRate) || dailyRate < 0) {
       return NextResponse.json({ message: "Nominal lembur harus angka >= 0" }, { status: 400 });
     }
@@ -55,9 +51,7 @@ export async function PUT(req: NextRequest) {
       orderBy: { updatedAt: "desc" },
     });
 
-    const data = { payMethod, hourlyRate, dailyRate };
-    if (payMethod === "PER_HOUR") data.dailyRate = 0;
-    if (payMethod === "PER_DAY") data.hourlyRate = 0;
+    const data = { payMethod: "PER_HOUR", hourlyRate, dailyRate };
     const saved = existing
       ? await prisma.overtimeConfig.update({ where: { id: existing.id }, data })
       : await prisma.overtimeConfig.create({ data: { ...data, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) } });

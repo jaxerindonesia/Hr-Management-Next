@@ -85,6 +85,39 @@ export async function PUT(req: Request, { params }: Params) {
       const hasRejected = allDecisions.some((decision) => decision.status === "REJECTED");
       const allApproved = allDecisions.length > 0 && allDecisions.every((decision) => decision.status === "APPROVED");
       const finalStatus = hasRejected ? "REJECTED" : allApproved ? "APPROVED" : "PENDING";
+      const paymentData: {
+        payMethod?: string;
+        hourlyRate?: number;
+        dailyRate?: number;
+        payoutAmount?: number;
+      } = {};
+
+      if (allApproved) {
+        const overtimeCfg = await prisma.overtimeConfig.findFirst({
+          where: scopedTenantId ? { tenantId: scopedTenantId } : {},
+          orderBy: { updatedAt: "desc" },
+        });
+        const payMethod = String(body.payMethod || "").toUpperCase();
+        const rate =
+          payMethod === "PER_DAY"
+            ? Number(overtimeCfg?.dailyRate || 0)
+            : Number(overtimeCfg?.hourlyRate || 0);
+
+        if (!["PER_HOUR", "PER_DAY"].includes(payMethod)) {
+          return NextResponse.json({ message: "Metode pembayaran lembur wajib dipilih" }, { status: 400 });
+        }
+        if (!Number.isFinite(rate) || rate <= 0) {
+          return NextResponse.json({ message: "Tarif lembur harus diisi sebelum approval terakhir" }, { status: 400 });
+        }
+
+        paymentData.payMethod = payMethod;
+        paymentData.hourlyRate = payMethod === "PER_HOUR" ? rate : 0;
+        paymentData.dailyRate = payMethod === "PER_DAY" ? rate : 0;
+        paymentData.payoutAmount =
+          payMethod === "PER_DAY"
+            ? rate
+            : rate * (existing.overtimeMinutes / 60);
+      }
 
       const updated = await prisma.overtime.update({
         where: { id: p.id },
@@ -93,6 +126,7 @@ export async function PUT(req: Request, { params }: Params) {
           approvedBy: approverUserId,
           approvedAt: new Date(),
           rejectReason: hasRejected ? rejectReason : null,
+          ...paymentData,
         },
       });
       return NextResponse.json({ message: "Approval overtime berhasil diproses", data: updated });
