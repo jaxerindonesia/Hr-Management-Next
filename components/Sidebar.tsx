@@ -25,6 +25,7 @@ import {
   Building2,
   Banknote,
   ListTodo,
+  Clock,
 } from "lucide-react";
 import { usePermission } from "@/lib/helper/check-role";
 
@@ -183,6 +184,13 @@ export default function Sidebar() {
         name: "Reimbursement",
         icon: Receipt,
         path: "/reimbursements",
+        permissions: ["get-all", "get-by-id"],
+      },
+      {
+        id: "overtimes",
+        name: "Lembur",
+        icon: Clock,
+        path: "/overtimes",
         permissions: ["get-all", "get-by-id"],
       },
       {

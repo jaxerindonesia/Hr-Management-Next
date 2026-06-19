@@ -40,6 +40,10 @@ export const MASTER_PERMISSIONS = [
     actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
   {
+    model: "overtimes",
+    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
+  },
+  {
     model: "pettycash",
     actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },

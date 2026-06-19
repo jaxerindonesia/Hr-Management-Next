@@ -987,55 +987,57 @@ export default function AttendancePage() {
                         </div>
                       </td>
 
-                      <td className="p-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          {checkRole("attendances", "get-by-id") && (
-                            <button
-                              onClick={() => setSelectedRecord(record)}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          )}
+                      {checkRoleMulti("attendances", ["get-by-id", "delete"]) && (
+                        <td className="p-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            {checkRole("attendances", "get-by-id") && (
+                              <button
+                                onClick={() => setSelectedRecord(record)}
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            )}
 
-                          {checkRole("attendances", "delete") && (
-                            <Popover
-                              open={openPopoverId === record.id}
-                              onOpenChange={(open) =>
-                                setOpenPopoverId(open ? record.id : null)
-                              }
-                            >
-                              <PopoverTrigger asChild>
-                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </PopoverTrigger>
+                            {checkRole("attendances", "delete") && (
+                              <Popover
+                                open={openPopoverId === record.id}
+                                onOpenChange={(open) =>
+                                  setOpenPopoverId(open ? record.id : null)
+                                }
+                              >
+                                <PopoverTrigger asChild>
+                                  <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </PopoverTrigger>
 
-                              <PopoverContent className="w-56 space-y-3">
-                                <p className="text-sm">
-                                  Yakin ingin menghapus data ini?
-                                </p>
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setOpenPopoverId(null)}
-                                  >
-                                    Batal
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => handleDelete(record.id)}
-                                  >
-                                    Hapus
-                                  </Button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        </div>
-                      </td>
+                                <PopoverContent className="w-56 space-y-3">
+                                  <p className="text-sm">
+                                    Yakin ingin menghapus data ini?
+                                  </p>
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setOpenPopoverId(null)}
+                                    >
+                                      Batal
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleDelete(record.id)}
+                                    >
+                                      Hapus
+                                    </Button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 ) : (

@@ -22,6 +22,7 @@ import {
   Receipt,
   Shield,
   Banknote,
+  Clock,
 } from "lucide-react";
 
 export default function MobileNavbar() {
@@ -93,6 +94,12 @@ export default function MobileNavbar() {
       name: "Reimbursement",
       icon: Receipt,
       path: "/reimbursements",
+    },
+    {
+      id: "overtimes",
+      name: "Lembur",
+      icon: Clock,
+      path: "/overtimes",
     },
     {
       id: "performances",
