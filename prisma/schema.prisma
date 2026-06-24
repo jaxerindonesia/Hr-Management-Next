@@ -530,6 +530,7 @@ model TaskAttachment {
   taskId    String   @map("task_id") @db.Uuid
   name      String?
   url       String
+  objectKey String?  @map("object_key")
   type      String?
   createdAt DateTime @default(now()) @map("created_at")
   size      Int?
