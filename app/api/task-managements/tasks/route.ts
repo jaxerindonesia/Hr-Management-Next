@@ -17,7 +17,7 @@ function normalizeAttachments(value: unknown): AttachmentInput[] {
 
   return value
     .map((raw) => {
-      const item = raw as { name?: unknown; url?: unknown; type?: unknown };
+      const item = raw as { name?: unknown; url?: unknown; objectKey?: unknown; type?: unknown };
       return {
         name: String(item.name || item.url || "").trim(),
         url: String(item.url || "").trim(),
