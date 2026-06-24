@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import {
   Clock,
   CheckCircle,
@@ -24,6 +25,9 @@ import { Button } from "@/components/ui/button";
 import { AttendanceDto } from "@/lib/dto/attendance";
 import DetailData from "./components/detail-data";
 import { usePermission } from "@/lib/helper/check-role";
+import { haversineKm, parseApiError } from "@/lib/helper/attendance";
+import { getJakartaDayKey } from "@/lib/helper/date";
+import { ensureFaceModelLoaded } from "@/lib/helper/face-models";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -64,20 +68,6 @@ type SavedGeoPoint = {
   timestamp: number;
 };
 
-function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number) {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
-  const dLat = toRad(bLat - aLat);
-  const dLng = toRad(bLng - aLng);
-  const p1 = toRad(aLat);
-  const p2 = toRad(bLat);
-
-  const h =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(p1) * Math.cos(p2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-
 export default function AttendancePage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [selectedRecord, setSelectedRecord] = useState<AttendanceDto | null>(
@@ -88,6 +78,7 @@ export default function AttendancePage() {
     [],
   );
   const [total, setTotal] = useState(0);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [currentTime, setCurrentTime] = useState("");
@@ -117,6 +108,17 @@ export default function AttendancePage() {
 
   const itemsPerPage = 10;
   const totalPages = Math.ceil(total / itemsPerPage);
+
+  useEffect(() => {
+    if (total === 0 && currentPage !== 1) {
+      setCurrentPage(1);
+      return;
+    }
+
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, total, totalPages]);
 
   const refreshLocationReadiness = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -209,6 +211,7 @@ export default function AttendancePage() {
 
   const fetchAttendance = useCallback(
     async (user: { id: string; role: string }) => {
+      setIsAttendanceLoading(true);
       try {
         if (!user?.id) return;
 
@@ -227,17 +230,24 @@ export default function AttendancePage() {
           setAttendanceRecords(json.data || []);
           setTotal(json.total || 0);
         } else {
-          // For regular users, fetch their own data (usually small)
-          const res = await fetch(`/api/attendances/user/${user.id}`);
+          // Regular users are paginated by the same page size on the server.
+          const params = new URLSearchParams();
+          params.set("page", String(currentPage));
+          params.set("limit", String(itemsPerPage));
+          if (filterStatus !== "all") params.set("status", filterStatus);
+
+          const res = await fetch(`/api/attendances/user/${user.id}?${params.toString()}`);
           if (!res.ok) throw new Error("Gagal mengambil data attendance");
 
           const json = await res.json();
           const data = json.data || [];
           setAttendanceRecords(data);
-          setTotal(data.length);
+          setTotal(json.total || 0);
         }
       } catch {
         toast.error("Gagal memuat data attendance");
+      } finally {
+        setIsAttendanceLoading(false);
       }
     },
     [currentPage, searchQuery, filterStatus],
@@ -246,17 +256,16 @@ export default function AttendancePage() {
   const fetchTodayAttendance = useCallback(async (userId: string) => {
     try {
       if (!userId) return;
-      const res = await fetch(`/api/attendances/user/${userId}`);
+      const attendanceDay = getJakartaDayKey(new Date()).toISOString();
+      const params = new URLSearchParams();
+      params.set("attendanceDay", attendanceDay);
+      params.set("limit", "1");
+
+      const res = await fetch(`/api/attendances/user/${userId}?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal mengambil data attendance hari ini");
 
       const json = await res.json();
-      const allData = json.data || [];
-      const todayStr = new Date().toISOString().split("T")[0];
-      const today = allData.find((item: AttendanceDto) => {
-        const itemDate = new Date(item.date).toISOString().split("T")[0];
-        return itemDate === todayStr;
-      });
-      setTodayAttendance(today || null);
+      setTodayAttendance(json.data?.[0] || null);
     } catch {
       setTodayAttendance(null);
     }
@@ -280,7 +289,12 @@ export default function AttendancePage() {
         const json = await res.json();
         allData = json.data || [];
       } else {
-        const res = await fetch(`/api/attendances/user/${userData.id}`);
+        const params = new URLSearchParams();
+        params.set("page", "1");
+        params.set("limit", "999999");
+        if (filterStatus !== "all") params.set("status", filterStatus);
+
+        const res = await fetch(`/api/attendances/user/${userData.id}?${params.toString()}`);
         if (!res.ok) throw new Error("Gagal mengambil data untuk export");
 
         const json = await res.json();
@@ -426,7 +440,10 @@ export default function AttendancePage() {
         }),
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const message = await parseApiError(res, "Gagal melakukan check in");
+        throw new Error(message);
+      }
 
       localStorage.setItem(
         LAST_GEO_STORAGE_KEY,
@@ -440,9 +457,10 @@ export default function AttendancePage() {
       toast.success("Berhasil Check In");
       fetchAttendance(userData);
       fetchTodayAttendance(userData.id);
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
       toast.error(
-        "Gagal mengambil lokasi. Nyalakan lokasi/GPS lalu izinkan akses lokasi terlebih dahulu.",
+        message || "Gagal mengambil lokasi. Nyalakan lokasi/GPS lalu izinkan akses lokasi terlebih dahulu.",
       );
     }
   }, [userData, fetchAttendance, fetchTodayAttendance]);
@@ -511,7 +529,10 @@ export default function AttendancePage() {
           faceCaptureBase64,
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const message = await parseApiError(res, "Gagal melakukan check out");
+        throw new Error(message);
+      }
 
       localStorage.setItem(
         LAST_GEO_STORAGE_KEY,
@@ -525,9 +546,10 @@ export default function AttendancePage() {
       toast.success("Berhasil Check Out");
       fetchAttendance(userData);
       fetchTodayAttendance(userData.id);
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
       toast.error(
-        "Gagal mengambil lokasi. Nyalakan lokasi/GPS lalu izinkan akses lokasi terlebih dahulu.",
+        message || "Gagal mengambil lokasi. Nyalakan lokasi/GPS lalu izinkan akses lokasi terlebih dahulu.",
       );
     }
   }, [userData, fetchAttendance, fetchTodayAttendance]);
@@ -636,6 +658,7 @@ export default function AttendancePage() {
     Absent: "Tidak Hadir",
     "Half Day": "Setengah Hari",
   };
+  
   const tableColSpan =
     6 +
     (["Super Admin", "Admin"].includes(userData.role) ? 1 : 0) +
@@ -680,6 +703,36 @@ export default function AttendancePage() {
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [refreshLocationReadiness]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const preload = () => {
+      void ensureFaceModelLoaded("attendance-recognition", [
+        () => import("face-api.js").then((faceapi) =>
+          faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
+        ),
+        () => import("face-api.js").then((faceapi) =>
+          faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
+        ),
+        () => import("face-api.js").then((faceapi) =>
+          faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
+        ),
+      ]);
+    };
+
+    const idle = window.requestIdleCallback
+      ? window.requestIdleCallback(preload, { timeout: 1500 })
+      : window.setTimeout(preload, 250);
+
+    return () => {
+      if (typeof idle === "number") {
+        window.clearTimeout(idle);
+      } else if ("cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idle);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
@@ -799,27 +852,28 @@ export default function AttendancePage() {
             </div>
 
             <div className="ml-auto flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-              {/* Search */}
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Cari nama karyawan..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
+              {["Super Admin", "Admin"].includes(userData.role) && (
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Cari nama karyawan..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* Filter */}
               <div className="relative">
@@ -858,7 +912,11 @@ export default function AttendancePage() {
               )}
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div
+            className={`overflow-x-auto transition-opacity duration-200 ${
+              isAttendanceLoading ? "opacity-70" : ""
+            }`}
+          >
             <table className="w-full">
               <thead>
                 <tr className="border-b dark:border-gray-700">
@@ -893,7 +951,19 @@ export default function AttendancePage() {
                 </tr>
               </thead>
               <tbody>
-                {attendanceRecords.length > 0 ? (
+                {isAttendanceLoading && attendanceRecords.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={tableColSpan}
+                      className="p-8 text-center text-gray-500 dark:text-gray-400"
+                    >
+                      <div className="flex items-center justify-center gap-3">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                        <span>Memuat data kehadiran...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : attendanceRecords.length > 0 ? (
                   attendanceRecords.map((record) => (
                     <tr
                       key={record.id}
@@ -958,10 +1028,13 @@ export default function AttendancePage() {
                               className="block"
                               title="Bukti Check In"
                             >
-                              <img
+                              <Image
                                 src={record.checkInFaceImage}
                                 alt="Bukti check in"
+                                width={40}
+                                height={40}
                                 className="w-10 h-10 rounded object-cover border"
+                                unoptimized
                               />
                             </a>
                           ) : (
@@ -975,10 +1048,13 @@ export default function AttendancePage() {
                               className="block"
                               title="Bukti Check Out"
                             >
-                              <img
+                              <Image
                                 src={record.checkOutFaceImage}
                                 alt="Bukti check out"
+                                width={40}
+                                height={40}
                                 className="w-10 h-10 rounded object-cover border"
+                                unoptimized
                               />
                             </a>
                           ) : (
@@ -1046,7 +1122,7 @@ export default function AttendancePage() {
                       colSpan={tableColSpan}
                       className="p-8 text-center text-gray-500 dark:text-gray-400"
                     >
-                      Tidak ada data kehadiran yang ditemukan
+                      Tidak ada data kehadiran untuk filter atau halaman ini
                     </td>
                   </tr>
                 )}
@@ -1080,7 +1156,7 @@ export default function AttendancePage() {
                   onClick={() =>
                     setCurrentPage((prev) => Math.max(prev - 1, 1))
                   }
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || isAttendanceLoading}
                   className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -1113,6 +1189,7 @@ export default function AttendancePage() {
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page as number)}
+                          disabled={isAttendanceLoading}
                           className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                             currentPage === page
                               ? "bg-blue-600 text-white"
@@ -1129,7 +1206,7 @@ export default function AttendancePage() {
                   onClick={() =>
                     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                   }
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || isAttendanceLoading}
                   className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
                 >
                   <ChevronRight className="w-4 h-4" />

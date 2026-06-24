@@ -1,8 +1,10 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { getJakartaDayKey } from "@/lib/helper/date";
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,7 +19,7 @@ export async function GET(req: NextRequest) {
     const startDate = searchParams.get("startDate") || "";
     const endDate = searchParams.get("endDate") || "";
 
-    const where: any = {};
+    const where: Prisma.AttendanceWhereInput = {};
     const scopedTenantId = ensureTenantScope(auth.user);
     if (scopedTenantId) where.tenantId = scopedTenantId;
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
@@ -61,7 +63,7 @@ export async function GET(req: NextRequest) {
       page,
       limit,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { message: "Failed to retrieve attendances data" },
       { status: 500 },
@@ -85,11 +87,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const attendanceDay = getJakartaDayKey(new Date(date));
+
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
 
     const existing = await prisma.attendance.findFirst({
-      where: { userId: userId, date: new Date(date), ...(finalTenantId ? { tenantId: finalTenantId } : {}) },
+      where: {
+        userId,
+        attendanceDay,
+        ...(finalTenantId ? { tenantId: finalTenantId } : {}),
+      },
     });
 
     if (existing) {
@@ -104,6 +112,7 @@ export async function POST(req: NextRequest) {
         tenantId: finalTenantId,
         userId,
         date: new Date(date),
+        attendanceDay,
         checkIn,
         checkOut,
         status,
@@ -119,6 +128,13 @@ export async function POST(req: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("P2002") || message.includes("Unique constraint")) {
+      return NextResponse.json(
+        { message: "Attendance already exists for this user" },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { message: "Failed to create attendance" },
       { status: 500 },

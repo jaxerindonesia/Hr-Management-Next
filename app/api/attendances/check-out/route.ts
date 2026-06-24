@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { getDateAtTime, getJakartaDayKey } from "@/lib/helper/date";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -12,28 +13,6 @@ const DEFAULT_CONFIG = {
   lateToleranceMinutes: 15,
   workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
 };
-
-const WEEKDAY_MAP = [
-  "SUNDAY",
-  "MONDAY",
-  "TUESDAY",
-  "WEDNESDAY",
-  "THURSDAY",
-  "FRIDAY",
-  "SATURDAY",
-] as const;
-
-function getDateAtTime(baseDate: Date, hhmm: string) {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date(baseDate);
-  d.setHours(h || 0, m || 0, 0, 0);
-  return d;
-}
-
-function getJakartaWeekday(date: Date) {
-  const shifted = new Date(date.getTime() + 7 * 60 * 60 * 1000);
-  return WEEKDAY_MAP[shifted.getUTCDay()];
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -59,17 +38,13 @@ export async function POST(req: NextRequest) {
     }
 
     const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+    const attendanceDay = getJakartaDayKey(today);
 
     const attendance = await prisma.attendance.findFirst({
       where: {
         ...(finalTenantId ? { tenantId: finalTenantId } : {}),
         userId,
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
+        attendanceDay,
       },
     });
 
@@ -77,6 +52,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { message: "You have not checked in today" },
         { status: 404 },
+      );
+    }
+
+    if (!attendance.checkIn) {
+      return NextResponse.json(
+        { message: "Attendance record is incomplete: check-in is missing" },
+        { status: 409 },
       );
     }
 
@@ -115,8 +97,6 @@ export async function POST(req: NextRequest) {
     const officeEnd = getDateAtTime(now, cfg.officeEndTime);
     const isHalfDay = now < officeEnd;
     const wasLate = attendance.status === "Late";
-    const isWorkingDay = (cfg.workingDays || []).includes(getJakartaWeekday(now));
-
     let status: string;
     if (wasLate && isHalfDay) {
       status = "Late - Half Day";
@@ -128,25 +108,28 @@ export async function POST(req: NextRequest) {
       status = "Present";
     }
 
-    const updated = await prisma.attendance.update({
-      where: { id: attendance.id },
-      data: {
-        checkOut: now.toISOString(),
-        autoCheckout: false,
-        status,
-        workHours: formattedWorkHours,
-        checkOutLocation,
-        checkOutFaceImage,
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      return tx.attendance.update({
+        where: { id: attendance.id },
+        data: {
+          checkOut: now.toISOString(),
+          autoCheckout: false,
+          status,
+          workHours: formattedWorkHours,
+          checkOutLocation,
+          checkOutFaceImage,
+        },
+      });
     });
 
     return NextResponse.json({
       message: "Check Out successful",
       data: updated,
     });
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to check out";
     return NextResponse.json(
-      { message: "Failed to check out" },
+      { message },
       { status: 500 },
     );
   }

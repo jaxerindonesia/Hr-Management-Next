@@ -1,10 +1,12 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { BUCKET_AVATARS, deleteFromMinio } from "@/lib/minio";
+import { getJakartaDayKey } from "@/lib/helper/date";
 
 type Params = {
   params: {
@@ -34,7 +36,7 @@ export async function GET(_: Request, { params }: Params) {
       message: "Attendance retrieved successfully",
       data: attendance,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { message: "Failed to retrieve attendance" },
       { status: 500 },
@@ -57,10 +59,19 @@ export async function PUT(req: Request, { params }: Params) {
 
     const body = await req.json();
 
-    const updateData: any = {};
+    const updateData: Prisma.AttendanceUpdateInput = {};
 
-    if (body.userId) updateData.userId = body.userId;
-    if (body.date) updateData.date = new Date(body.date);
+    if (body.userId) {
+      updateData.user = {
+        connect: { id: body.userId },
+      };
+    }
+    if (body.date) {
+      const date = new Date(body.date);
+      updateData.date = date;
+      const attendanceDay = getJakartaDayKey(date);
+      updateData.attendanceDay = attendanceDay;
+    }
     if (body.checkIn) updateData.checkIn = body.checkIn;
     if (body.checkOut) updateData.checkOut = body.checkOut;
     if (body.status) updateData.status = body.status;
@@ -76,6 +87,13 @@ export async function PUT(req: Request, { params }: Params) {
       data: attendance,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("P2002") || message.includes("Unique constraint")) {
+      return NextResponse.json(
+        { message: "Attendance already exists for this user on that day" },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { message: "Failed to update attendance" },
       { status: 500 },
@@ -113,7 +131,7 @@ export async function DELETE(_: Request, { params }: Params) {
     return NextResponse.json({
       message: "Attendance successfully deleted",
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { message: "Failed to delete attendance" },
       { status: 500 },
