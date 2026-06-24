@@ -61,7 +61,11 @@ export async function PUT(req: Request, { params }: Params) {
 
     const updateData: Prisma.AttendanceUpdateInput = {};
 
-    if (body.userId) updateData.userId = body.userId;
+    if (body.userId) {
+      updateData.user = {
+        connect: { id: body.userId },
+      };
+    }
     if (body.date) {
       const date = new Date(body.date);
       updateData.date = date;
