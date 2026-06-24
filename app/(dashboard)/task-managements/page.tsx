@@ -21,7 +21,16 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TaskManagementDialogs } from "./components/task-management-dialogs";
+import {
+  addDays,
+  diffDays,
+  formatDateId,
+  formatMonthYear,
+  isSameDay,
+  toDate,
+} from "@/lib/helper/date";
+import { normalizeAttachmentType } from "@/lib/helper/attachment";
+import { TaskManagementDialogs, type TaskDetail } from "./components/task-management-dialogs";
 import { TaskManagementWorkspace } from "./components/task-management-workspace";
 
 type DepartmentCard = {
@@ -52,6 +61,7 @@ type TaskAttachment = {
   id?: string;
   name: string;
   url: string;
+  objectKey?: string | null;
   type?: string | null;
 };
 
@@ -115,53 +125,26 @@ type TaskCategory = {
   name: string;
 };
 
+type TaskFilters = {
+  fromDate: string;
+  toDate: string;
+  month: string;
+  categoryId: string;
+  memberId: string;
+};
+
+const EMPTY_TASK_FILTERS: TaskFilters = {
+  fromDate: "",
+  toDate: "",
+  month: "",
+  categoryId: "",
+  memberId: "",
+};
+
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const initials = parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : parts[0]?.slice(0, 2);
   return initials?.toUpperCase() || "?";
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return "-";
-  return new Date(value).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function toDate(value?: string | null) {
-  const date = value ? new Date(value) : new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function diffDays(start: Date, end: Date) {
-  return Math.max(
-    0,
-    Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
-  );
-}
-
-function formatMonthYear(date: Date) {
-  return date.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-}
-
-function isSameDay(a: Date, b: Date) {
-  return a.toDateString() === b.toDateString();
-}
-
-function normalizeAttachmentType(url: string) {
-  const lower = url.toLowerCase();
-  if (lower.endsWith(".pdf")) return "PDF";
-  if (/\.(png|jpg|jpeg|webp|gif)$/.test(lower)) return "Foto";
-  return "Link";
 }
 
 function getListTheme(name: string, index: number) {
@@ -245,6 +228,9 @@ export default function TaskManagementPage() {
   const [editingListName, setEditingListName] = useState("");
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [taskForm, setTaskForm] = useState<TaskFormState>(EMPTY_TASK_FORM);
+  const [taskDetail, setTaskDetail] = useState<TaskDetail>(null);
+  const [taskFilters, setTaskFilters] = useState<TaskFilters>(EMPTY_TASK_FILTERS);
+  const [taskFiltersOpen, setTaskFiltersOpen] = useState(false);
   const [savingTask, setSavingTask] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState("");
@@ -419,16 +405,47 @@ export default function TaskManagementPage() {
         id: item.id,
         name: item.name,
         url: item.url,
+        objectKey: item.objectKey,
         type: item.type || normalizeAttachmentType(item.url),
       })),
     });
     setTaskModalOpen(true);
   };
 
+  const openTaskDetail = (task: TaskCard) => {
+    setTaskDetail({
+      id: task.id,
+      title: task.title,
+      description: task.description || null,
+      startDate: task.startDate || null,
+      dueDate: task.dueDate || null,
+      listName: board?.lists.find((list) => list.id === task.listId)?.name || "-",
+      members: task.members,
+      categories: task.categories,
+      attachments: task.attachments,
+    });
+  };
+
+  const closeTaskDetail = () => {
+    setTaskDetail(null);
+  };
+
   const closeTaskModal = () => {
     setTaskModalOpen(false);
     setTaskForm(EMPTY_TASK_FORM);
   };
+
+  const clearTaskFilters = () => {
+    setTaskFilters(EMPTY_TASK_FILTERS);
+  };
+
+  const activeTaskFilterCount = [
+    taskFilters.fromDate,
+    taskFilters.toDate,
+    taskFilters.month,
+    taskFilters.categoryId,
+    taskFilters.memberId,
+  ].filter(Boolean).length;
 
   const createList = async () => {
     const name = newListName.trim();
@@ -543,6 +560,7 @@ export default function TaskManagementPage() {
           .map((item) => ({
             name: item.name.trim(),
             url: item.url.trim(),
+            objectKey: item.objectKey ?? null,
             type: item.type || normalizeAttachmentType(item.url),
           })),
       };
@@ -678,6 +696,33 @@ export default function TaskManagementPage() {
     }));
   };
 
+  const removeAttachmentFromDraft = async (index: number) => {
+    const attachment = taskForm.attachments[index];
+    if (!attachment) return;
+
+    try {
+      if (attachment.objectKey) {
+        const res = await fetch("/api/task-managements/attachments/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            attachmentId: attachment.id || null,
+            objectKey: attachment.objectKey,
+          }),
+        });
+        if (!res.ok) throw new Error("Gagal menghapus attachment");
+      }
+
+      setTaskForm((prev) => ({
+        ...prev,
+        attachments: prev.attachments.filter((_, itemIndex) => itemIndex !== index),
+      }));
+      toast.success(attachment.objectKey ? "File berhasil dihapus" : "Link berhasil dihapus");
+    } catch {
+      toast.error("Gagal menghapus attachment");
+    }
+  };
+
   const openAttachmentPicker = () => {
     attachmentFileInputRef.current?.click();
   };
@@ -699,42 +744,99 @@ export default function TaskManagementPage() {
     return {
       name: json.name || file.name,
       url: json.url,
+      objectKey: json.objectKey,
       type: json.type || normalizeAttachmentType(file.name),
       size: typeof json.size === "number" ? json.size : file.size,
     };
   };
 
+  const filteredBoard = useMemo(() => {
+    if (!board) return null;
+
+    const fromDate = taskFilters.fromDate ? new Date(taskFilters.fromDate) : null;
+    const toDate = taskFilters.toDate ? new Date(taskFilters.toDate) : null;
+    if (fromDate) fromDate.setHours(0, 0, 0, 0);
+    if (toDate) toDate.setHours(23, 59, 59, 999);
+
+    const monthDate = taskFilters.month ? new Date(`${taskFilters.month}-01T00:00:00`) : null;
+    const monthStart = monthDate
+      ? new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
+      : null;
+    const monthEnd = monthDate
+      ? new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999)
+      : null;
+
+    const matchesTask = (task: TaskCard) => {
+      const taskDates = [task.startDate, task.dueDate, task.createdAt]
+        .filter(Boolean)
+        .map((value) => new Date(value as string));
+      const taskStart = task.startDate ? new Date(task.startDate) : null;
+      const taskEnd = task.dueDate ? new Date(task.dueDate) : taskStart;
+
+      if (taskFilters.categoryId && !task.categories.some((item) => item.category.id === taskFilters.categoryId)) {
+        return false;
+      }
+
+      if (taskFilters.memberId && !task.members.some((item) => item.user.id === taskFilters.memberId)) {
+        return false;
+      }
+
+      if (monthStart && monthEnd) {
+        const inMonth = taskDates.some((date) => date >= monthStart && date <= monthEnd);
+        if (!inMonth) return false;
+      }
+
+      if (fromDate || toDate) {
+        const overlapStart = taskStart || taskDates[0] || null;
+        const overlapEnd = taskEnd || taskDates[taskDates.length - 1] || null;
+        if (!overlapStart || !overlapEnd) return false;
+        if (fromDate && overlapEnd < fromDate) return false;
+        if (toDate && overlapStart > toDate) return false;
+      }
+
+      return true;
+    };
+
+    return {
+      ...board,
+      lists: board.lists.map((list) => ({
+        ...list,
+        tasks: list.tasks.filter(matchesTask),
+      })),
+    };
+  }, [board, taskFilters]);
+
   const taskById = useMemo(() => {
     const map = new Map<string, TaskCard>();
-    board?.lists.forEach((list) => {
+    filteredBoard?.lists.forEach((list) => {
       list.tasks.forEach((task) => map.set(task.id, task));
     });
     return map;
-  }, [board]);
+  }, [filteredBoard]);
 
   const boardTasks = useMemo(
     () =>
-      board?.lists.flatMap((list) =>
+      filteredBoard?.lists.flatMap((list) =>
         list.tasks.map((task) => ({
           ...task,
           listName: list.name,
         })),
       ) || [],
-    [board],
+    [filteredBoard],
   );
 
   const getTaskListTheme = useCallback(
     (listId: string) => {
       const listIndex = board?.lists.findIndex((list) => list.id === listId) ?? 0;
-      const list = board?.lists.find((item) => item.id === listId);
+      const list = filteredBoard?.lists.find((item) => item.id === listId);
       return getListTheme(list?.name || "", Math.max(listIndex, 0));
     },
-    [board?.lists],
+    [board?.lists, filteredBoard?.lists],
   );
 
   const taskFormListName = useMemo(
-    () => board?.lists.find((list) => list.id === taskForm.listId)?.name || "",
-    [board?.lists, taskForm.listId],
+    () => filteredBoard?.lists.find((list) => list.id === taskForm.listId)?.name || "",
+    [filteredBoard?.lists, taskForm.listId],
   );
 
   const handleExportExcel = async () => {
@@ -1160,8 +1262,123 @@ export default function TaskManagementPage() {
           </div>
         </div>
 
+        {board && (
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex items-center justify-between gap-3 border-b border-gray-100 p-4 dark:border-gray-800">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Filter Task</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {activeTaskFilterCount > 0
+                    ? `${activeTaskFilterCount} filter aktif`
+                    : "Disembunyikan sampai dibuka"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setTaskFiltersOpen((prev) => !prev)}
+                  className="h-9 rounded-lg"
+                >
+                  {taskFiltersOpen ? "Sembunyikan" : "Tampilkan"} Filter
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={clearTaskFilters}
+                  className="h-9 rounded-lg"
+                >
+                  Reset Filter
+                </Button>
+              </div>
+            </div>
+
+            {taskFiltersOpen && (
+              <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-5">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    From Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={taskFilters.fromDate}
+                    onChange={(e) =>
+                      setTaskFilters((prev) => ({ ...prev, fromDate: e.target.value }))
+                    }
+                    className="h-10 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    To Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={taskFilters.toDate}
+                    onChange={(e) =>
+                      setTaskFilters((prev) => ({ ...prev, toDate: e.target.value }))
+                    }
+                    className="h-10 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Bulan
+                  </label>
+                  <Input
+                    type="month"
+                    value={taskFilters.month}
+                    onChange={(e) =>
+                      setTaskFilters((prev) => ({ ...prev, month: e.target.value }))
+                    }
+                    className="h-10 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Kategori
+                  </label>
+                  <select
+                    value={taskFilters.categoryId}
+                    onChange={(e) =>
+                      setTaskFilters((prev) => ({ ...prev, categoryId: e.target.value }))
+                    }
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  >
+                    <option value="">Semua kategori</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Member
+                  </label>
+                  <select
+                    value={taskFilters.memberId}
+                    onChange={(e) =>
+                      setTaskFilters((prev) => ({ ...prev, memberId: e.target.value }))
+                    }
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  >
+                    <option value="">Semua member</option>
+                    {board.department.users.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <TaskManagementWorkspace
-          board={board}
+          board={filteredBoard}
           boardView={boardView}
           setBoardView={setBoardView}
           timelineMonth={timelineMonth}
@@ -1175,7 +1392,7 @@ export default function TaskManagementPage() {
           getListTheme={getListTheme}
           getTaskListTheme={getTaskListTheme}
           formatMonthYear={formatMonthYear}
-          formatDate={formatDate}
+          formatDate={formatDateId}
           toDate={toDate}
           diffDays={diffDays}
           isSameDay={isSameDay}
@@ -1184,6 +1401,7 @@ export default function TaskManagementPage() {
           monthDays={monthDays}
           openCreateTask={openCreateTask}
           openEditTask={openEditTask}
+          openTaskDetail={openTaskDetail}
           moveTask={moveTask}
           moveList={moveList}
           deleteList={deleteList}
@@ -1202,6 +1420,7 @@ export default function TaskManagementPage() {
           deleteDialogOpen={deleteDialogOpen}
           deleteTarget={deleteTarget}
           taskModalOpen={taskModalOpen}
+          detailTask={taskDetail}
           savingTask={savingTask}
           newListName={newListName}
           newCategoryName={newCategoryName}
@@ -1210,11 +1429,12 @@ export default function TaskManagementPage() {
           taskForm={taskForm}
           taskFormListName={taskFormListName}
           attachmentFileInputRef={attachmentFileInputRef}
-          formatDate={formatDate}
+          formatDate={formatDateId}
           openAttachmentPicker={openAttachmentPicker}
           createList={createList}
           createCategory={createCategory}
           deleteCategory={deleteCategory}
+          closeTaskDetail={closeTaskDetail}
           closeTaskModal={closeTaskModal}
           saveTask={saveTask}
           setListDialogOpen={setListDialogOpen}
@@ -1229,6 +1449,7 @@ export default function TaskManagementPage() {
           uploadAttachmentFile={uploadAttachmentFile}
           confirmDelete={confirmDelete}
           canManageSelectedDepartment={canManageSelectedDepartment}
+          removeAttachmentFromDraft={removeAttachmentFromDraft}
         />
       </div>
     </>

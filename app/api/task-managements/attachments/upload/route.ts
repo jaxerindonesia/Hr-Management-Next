@@ -30,11 +30,11 @@ export async function POST(req: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileName = safeName(file.name || "attachment");
-    const objectName = `task-attachments/${randomUUID()}-${fileName}`;
+    const objectKey = `task-attachments/${randomUUID()}-${fileName}`;
 
     const url = await uploadBufferToMinio(
       buffer,
-      objectName,
+      objectKey,
       BUCKET_AVATARS,
       file.type || "application/octet-stream",
     );
@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         url,
+        objectKey,
         name: file.name || fileName,
         type: inferKind(file.name || fileName, file.type || ""),
         size: file.size,

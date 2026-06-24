@@ -8,6 +8,7 @@ import { canManageTaskDepartment } from "@/lib/auth/task-management";
 type AttachmentInput = {
   name: string;
   url: string;
+  objectKey: string | null;
   type: string | null;
 };
 
@@ -20,6 +21,7 @@ function normalizeAttachments(value: unknown): AttachmentInput[] {
       return {
         name: String(item.name || item.url || "").trim(),
         url: String(item.url || "").trim(),
+        objectKey: item.objectKey ? String(item.objectKey).trim() : null,
         type: item.type ? String(item.type).trim() : null,
       };
     })
@@ -160,6 +162,7 @@ export async function POST(req: NextRequest) {
           create: attachments.map((attachment) => ({
             name: attachment.name,
             url: attachment.url,
+            objectKey: attachment.objectKey,
             type: attachment.type || null,
           })),
         },
