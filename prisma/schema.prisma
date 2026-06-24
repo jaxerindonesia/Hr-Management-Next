@@ -201,6 +201,7 @@ model Attendance {
   id                String    @id @default(uuid()) @db.Uuid
   userId            String    @map("user_id") @db.Uuid
   date              DateTime
+  attendanceDay     DateTime  @map("attendance_day")
   checkIn           DateTime? @map("check_in")
   checkOut          DateTime? @map("check_out")
   autoCheckout      Boolean   @default(false) @map("auto_checkout")
@@ -218,7 +219,7 @@ model Attendance {
   tenant            Tenant?   @relation(fields: [tenantId], references: [id])
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, date])
+  @@unique([userId, attendanceDay])
   @@index([tenantId])
   @@map("attendances")
 }

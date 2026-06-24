@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import * as faceapi from "face-api.js";
 import { X, Camera, CheckCircle, XCircle, Loader2, ScanFace } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ensureFaceModelLoaded } from "@/lib/helper/face-models";
 
 interface FaceRecognitionModalProps {
   isOpen: boolean;
@@ -50,6 +51,15 @@ export default function FaceRecognitionModal({
   const [status, setStatus] = useState<ScanStatus>("loading-models");
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [showStartupSplash, setShowStartupSplash] = useState(false);
+  const startupSplashDoneRef = useRef(false);
+  const splashTimersRef = useRef<{
+    show: number | null;
+    hide: number | null;
+  }>({
+    show: null,
+    hide: null,
+  });
 
   const stopCamera = useCallback(() => {
     if (timeoutRef.current) {
@@ -88,13 +98,53 @@ export default function FaceRecognitionModal({
   }, [stopCamera]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
+    const timers = splashTimersRef.current;
+
+    if (timers.show !== null) {
+      window.clearTimeout(timers.show);
+      timers.show = null;
+    }
+    if (timers.hide !== null) {
+      window.clearTimeout(timers.hide);
+      timers.hide = null;
+    }
+
+    if (!startupSplashDoneRef.current) {
+      timers.show = window.setTimeout(() => {
+        setShowStartupSplash(true);
+        timers.hide = window.setTimeout(() => {
+          setShowStartupSplash(false);
+          startupSplashDoneRef.current = true;
+        }, 650);
+      }, 0);
+    } else {
+      timers.hide = window.setTimeout(() => {
+        setShowStartupSplash(false);
+      }, 0);
+    }
+
+    return () => {
+      if (timers.show !== null) {
+        window.clearTimeout(timers.show);
+        timers.show = null;
+      }
+      if (timers.hide !== null) {
+        window.clearTimeout(timers.hide);
+        timers.hide = null;
+      }
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     if (modelsLoaded) return;
     const load = async () => {
       try {
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
-          faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
-          faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
+        await ensureFaceModelLoaded("attendance-recognition", [
+          () => faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
+          () => faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
+          () => faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
         ]);
         setModelsLoaded(true);
       } catch {
@@ -335,6 +385,7 @@ export default function FaceRecognitionModal({
 
   const cfg = statusConfig[status];
   const modeLabel = mode === "check-in" ? "Check In" : "Check Out";
+  const shouldSuppressStatusUi = showStartupSplash;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 sm:p-6">
       <div className="relative bg-gray-900 rounded-2xl shadow-2xl border border-gray-700 w-full max-w-[95%] sm:max-w-md md:max-w-lg overflow-hidden transition-all duration-300">
@@ -365,7 +416,23 @@ export default function FaceRecognitionModal({
             className="absolute inset-0 w-full h-full -scale-x-100"
           />
 
-          {(status === "scanning" || status === "no-face" || status === "no-match" || status === "head-turn-required") && (
+          {showStartupSplash && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-950/80 backdrop-blur-[2px]">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 shadow-2xl">
+                <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-white">
+                    Menyiapkan verifikasi wajah
+                  </span>
+                  <span className="text-xs text-gray-300">
+                    Sedang memuat kamera dan model AI...
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!shouldSuppressStatusUi && (status === "scanning" || status === "no-face" || status === "no-match" || status === "head-turn-required") && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div
                 className={`w-54 h-66 sm:w-48 sm:h-60 rounded-full border-4 transition-colors duration-500 ${
@@ -389,20 +456,20 @@ export default function FaceRecognitionModal({
             </div>
           )}
 
-          {status === "match" && (
+          {!shouldSuppressStatusUi && status === "match" && (
             <div className="absolute inset-0 flex items-center justify-center bg-green-900/60">
               <CheckCircle className="w-20 h-20 text-green-400 drop-shadow-lg" />
             </div>
           )}
 
-          {(status === "loading-models" || status === "loading-reference") && (
+          {!shouldSuppressStatusUi && (status === "loading-models" || status === "loading-reference") && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 gap-3">
               <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
               <p className="text-gray-300 text-sm">{cfg.label}</p>
             </div>
           )}
 
-          {(status === "no-camera" || status === "error") && (
+          {!shouldSuppressStatusUi && (status === "no-camera" || status === "error") && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/95 gap-3">
               <Camera className="w-12 h-12 text-gray-500" />
               <p className="text-gray-400 text-sm text-center px-6">{cfg.label}</p>
@@ -412,12 +479,16 @@ export default function FaceRecognitionModal({
 
         <div className="px-4 sm:px-5 py-2 sm:py-3 bg-gray-800/60 border-t border-gray-700">
           <div className={`flex items-center gap-2 ${cfg.color}`}>
-            {cfg.icon}
-            <span className="text-xs sm:text-sm font-medium line-clamp-1">{cfg.label}</span>
-            {matchScore !== null && status === "no-match" && (
-              <span className="ml-auto text-[10px] sm:text-xs text-gray-400 whitespace-nowrap">
-                Sim: {(matchScore * 100).toFixed(0)}%
-              </span>
+            {!shouldSuppressStatusUi && (
+              <>
+                {cfg.icon}
+                <span className="text-xs sm:text-sm font-medium line-clamp-1">{cfg.label}</span>
+                {matchScore !== null && status === "no-match" && (
+                  <span className="ml-auto text-[10px] sm:text-xs text-gray-400 whitespace-nowrap">
+                    Sim: {(matchScore * 100).toFixed(0)}%
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>

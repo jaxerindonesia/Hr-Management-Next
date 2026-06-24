@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { Camera, RefreshCw, CheckCircle, X, ScanFace, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as faceapi from "face-api.js";
+import { ensureFaceModelLoaded } from "@/lib/helper/face-models";
 
 interface FaceCaptureProps {
   value: string | null; // base64 data URL or existing avatarUrl
@@ -27,9 +28,9 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
   useEffect(() => {
     const load = async () => {
       try {
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
-          faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
+        await ensureFaceModelLoaded("face-capture", [
+          () => faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
+          () => faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
         ]);
         setModelsLoaded(true);
       } catch {
