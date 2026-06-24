@@ -3,8 +3,8 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { getDateAtTime, getJakartaDayRange } from "@/lib/helper/date";
 
-const JAKARTA_UTC_OFFSET_HOURS = 7;
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
@@ -16,32 +16,6 @@ function isAuthorizedCron(req: NextRequest) {
   if (!cronSecret) return true;
   const authHeader = req.headers.get("authorization") || "";
   return authHeader === `Bearer ${cronSecret}`;
-}
-
-function getJakartaDayRange(nowUtc = new Date()) {
-  const shifted = new Date(
-    nowUtc.getTime() + JAKARTA_UTC_OFFSET_HOURS * 60 * 60 * 1000,
-  );
-
-  const y = shifted.getUTCFullYear();
-  const m = shifted.getUTCMonth();
-  const d = shifted.getUTCDate();
-
-  const startUtc = new Date(
-    Date.UTC(y, m, d, -JAKARTA_UTC_OFFSET_HOURS, 0, 0, 0),
-  );
-  const endUtc = new Date(
-    Date.UTC(y, m, d, 23 - JAKARTA_UTC_OFFSET_HOURS, 59, 59, 999),
-  );
-
-  return { startUtc, endUtc };
-}
-
-function getDateAtTime(baseDate: Date, hhmm: string) {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date(baseDate);
-  d.setHours(h || 0, m || 0, 0, 0);
-  return d;
 }
 
 export async function GET(req: NextRequest) {
