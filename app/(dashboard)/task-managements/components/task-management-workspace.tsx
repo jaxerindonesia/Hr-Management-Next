@@ -25,6 +25,7 @@ type TaskAttachment = {
   id?: string;
   name: string;
   url: string;
+  objectKey?: string | null;
   type?: string | null;
 };
 
@@ -91,6 +92,7 @@ type Props = {
   monthDays: Date[];
   openCreateTask: (listId: string) => void;
   openEditTask: (task: TaskCard) => void;
+  openTaskDetail: (task: TaskCard) => void;
   moveTask: (task: TaskCard, listId: string) => Promise<void>;
   moveList: (targetListId: string) => Promise<void>;
   deleteList: (list: TaskList) => Promise<void>;
@@ -146,6 +148,7 @@ export function TaskManagementWorkspace({
   monthDays,
   openCreateTask,
   openEditTask,
+  openTaskDetail,
   moveTask,
   moveList,
   deleteList,
@@ -335,6 +338,15 @@ export function TaskManagementWorkspace({
                         draggable={canManageSelectedDepartment}
                         onDragStart={() => setDraggedTaskId(task.id)}
                         onDragEnd={() => setDraggedTaskId("")}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openTaskDetail(task)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openTaskDetail(task);
+                          }
+                        }}
                         className="rounded-lg border border-gray-100 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-950"
                         style={{
                           borderTopWidth: 4,
@@ -370,7 +382,10 @@ export function TaskManagementWorkspace({
                               <Button
                                 variant="ghost"
                                 size="icon-sm"
-                                onClick={() => openEditTask(task)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditTask(task);
+                                }}
                                 title="Edit task"
                               >
                                 <Edit className="h-4 w-4" />
@@ -378,7 +393,10 @@ export function TaskManagementWorkspace({
                               <Button
                                 variant="ghost"
                                 size="icon-sm"
-                                onClick={() => void deleteTask(task.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void deleteTask(task.id);
+                                }}
                                 title="Hapus task"
                                 className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
                               >
@@ -400,7 +418,10 @@ export function TaskManagementWorkspace({
                               <button
                                 key={`${attachment.url}-${index}`}
                                 type="button"
-                                onClick={() => window.open(attachment.url, "_blank", "noopener,noreferrer")}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(attachment.url, "_blank", "noopener,noreferrer");
+                                }}
                                 className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 p-2 text-left transition hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-gray-800"
                               >
                                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white dark:bg-gray-950">

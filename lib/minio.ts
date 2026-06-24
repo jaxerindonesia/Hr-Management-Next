@@ -51,13 +51,20 @@ export async function uploadBufferToMinio(
 }
 
 // ── Hapus object dari MinIO ───────────────────────────────────────────────────
-export async function deleteFromMinio(objectUrl: string): Promise<void> {
+export async function deleteFromMinio(objectUrlOrKey: string): Promise<void> {
   try {
-    const url = new URL(objectUrl);
-    // pathname: /{bucket}/{folder}/{filename}
-    const parts = url.pathname.replace(/^\//, "").split("/");
-    const bucket = parts[0];
-    const objectName = parts.slice(1).join("/");
+    if (!objectUrlOrKey) return;
+
+    let bucket = BUCKET_AVATARS;
+    let objectName = objectUrlOrKey;
+
+    if (/^https?:\/\//i.test(objectUrlOrKey)) {
+      const url = new URL(objectUrlOrKey);
+      // pathname: /{bucket}/{folder}/{filename}
+      const parts = url.pathname.replace(/^\//, "").split("/");
+      bucket = parts[0];
+      objectName = parts.slice(1).join("/");
+    }
 
     if (!bucket || !objectName) return;
 

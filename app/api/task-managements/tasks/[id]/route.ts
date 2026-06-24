@@ -15,6 +15,7 @@ type Params = {
 type AttachmentInput = {
   name: string;
   url: string;
+  objectKey: string | null;
   type: string | null;
 };
 
@@ -27,6 +28,7 @@ function normalizeAttachments(value: unknown): AttachmentInput[] {
       return {
         name: String(item.name || item.url || "").trim(),
         url: String(item.url || "").trim(),
+        objectKey: item.objectKey ? String(item.objectKey).trim() : null,
         type: item.type ? String(item.type).trim() : null,
       };
     })
@@ -42,10 +44,12 @@ function canUseAnyDepartment(roleName: string) {
   return normalized === "superadmin" || normalized === "admin";
 }
 
-async function deleteTaskAttachments(attachments: { url: string | null }[]) {
+async function deleteTaskAttachments(attachments: { url: string | null; objectKey?: string | null }[]) {
   await Promise.all(
     attachments.map(async (attachment) => {
-      if (attachment.url && isMinioUrl(attachment.url)) {
+      if (attachment.objectKey) {
+        await deleteFromMinio(attachment.objectKey);
+      } else if (attachment.url && isMinioUrl(attachment.url)) {
         await deleteFromMinio(attachment.url);
       }
     }),
@@ -231,9 +235,21 @@ export async function PUT(req: Request, { params }: Params) {
       attachments !== undefined
         ? await prisma.taskAttachment.findMany({
             where: { taskId: p.id },
-            select: { url: true },
+            select: { url: true, objectKey: true },
           })
         : [];
+    const nextAttachmentKeys = new Set(
+      attachments
+        ?.map((attachment) => attachment.objectKey || attachment.url)
+        .filter(Boolean) || [],
+    );
+    const removedAttachments = attachments
+      ? oldAttachments.filter(
+          (attachment) =>
+            (attachment.objectKey || attachment.url) &&
+            !nextAttachmentKeys.has(attachment.objectKey || attachment.url),
+        )
+      : [];
 
     const task = await prisma.$transaction(async (tx) => {
       if (memberIds !== undefined) {
@@ -255,7 +271,7 @@ export async function PUT(req: Request, { params }: Params) {
       }
 
       if (attachments !== undefined) {
-        await deleteTaskAttachments(oldAttachments);
+        await deleteTaskAttachments(removedAttachments);
         await tx.taskAttachment.deleteMany({ where: { taskId: p.id } });
         if (attachments.length > 0) {
           await tx.taskAttachment.createMany({
@@ -263,6 +279,7 @@ export async function PUT(req: Request, { params }: Params) {
               taskId: p.id,
               name: attachment.name,
               url: attachment.url,
+              objectKey: attachment.objectKey,
               type: attachment.type,
             })),
           });
@@ -317,7 +334,7 @@ export async function DELETE(_: Request, { params }: Params) {
 
     const attachments = await prisma.taskAttachment.findMany({
       where: { taskId: p.id },
-      select: { url: true },
+      select: { url: true, objectKey: true },
     });
     await deleteTaskAttachments(attachments);
 

@@ -51,3 +51,40 @@ export function getJakartaDayRange(nowUtc = new Date()) {
 
   return { startUtc, endUtc };
 }
+
+export function formatDateId(date: string | Date | null | undefined) {
+  if (!date) return "-";
+  const value = date instanceof Date ? date : new Date(date);
+  return value.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export function toDate(value?: string | null) {
+  const date = value ? new Date(value) : new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+export function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+export function diffDays(start: Date, end: Date) {
+  return Math.max(
+    0,
+    Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+  );
+}
+
+export function formatMonthYear(date: Date) {
+  return date.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+}
+
+export function isSameDay(a: Date, b: Date) {
+  return a.toDateString() === b.toDateString();
+}

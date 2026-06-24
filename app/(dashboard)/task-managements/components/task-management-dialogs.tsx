@@ -9,6 +9,7 @@ export type TaskAttachment = {
   id?: string;
   name: string;
   url: string;
+  objectKey?: string | null;
   type?: string | null;
 };
 
@@ -41,11 +42,24 @@ export type TaskFormState = {
   attachments: TaskAttachment[];
 };
 
+export type TaskDetail = {
+  id: string;
+  title: string;
+  description?: string | null;
+  startDate?: string | null;
+  dueDate?: string | null;
+  listName: string;
+  members: { user: Member }[];
+  categories: { category: { id: string; name: string } }[];
+  attachments: TaskAttachment[];
+} | null;
+
 type Props = {
   listDialogOpen: boolean;
   categoryDialogOpen: boolean;
   deleteDialogOpen: boolean;
   deleteTarget: { type: "list"; list: { id: string; name: string } } | { type: "task"; taskId: string } | null;
+  detailTask: TaskDetail;
   taskModalOpen: boolean;
   savingTask: boolean;
   newListName: string;
@@ -63,6 +77,7 @@ type Props = {
   createList: () => Promise<void>;
   createCategory: () => Promise<void>;
   deleteCategory: (categoryId: string) => Promise<void>;
+  closeTaskDetail: () => void;
   closeTaskModal: () => void;
   saveTask: () => Promise<void>;
   setListDialogOpen: Dispatch<SetStateAction<boolean>>;
@@ -74,7 +89,8 @@ type Props = {
   toggleCategory: (categoryId: string) => void;
   toggleMember: (memberId: string) => void;
   updateAttachment: (index: number, field: "name" | "url" | "type", value: string) => void;
-  uploadAttachmentFile: (file: File) => Promise<{ name: string; url: string; type: string | null; size: number }>;
+  uploadAttachmentFile: (file: File) => Promise<{ name: string; url: string; objectKey?: string; type: string | null; size: number }>;
+  removeAttachmentFromDraft: (index: number) => Promise<void>;
   confirmDelete: () => Promise<void>;
   canManageSelectedDepartment: boolean;
 };
@@ -97,6 +113,8 @@ export function TaskManagementDialogs({
   createList,
   createCategory,
   deleteCategory,
+  detailTask,
+  closeTaskDetail,
   closeTaskModal,
   saveTask,
   setListDialogOpen,
@@ -109,6 +127,8 @@ export function TaskManagementDialogs({
   toggleMember,
   updateAttachment,
   uploadAttachmentFile,
+  removeAttachmentFromDraft,
+  formatDate,
   confirmDelete,
   canManageSelectedDepartment,
 }: Props) {
@@ -334,7 +354,7 @@ export function TaskManagementDialogs({
                     if (!file) return;
                     try {
                       const attachment = await uploadAttachmentFile(file);
-                      setTaskForm((prev) => ({ ...prev, attachments: [...prev.attachments, { name: attachment.name, url: attachment.url, type: attachment.type }] }));
+                      setTaskForm((prev) => ({ ...prev, attachments: [...prev.attachments, { name: attachment.name, url: attachment.url, objectKey: attachment.objectKey, type: attachment.type }] }));
                     } catch { }
                   }} />
                   <div className="space-y-2">
@@ -354,7 +374,7 @@ export function TaskManagementDialogs({
                         <Button variant="ghost" size="icon" onClick={() => window.open(attachment.url, "_blank", "noopener,noreferrer")} disabled={!attachment.url.trim()} className="h-10" title="View attachment">
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setTaskForm((prev) => ({ ...prev, attachments: prev.attachments.filter((_, itemIndex) => itemIndex !== index) }))} className="h-10 text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20">
+                        <Button variant="ghost" size="icon" onClick={() => removeAttachmentFromDraft(index)} className="h-10 text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20" title={attachment.objectKey ? "Hapus file" : "Hapus link"}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -387,6 +407,94 @@ export function TaskManagementDialogs({
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Batal</Button>
             <Button variant="destructive" onClick={confirmDelete}>Hapus</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(detailTask)} onOpenChange={(open) => !open && closeTaskDetail()}>
+        <DialogContent className="sm:max-w-2xl">
+          {detailTask ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl">{detailTask.title}</DialogTitle>
+                <DialogDescription>
+                  {detailTask.listName}
+                  {detailTask.dueDate ? ` · Due ${formatDate(detailTask.dueDate)}` : ""}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
+                {detailTask.description && (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Deskripsi</p>
+                    <p className="whitespace-pre-wrap rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300">
+                      {detailTask.description}
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Start Date</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{formatDate(detailTask.startDate)}</p>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Due Date</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{formatDate(detailTask.dueDate)}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Members</p>
+                  <div className="flex flex-wrap gap-2">
+                    {detailTask.members.length > 0 ? detailTask.members.map((member) => (
+                      <span key={member.user.id} className="rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
+                        {member.user.name}
+                      </span>
+                    )) : (
+                      <span className="text-sm text-gray-500">Belum ada member.</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Categories</p>
+                  <div className="flex flex-wrap gap-2">
+                    {detailTask.categories.length > 0 ? detailTask.categories.map(({ category }) => (
+                      <span key={category.id} className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                        {category.name}
+                      </span>
+                    )) : (
+                      <span className="text-sm text-gray-500">Belum ada kategori.</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Attachments</p>
+                  <div className="space-y-2">
+                    {detailTask.attachments.length > 0 ? detailTask.attachments.map((attachment, index) => (
+                      <button
+                        key={`${attachment.url}-${index}`}
+                        type="button"
+                        onClick={() => window.open(attachment.url, "_blank", "noopener,noreferrer")}
+                        className="flex w-full items-center gap-3 overflow-hidden rounded-lg border border-gray-100 bg-gray-50 p-3 text-left transition hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-[10px] font-bold uppercase text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                          {(attachment.type || "File").slice(0, 4)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">{attachment.name || "Attachment"}</p>
+                          <p className="truncate text-xs text-gray-500 dark:text-gray-400">{attachment.url}</p>
+                        </div>
+                      </button>
+                    )) : (
+                      <span className="text-sm text-gray-500">Belum ada attachment.</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
         </DialogContent>
       </Dialog>
     </>
