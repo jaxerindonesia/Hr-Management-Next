@@ -728,6 +728,11 @@ export default function TaskManagementPage() {
   };
 
   const uploadAttachmentFile = async (file: File) => {
+    const maxAttachmentSize = 10 * 1024 * 1024;
+    if (file.size > maxAttachmentSize) {
+      throw new Error("File maksimal 10 MB");
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
