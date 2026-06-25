@@ -7,11 +7,6 @@ import { canManageTaskDepartment } from "@/lib/auth/task-management";
 
 const DEFAULT_LISTS = ["To Do", "On Progress", "Review", "Done"];
 
-type ListIdentity = {
-  id: string;
-  name: string;
-};
-
 async function ensureDepartment(departmentId: string, tenantId: string | null) {
   return prisma.department.findFirst({
     where: {
@@ -91,29 +86,6 @@ async function ensureDefaultLists(boardId: string) {
       })),
     });
   }
-
-  const refreshedLists = await prisma.taskList.findMany({
-    where: { boardId },
-    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-    select: { id: true, name: true },
-  });
-
-  const defaultIds = DEFAULT_LISTS.map((name) =>
-    refreshedLists.find((list) => list.name.toLowerCase() === name.toLowerCase()),
-  ).filter((list): list is ListIdentity => Boolean(list));
-  const customIds = refreshedLists.filter(
-    (list) =>
-      !DEFAULT_LISTS.some((name) => name.toLowerCase() === list.name.toLowerCase()),
-  );
-
-  await Promise.all(
-    [...defaultIds, ...customIds].map((list, index) =>
-      prisma.taskList.update({
-        where: { id: list.id },
-        data: { position: index },
-      }),
-    ),
-  );
 }
 
 const listInclude = {
