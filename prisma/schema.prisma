@@ -439,6 +439,17 @@ model TaskBoard {
   @@map("task_boards")
 }
 
+model TaskDoneMovePermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  departmentId String   @map("department_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([departmentId, userId])
+  @@index([departmentId])
+  @@map("task_done_move_permissions")
+}
+
 model TaskList {
   id        String    @id @default(uuid()) @db.Uuid
   name      String

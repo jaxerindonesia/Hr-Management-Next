@@ -102,6 +102,8 @@ type Props = {
   setDraggedTaskId: Dispatch<SetStateAction<string>>;
   setEditingListId: Dispatch<SetStateAction<string>>;
   setEditingListName: Dispatch<SetStateAction<string>>;
+  doneListId: string;
+  canMoveTaskToDone: boolean;
   canManageSelectedDepartment: boolean;
 };
 
@@ -158,6 +160,8 @@ export function TaskManagementWorkspace({
   setDraggedTaskId,
   setEditingListId,
   setEditingListName,
+  doneListId,
+  canMoveTaskToDone,
   canManageSelectedDepartment,
 }: Props) {
   return (
@@ -377,8 +381,23 @@ export function TaskManagementWorkspace({
                           <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
                             {task.title}
                           </h4>
+                          <div className="flex gap-1">
+                            {canMoveTaskToDone && doneListId && task.listId !== doneListId && (
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void moveTask(task, doneListId);
+                                }}
+                                title="Pindah ke Done"
+                                className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                            )}
                           {canManageSelectedDepartment && (
-                            <div className="flex gap-1">
+                            <>
                               <Button
                                 variant="ghost"
                                 size="icon-sm"
@@ -402,8 +421,9 @@ export function TaskManagementWorkspace({
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
-                            </div>
-                          )}
+                            </>
+                            )}
+                          </div>
                         </div>
 
                         {task.description && (

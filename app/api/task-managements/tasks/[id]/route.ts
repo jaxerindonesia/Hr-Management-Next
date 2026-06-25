@@ -44,6 +44,23 @@ function canUseAnyDepartment(roleName: string) {
   return normalized === "superadmin" || normalized === "admin";
 }
 
+function isDoneListName(name: string) {
+  const normalized = name.toLowerCase();
+  return ["done", "completed", "selesai"].some((keyword) => normalized.includes(keyword));
+}
+
+async function canMoveTaskToDone(taskDepartmentId: string, userId: string, roleName: string) {
+  if (canUseAnyDepartment(roleName)) return true;
+
+  const permissions = await prisma.taskDoneMovePermission.findMany({
+    where: { departmentId: taskDepartmentId },
+    select: { userId: true },
+  });
+
+  if (permissions.length === 0) return true;
+  return permissions.some((permission) => permission.userId === userId);
+}
+
 async function deleteTaskAttachments(attachments: { url: string | null; objectKey?: string | null }[]) {
   await Promise.all(
     attachments.map(async (attachment) => {
@@ -79,6 +96,7 @@ async function validateList(listId: string, departmentId: string, tenantId: stri
     },
     select: {
       id: true,
+      name: true,
       board: {
         select: { id: true, departmentId: true, tenantId: true },
       },
@@ -141,10 +159,6 @@ export async function PUT(req: Request, { params }: Params) {
       body.listId !== undefined ? String(body.listId) : existing.listId;
 
     if (nextListId !== existing.listId) {
-      if (!canManageTaskDepartment(auth.user, existing.list.board.departmentId)) {
-        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-      }
-
       const nextList = await validateList(
         nextListId,
         existing.list.board.departmentId,
@@ -159,6 +173,22 @@ export async function PUT(req: Request, { params }: Params) {
           { message: "Target list not found for this department" },
           { status: 400 },
         );
+      }
+
+      if (isDoneListName(nextList.name)) {
+        const allowed = await canMoveTaskToDone(
+          existing.list.board.departmentId,
+          auth.user.id,
+          auth.user.roleName,
+        );
+        if (!allowed) {
+          return NextResponse.json(
+            { message: "You are not allowed to move task to Done" },
+            { status: 403 },
+          );
+        }
+      } else if (!canManageTaskDepartment(auth.user, existing.list.board.departmentId)) {
+        return NextResponse.json({ message: "Forbidden" }, { status: 403 });
       }
     }
 

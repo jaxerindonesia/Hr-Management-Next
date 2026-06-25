@@ -1,5 +1,6 @@
 import { Dispatch, RefObject, SetStateAction } from "react";
 import { Eye, Plus, Save, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -348,14 +349,19 @@ export function TaskManagementDialogs({
                       <Button type="button" variant="outline" size="sm" onClick={() => setTaskForm((prev) => ({ ...prev, attachments: [...prev.attachments, { name: "", url: "", type: "Link" }] }))} className="h-9 rounded-lg"><Plus className="h-4 w-4" />Tambah Link</Button>
                     </div>
                   </div>
-                  <input ref={attachmentFileInputRef} type="file" className="hidden" onChange={async (e) => {
+                  <input ref={attachmentFileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf,.xls,.xlsx,.csv,.doc,.docx,.ppt,.pptx" className="hidden" onChange={async (e) => {
                     const file = e.target.files?.[0];
                     e.target.value = "";
                     if (!file) return;
                     try {
                       const attachment = await uploadAttachmentFile(file);
                       setTaskForm((prev) => ({ ...prev, attachments: [...prev.attachments, { name: attachment.name, url: attachment.url, objectKey: attachment.objectKey, type: attachment.type }] }));
-                    } catch { }
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : "";
+                      if (message) {
+                        toast.error(message);
+                      }
+                    }
                   }} />
                   <div className="space-y-2">
                     {taskForm.attachments.length > 0 ? taskForm.attachments.map((attachment, index) => (
