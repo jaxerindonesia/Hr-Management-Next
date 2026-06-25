@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   addDays,
   diffDays,
@@ -220,6 +221,7 @@ export default function TaskManagementPage() {
   const [categories, setCategories] = useState<TaskCategory[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState("");
   const [currentUserDepartmentId, setCurrentUserDepartmentId] = useState("");
+  const [currentUserId, setCurrentUserId] = useState("");
   const [newListName, setNewListName] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [listDialogOpen, setListDialogOpen] = useState(false);
@@ -231,6 +233,9 @@ export default function TaskManagementPage() {
   const [taskDetail, setTaskDetail] = useState<TaskDetail>(null);
   const [taskFilters, setTaskFilters] = useState<TaskFilters>(EMPTY_TASK_FILTERS);
   const [taskFiltersOpen, setTaskFiltersOpen] = useState(false);
+  const [donePermissionDialogOpen, setDonePermissionDialogOpen] = useState(false);
+  const [donePermissionUserIds, setDonePermissionUserIds] = useState<string[]>([]);
+  const [savingDonePermissions, setSavingDonePermissions] = useState(false);
   const [savingTask, setSavingTask] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState("");
@@ -256,10 +261,15 @@ export default function TaskManagementPage() {
 
     return Boolean(
       selectedDepartmentId &&
-        currentUserDepartmentId &&
-        currentUserDepartmentId === selectedDepartmentId,
+      currentUserDepartmentId &&
+      currentUserDepartmentId === selectedDepartmentId,
     );
   }, [currentUserDepartmentId, currentUserRole, selectedDepartmentId]);
+
+  const canViewDonePermissionButton = useMemo(() => {
+    const normalizedRole = currentUserRole.toLowerCase().replace(/\s/g, "");
+    return normalizedRole === "superadmin" || normalizedRole === "admin";
+  }, [currentUserRole]);
 
   useEffect(() => {
     if (routeDepartmentId && routeDepartmentId !== selectedDepartmentId) {
@@ -282,9 +292,11 @@ export default function TaskManagementPage() {
         typeof userData?.role === "string" ? userData.role : userData?.role?.name;
       setCurrentUserRole(rawRoleName || "");
       setCurrentUserDepartmentId(userData?.departmentId || "");
+      setCurrentUserId(userData?.id || "");
     } catch {
       setCurrentUserRole("");
       setCurrentUserDepartmentId("");
+      setCurrentUserId("");
     }
   }, []);
 
@@ -375,6 +387,18 @@ export default function TaskManagementPage() {
     }
   }, []);
 
+  const fetchDonePermissions = useCallback(async (departmentId: string) => {
+    try {
+      const params = new URLSearchParams({ departmentId });
+      const res = await fetch(`/api/task-managements/done-move-permissions?${params.toString()}`);
+      if (!res.ok) throw new Error("Gagal memuat hak pindah ke done");
+      const json = await res.json();
+      setDonePermissionUserIds(Array.isArray(json.data?.userIds) ? json.data.userIds : []);
+    } catch {
+      toast.error("Gagal memuat hak pindah ke done");
+    }
+  }, []);
+
   useEffect(() => {
     fetchDepartments();
   }, [fetchDepartments]);
@@ -383,8 +407,9 @@ export default function TaskManagementPage() {
     if (selectedDepartmentId) {
       fetchBoard(selectedDepartmentId);
       fetchCategories(selectedDepartmentId);
+      fetchDonePermissions(selectedDepartmentId);
     }
-  }, [selectedDepartmentId, fetchBoard, fetchCategories]);
+  }, [selectedDepartmentId, fetchBoard, fetchCategories, fetchDonePermissions]);
 
   const openCreateTask = (listId: string) => {
     setTaskForm({ ...EMPTY_TASK_FORM, listId });
@@ -439,6 +464,36 @@ export default function TaskManagementPage() {
     setTaskFilters(EMPTY_TASK_FILTERS);
   };
 
+  const toggleDonePermissionMember = (memberId: string) => {
+    setDonePermissionUserIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId],
+    );
+  };
+
+  const saveDonePermissions = async () => {
+    if (!selectedDepartmentId) return;
+
+    try {
+      setSavingDonePermissions(true);
+      const res = await fetch("/api/task-managements/done-move-permissions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          departmentId: selectedDepartmentId,
+          userIds: donePermissionUserIds,
+        }),
+      });
+      if (!res.ok) throw new Error("Gagal menyimpan hak pindah ke done");
+      toast.success("Hak pindah ke Done berhasil disimpan");
+      setDonePermissionDialogOpen(false);
+      fetchDonePermissions(selectedDepartmentId);
+    } catch {
+      toast.error("Gagal menyimpan hak pindah ke done");
+    } finally {
+      setSavingDonePermissions(false);
+    }
+  };
+
   const activeTaskFilterCount = [
     taskFilters.fromDate,
     taskFilters.toDate,
@@ -446,6 +501,17 @@ export default function TaskManagementPage() {
     taskFilters.categoryId,
     taskFilters.memberId,
   ].filter(Boolean).length;
+
+  const canMoveTaskToDone = useMemo(() => {
+    const normalizedRole = currentUserRole.toLowerCase().replace(/\s/g, "");
+    if (normalizedRole === "superadmin" || normalizedRole === "admin") {
+      return true;
+    }
+    if (donePermissionUserIds.length === 0) {
+      return Boolean(currentUserId);
+    }
+    return donePermissionUserIds.includes(currentUserId);
+  }, [currentUserId, currentUserRole, donePermissionUserIds]);
 
   const createList = async () => {
     const name = newListName.trim();
@@ -576,13 +642,17 @@ export default function TaskManagementPage() {
         },
       );
 
-      if (!res.ok) throw new Error("Gagal menyimpan task");
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Gagal menyimpan task");
+      }
+
       toast.success(taskForm.id ? "Task berhasil diubah" : "Task berhasil dibuat");
       closeTaskModal();
       fetchBoard(selectedDepartmentId);
       fetchDepartments();
-    } catch {
-      toast.error("Gagal menyimpan task");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal menyimpan task");
     } finally {
       setSavingTask(false);
     }
@@ -597,11 +667,14 @@ export default function TaskManagementPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ listId }),
       });
-      if (!res.ok) throw new Error("Gagal memindahkan task");
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Gagal memindahkan task");
+      }
       toast.success("Task berhasil dipindahkan");
       fetchBoard(selectedDepartmentId);
-    } catch {
-      toast.error("Gagal memindahkan task");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal memindahkan task");
     }
   };
 
@@ -819,6 +892,16 @@ export default function TaskManagementPage() {
     return map;
   }, [filteredBoard]);
 
+  const doneListId = useMemo(
+    () =>
+      filteredBoard?.lists.find((list) =>
+        ["done", "completed", "selesai"].some((keyword) =>
+          list.name.toLowerCase().includes(keyword),
+        ),
+      )?.id || "",
+    [filteredBoard],
+  );
+
   const boardTasks = useMemo(
     () =>
       filteredBoard?.lists.flatMap((list) =>
@@ -858,17 +941,17 @@ export default function TaskManagementPage() {
           Description: task.description || "-",
           "Start Date": task.startDate
             ? new Date(task.startDate).toLocaleDateString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })
             : "-",
           "Due Date": task.dueDate
             ? new Date(task.dueDate).toLocaleDateString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+            })
             : "-",
           Status: list.name || "-",
           Members: task.members.length
@@ -1264,6 +1347,15 @@ export default function TaskManagementPage() {
                 Tambah Kategori
               </Button>
             )}
+            {canViewDonePermissionButton && (
+              <Button
+                onClick={() => setDonePermissionDialogOpen(true)}
+                disabled={!selectedDepartmentId}
+                className="h-10 rounded-lg bg-amber-500 px-4 text-white shadow-sm hover:bg-amber-600"
+              >
+                Hak Akses List Done
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1416,6 +1508,8 @@ export default function TaskManagementPage() {
           setDraggedTaskId={setDraggedTaskId}
           setEditingListId={setEditingListId}
           setEditingListName={setEditingListName}
+          doneListId={doneListId}
+          canMoveTaskToDone={canMoveTaskToDone}
           canManageSelectedDepartment={canManageSelectedDepartment}
         />
 
@@ -1456,6 +1550,55 @@ export default function TaskManagementPage() {
           canManageSelectedDepartment={canManageSelectedDepartment}
           removeAttachmentFromDraft={removeAttachmentFromDraft}
         />
+
+        <Dialog open={donePermissionDialogOpen && canManageSelectedDepartment} onOpenChange={setDonePermissionDialogOpen}>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Izin Pindah ke Done</DialogTitle>
+              <DialogDescription>
+                Apabila tidak ada member yang dipilih, semua member bisa memindahkan task ke Done.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Pilih member yang diizinkan
+              </p>
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-3 dark:border-gray-800">
+                {board?.department.users.map((member) => {
+                  const selected = donePermissionUserIds.includes(member.id);
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => toggleDonePermissionMember(member.id)}
+                      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left transition ${selected
+                        ? "border-amber-500 bg-amber-50 dark:border-amber-400 dark:bg-amber-950/40"
+                        : "border-gray-200 bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
+                        }`}
+                    >
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {member.name}
+                      </span>
+                      <span className={`text-xs font-semibold ${selected ? "text-amber-700 dark:text-amber-300" : "text-gray-400"}`}>
+                        {selected ? "Diizinkan" : "Tidak"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDonePermissionDialogOpen(false)} disabled={savingDonePermissions}>
+                Batal
+              </Button>
+              <Button onClick={saveDonePermissions} disabled={savingDonePermissions} className="bg-amber-500 text-white hover:bg-amber-600">
+                {savingDonePermissions ? "Menyimpan..." : "Simpan"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </>
   );
