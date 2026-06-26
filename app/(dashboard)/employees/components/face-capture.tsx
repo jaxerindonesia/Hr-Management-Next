@@ -82,7 +82,11 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     stopCamera();
 
@@ -194,7 +198,7 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
           <div className="relative rounded-xl overflow-hidden border-2 border-indigo-400 bg-black w-full max-w-xs aspect-video">
             <video
               ref={videoRef}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover -scale-x-100"
               muted
               playsInline
             />
