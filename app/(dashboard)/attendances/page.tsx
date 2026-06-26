@@ -14,6 +14,7 @@ import {
   X,
   Download,
   Settings,
+  Coffee,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -43,6 +44,8 @@ type AttendanceConfigState = {
   officeStartTime: string;
   officeEndTime: string;
   lateToleranceMinutes: number;
+  breakEnabled: boolean;
+  breakFaceCaptureEnabled: boolean;
   workingDays: string[];
   isDefault?: boolean;
 };
@@ -51,6 +54,8 @@ const DEFAULT_ATTENDANCE_CONFIG: AttendanceConfigState = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
   lateToleranceMinutes: 15,
+  breakEnabled: false,
+  breakFaceCaptureEnabled: false,
   workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
   isDefault: true,
 };
@@ -104,10 +109,14 @@ export default function AttendancePage() {
 
   // Face recognition modal state
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
-  const [faceModalMode, setFaceModalMode] = useState<"check-in" | "check-out">("check-in");
+  const [faceModalMode, setFaceModalMode] = useState<"check-in" | "check-out" | "break-in" | "break-out">("check-in");
 
   const itemsPerPage = 10;
   const totalPages = Math.ceil(total / itemsPerPage);
+  const openBreakSession = todayAttendance?.breakSessions?.find(
+    (session) => session && !session.breakOut,
+  );
+  const hasBreakSession = (todayAttendance?.breakSessions?.length || 0) > 0;
 
   useEffect(() => {
     if (total === 0 && currentPage !== 1) {
@@ -198,6 +207,8 @@ export default function AttendancePage() {
         officeStartTime: config.officeStartTime || "09:00",
         officeEndTime: config.officeEndTime || "17:00",
         lateToleranceMinutes: Number(config.lateToleranceMinutes ?? 15),
+        breakEnabled: Boolean(config.breakEnabled ?? false),
+        breakFaceCaptureEnabled: Boolean(config.breakFaceCaptureEnabled ?? false),
         workingDays:
           Array.isArray(config.workingDays) && config.workingDays.length > 0
             ? config.workingDays
@@ -340,6 +351,21 @@ export default function AttendancePage() {
           Tanggal: tanggal,
           "Check In": checkIn,
           "Check Out": checkOut,
+          "Break In": record.breakSessions?.[0]?.breakIn
+            ? new Date(record.breakSessions[0].breakIn).toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "-",
+          "Break Out": record.breakSessions?.[record.breakSessions.length - 1]?.breakOut
+            ? new Date(
+                record.breakSessions[record.breakSessions.length - 1].breakOut as string,
+              ).toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "-",
+          "Durasi Break": record.breakDuration ?? "-",
           "Jam Kerja": record.workHours ?? "-",
           Status: statusExportLabel[record.status] || record.status,
           "Bukti Check In": record.checkInFaceImage ?? "-",
@@ -554,6 +580,80 @@ export default function AttendancePage() {
     }
   }, [userData, fetchAttendance, fetchTodayAttendance]);
 
+  const getBreakLocation = useCallback(async () => {
+    if (!navigator.geolocation) {
+      throw new Error("Perangkat ini tidak mendukung akses lokasi");
+    }
+
+    const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, LOCATION_OPTIONS),
+    );
+
+    const { latitude, longitude, accuracy } = position.coords;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new Error("Lokasi tidak valid. Pastikan GPS aktif lalu coba lagi.");
+    }
+    if (accuracy > 1500) {
+      throw new Error("Akurasi lokasi terlalu rendah. Nyalakan GPS presisi tinggi lalu coba lagi.");
+    }
+
+    return { latitude, longitude, accuracy };
+  }, []);
+
+  const doBreakCheckIn = useCallback(async (faceCaptureBase64?: string | null) => {
+    try {
+      const location = await getBreakLocation();
+      const res = await fetch("/api/attendances/break-check-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userData.id,
+          breakInLocation: location,
+          faceCaptureBase64,
+        }),
+      });
+
+      if (!res.ok) {
+        const message = await parseApiError(res, "Gagal memulai break");
+        throw new Error(message);
+      }
+
+      toast.success("Break Check In berhasil");
+      fetchAttendance(userData);
+      fetchTodayAttendance(userData.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      toast.error(message || "Gagal memulai break");
+    }
+  }, [userData, fetchAttendance, fetchTodayAttendance, getBreakLocation]);
+
+  const doBreakCheckOut = useCallback(async (faceCaptureBase64?: string | null) => {
+    try {
+      const location = await getBreakLocation();
+      const res = await fetch("/api/attendances/break-check-out", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userData.id,
+          breakOutLocation: location,
+          faceCaptureBase64,
+        }),
+      });
+
+      if (!res.ok) {
+        const message = await parseApiError(res, "Gagal mengakhiri break");
+        throw new Error(message);
+      }
+
+      toast.success("Break Check Out berhasil");
+      fetchAttendance(userData);
+      fetchTodayAttendance(userData.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      toast.error(message || "Gagal mengakhiri break");
+    }
+  }, [userData, fetchAttendance, fetchTodayAttendance, getBreakLocation]);
+
   // ── Open face-recognition modal first ──────────────────────────────────
   const handleCheckIn = () => {
     const canProceed = !locationBlocked && (locationReady || isIOSBrowser);
@@ -583,6 +683,24 @@ export default function AttendancePage() {
     setIsFaceModalOpen(true);
   };
 
+  const handleBreakCheckIn = () => {
+    if (attendanceConfig.breakFaceCaptureEnabled) {
+      setFaceModalMode("break-in");
+      setIsFaceModalOpen(true);
+      return;
+    }
+    doBreakCheckIn();
+  };
+
+  const handleBreakCheckOut = () => {
+    if (attendanceConfig.breakFaceCaptureEnabled) {
+      setFaceModalMode("break-out");
+      setIsFaceModalOpen(true);
+      return;
+    }
+    doBreakCheckOut();
+  };
+
   const handleFaceSuccess = useCallback((captureDataUrl: string) => {
     if (!captureDataUrl) {
       toast.error("Gagal mengambil bukti foto, silakan ulangi scan wajah");
@@ -591,10 +709,14 @@ export default function AttendancePage() {
     setIsFaceModalOpen(false);
     if (faceModalMode === "check-in") {
       doCheckIn(captureDataUrl);
-    } else {
+    } else if (faceModalMode === "check-out") {
       doCheckOut(captureDataUrl);
+    } else if (faceModalMode === "break-in") {
+      doBreakCheckIn(captureDataUrl);
+    } else {
+      doBreakCheckOut(captureDataUrl);
     }
-  }, [faceModalMode, doCheckIn, doCheckOut]);
+  }, [faceModalMode, doCheckIn, doCheckOut, doBreakCheckIn, doBreakCheckOut]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -662,6 +784,7 @@ export default function AttendancePage() {
   const tableColSpan =
     6 +
     (["Super Admin", "Admin"].includes(userData.role) ? 1 : 0) +
+    (attendanceConfig.breakEnabled ? 3 : 0) +
     (checkRoleMulti("attendances", ["get-by-id", "delete"]) ? 1 : 0);
 
   // Reset to page 1 when filters change
@@ -806,18 +929,36 @@ export default function AttendancePage() {
                       Check In
                     </Button>
                   ) : todayAttendance && !todayAttendance.checkOut ? (
-                    <Button
-                      onClick={handleCheckOut}
-                      disabled={
-                        locationChecking ||
-                        locationBlocked ||
-                        (!locationReady && !isIOSBrowser)
-                      }
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      <Clock className="w-4 h-4 mr-2" />
-                      Check Out
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={handleCheckOut}
+                        disabled={
+                          locationChecking ||
+                          locationBlocked ||
+                          (!locationReady && !isIOSBrowser)
+                        }
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <Clock className="w-4 h-4 mr-2" />
+                        Check Out
+                      </Button>
+                      {attendanceConfig.breakEnabled && (
+                        openBreakSession ? (
+                          <Button
+                            onClick={handleBreakCheckOut}
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            <Coffee className="w-4 h-4 mr-2" />
+                            Break Check Out
+                          </Button>
+                        ) : !hasBreakSession ? (
+                          <Button onClick={handleBreakCheckIn} variant="outline">
+                            <Coffee className="w-4 h-4 mr-2" />
+                            Break Check In
+                          </Button>
+                        ) : null
+                      )}
+                    </div>
                   ) : (
                     <Button
                       disabled
@@ -934,6 +1075,19 @@ export default function AttendancePage() {
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Check Out
                   </th>
+                  {attendanceConfig.breakEnabled && (
+                    <>
+                      <th className="text-left p-3 font-semibold dark:text-gray-300">
+                        Break In
+                      </th>
+                      <th className="text-left p-3 font-semibold dark:text-gray-300">
+                        Break Out
+                      </th>
+                      <th className="text-left p-3 font-semibold dark:text-gray-300">
+                        Durasi Istirahat
+                      </th>
+                    </>
+                  )}
                   <th className="text-left p-3 font-semibold dark:text-gray-300">
                     Jam Kerja
                   </th>
@@ -1004,6 +1158,29 @@ export default function AttendancePage() {
                           )
                           : "-"}
                       </td>
+                      {attendanceConfig.breakEnabled && (
+                        <>
+                          <td className="p-3 dark:text-gray-300">
+                            {record.breakSessions?.[0]?.breakIn
+                              ? new Date(record.breakSessions[0].breakIn).toLocaleTimeString("id-ID", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "-"}
+                          </td>
+                          <td className="p-3 dark:text-gray-300">
+                            {record.breakSessions?.[record.breakSessions.length - 1]?.breakOut
+                              ? new Date(
+                                  record.breakSessions[record.breakSessions.length - 1].breakOut as string,
+                                ).toLocaleTimeString("id-ID", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "-"}
+                          </td>
+                          <td className="p-3 dark:text-gray-300">{record.breakDuration || "-"}</td>
+                        </>
+                      )}
                       <td className="p-3 dark:text-gray-300 font-medium">
                         {record.workHours}
                       </td>
@@ -1234,6 +1411,7 @@ export default function AttendancePage() {
 
       {showAttendanceConfig && (
         <ModalAttendanceConfig
+          initialConfig={attendanceConfig}
           onClose={() => {
             setShowAttendanceConfig(false);
             fetchAttendance(userData);
