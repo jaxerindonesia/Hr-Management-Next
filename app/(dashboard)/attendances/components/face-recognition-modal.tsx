@@ -8,7 +8,7 @@ import { ensureFaceModelLoaded } from "@/lib/helper/face-models";
 
 interface FaceRecognitionModalProps {
   isOpen: boolean;
-  mode: "check-in" | "check-out";
+  mode: "check-in" | "check-out" | "break-in" | "break-out";
   referenceImageUrl: string | null;
   onSuccess: (captureDataUrl: string) => void;
   onClose: () => void;
@@ -384,7 +384,14 @@ export default function FaceRecognitionModal({
   };
 
   const cfg = statusConfig[status];
-  const modeLabel = mode === "check-in" ? "Check In" : "Check Out";
+  const modeLabel =
+    mode === "check-in"
+      ? "Check In"
+      : mode === "check-out"
+        ? "Check Out"
+        : mode === "break-in"
+          ? "Break Check In"
+          : "Break Check Out";
   const shouldSuppressStatusUi = showStartupSplash;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 sm:p-6">

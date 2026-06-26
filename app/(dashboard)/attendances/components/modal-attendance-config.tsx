@@ -11,6 +11,8 @@ interface AttendanceConfig {
   officeStartTime: string;
   officeEndTime: string;
   lateToleranceMinutes: number;
+  breakEnabled: boolean;
+  breakFaceCaptureEnabled: boolean;
   workingDays: string[];
 }
 
@@ -18,6 +20,8 @@ const defaultConfig: AttendanceConfig = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
   lateToleranceMinutes: 15,
+  breakEnabled: false,
+  breakFaceCaptureEnabled: false,
   workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
 };
 
@@ -34,9 +38,11 @@ const DAY_OPTIONS = [
 export default function ModalAttendanceConfig({
   onClose,
   onSaved,
+  initialConfig,
 }: {
   onClose: () => void;
   onSaved?: () => void;
+  initialConfig?: AttendanceConfig;
 }) {
   const [form, setForm] = useState<AttendanceConfig>(defaultConfig);
   const [loading, setLoading] = useState(false);
@@ -52,6 +58,10 @@ export default function ModalAttendanceConfig({
         lateToleranceMinutes: Number(
           data.lateToleranceMinutes ?? defaultConfig.lateToleranceMinutes,
         ),
+        breakEnabled: Boolean(data.breakEnabled ?? defaultConfig.breakEnabled),
+        breakFaceCaptureEnabled: Boolean(
+          data.breakFaceCaptureEnabled ?? defaultConfig.breakFaceCaptureEnabled,
+        ),
         workingDays:
           Array.isArray(data.workingDays) && data.workingDays.length > 0
             ? data.workingDays
@@ -63,8 +73,13 @@ export default function ModalAttendanceConfig({
   };
 
   useEffect(() => {
+    if (initialConfig) {
+      setForm(initialConfig);
+      return;
+    }
+
     fetchConfig();
-  }, []);
+  }, [initialConfig]);
 
   const save = async () => {
     if (!form.officeStartTime || !form.officeEndTime) {
@@ -133,8 +148,48 @@ export default function ModalAttendanceConfig({
               onChange={(e) =>
                 setForm((p) => ({ ...p, lateToleranceMinutes: Number(e.target.value || 0) }))
               }
-            />
+              />
           </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="space-y-2">
+              <Label>Absensi Waktu Istirahat</Label>
+              <p className="text-xs text-muted-foreground">
+                Aktifkan agar dapat menghitung durasi waktu istirahat karyawan.
+              </p>
+            </div>
+            <Button
+              className="w-24"
+              type="button"
+              variant={form.breakEnabled ? "default" : "outline"}
+              onClick={() =>
+                setForm((p) => ({ ...p, breakEnabled: !p.breakEnabled }))
+              }
+            >
+              {form.breakEnabled ? "Aktif" : "Nonaktif"}
+            </Button>
+          </div>
+
+          {form.breakEnabled && (
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-2">
+                <Label>Bukti Foto Break</Label>
+                <p className="text-xs text-muted-foreground">
+                  Jika aktif, user akan diminta capture foto saat Break Check In dan Break Check Out.
+                </p>
+              </div>
+              <Button
+                className="w-24"
+                type="button"
+                variant={form.breakFaceCaptureEnabled ? "default" : "outline"}
+                onClick={() =>
+                  setForm((p) => ({ ...p, breakFaceCaptureEnabled: !p.breakFaceCaptureEnabled }))
+                }
+              >
+                {form.breakFaceCaptureEnabled ? "Aktif" : "Nonaktif"}
+              </Button>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Hari Masuk Kantor</Label>
