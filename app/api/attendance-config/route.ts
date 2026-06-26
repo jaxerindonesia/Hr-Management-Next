@@ -8,6 +8,8 @@ const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
   lateToleranceMinutes: 15,
+  breakEnabled: false,
+  breakFaceCaptureEnabled: false,
   workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
 };
 
@@ -56,6 +58,8 @@ export async function PUT(req: NextRequest) {
     const officeStartTime = String(body.officeStartTime || "").trim();
     const officeEndTime = String(body.officeEndTime || "").trim();
     const lateToleranceMinutes = Number(body.lateToleranceMinutes);
+    const breakEnabled = Boolean(body.breakEnabled);
+    const breakFaceCaptureEnabled = Boolean(body.breakFaceCaptureEnabled);
     const workingDaysInput: unknown[] = Array.isArray(body.workingDays)
       ? body.workingDays
       : [];
@@ -95,6 +99,8 @@ export async function PUT(req: NextRequest) {
       officeStartTime,
       officeEndTime,
       lateToleranceMinutes,
+      breakEnabled,
+      breakFaceCaptureEnabled,
       workingDays,
     };
 

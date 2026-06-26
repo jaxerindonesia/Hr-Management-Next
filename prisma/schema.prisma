@@ -205,6 +205,8 @@ model Attendance {
   checkIn           DateTime? @map("check_in")
   checkOut          DateTime? @map("check_out")
   autoCheckout      Boolean   @default(false) @map("auto_checkout")
+  breakSessions     Json?     @map("break_sessions")
+  breakDuration     String?   @map("break_duration")
   status            String
   notes             String?
   workHours         String?   @map("work_hours")
@@ -229,6 +231,8 @@ model AttendanceConfig {
   officeStartTime      String   @map("office_start_time")
   officeEndTime        String   @map("office_end_time")
   lateToleranceMinutes Int      @map("late_tolerance_minutes")
+  breakEnabled         Boolean  @default(false) @map("break_enabled")
+  breakFaceCaptureEnabled Boolean @default(false) @map("break_face_capture_enabled")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
   tenantId             String?  @map("tenant_id") @db.Uuid
