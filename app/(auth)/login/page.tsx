@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -335,16 +334,6 @@ export default function LoginPage() {
                   )}
                 </button>
               </form>
-
-              {/* Footer Text */}
-              <p className="text-center text-sm text-gray-400 pt-2">
-                Belum punya akun?{" "}
-                <button className="font-semibold text-blue-400 hover:text-blue-300 transition-colors relative group">
-                  <Link href="/register">Daftar sekarang</Link>
-
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300" />
-                </button>
-              </p>
             </div>
 
             {/* Watermark Logo Jaxer */}
