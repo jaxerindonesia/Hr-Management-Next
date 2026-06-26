@@ -13,6 +13,7 @@ import {
   Download,
   Search,
   FileText,
+  Printer,
 } from "lucide-react";
 import { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
@@ -35,6 +36,328 @@ type TenantOption = {
   companyName: string;
 };
 
+type AttendanceDetail = {
+  id: string;
+  date: string;
+  checkIn: string | null;
+  checkOut: string | null;
+  status: string;
+  notes: string | null;
+  workHours: string | null;
+};
+
+type SubmissionHistory = {
+  id: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+};
+
+type LeaveQuota = {
+  configName: string;
+  maxDays: number;
+  usedDays: number;
+  remainingDays: number;
+};
+
+type RecapData = {
+  user: { id: string; name: string };
+  month: number;
+  year: number;
+  attendance: {
+    summary: {
+      totalHadir: number;
+      totalTelat: number;
+      totalAlpha: number;
+      totalIzin: number;
+    };
+    details: AttendanceDetail[];
+  };
+  submissions: {
+    leaveQuotas: LeaveQuota[];
+    history: SubmissionHistory[];
+  };
+};
+
+const MONTHS = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+];
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "-")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatPrintDate(dateStr?: string | null) {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatPrintTime(dateStr?: string | null) {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getSubmissionStatusLabel(status: string) {
+  const s = status?.toUpperCase() || "";
+  if (s === "APPROVED") return "Disetujui";
+  if (s === "REJECTED") return "Ditolak";
+  return "Pending";
+}
+
+function buildEmployeeRecapSection(employee: UserDto, recap: RecapData) {
+  const summary = recap.attendance.summary;
+  const gender =
+    employee.gender === "male"
+      ? "Laki-laki"
+      : employee.gender === "female"
+        ? "Perempuan"
+        : "-";
+
+  const attendanceRows = recap.attendance.details
+    .map(
+      (att) => `
+        <tr>
+          <td>${escapeHtml(formatPrintDate(att.date))}</td>
+          <td>${escapeHtml(formatPrintTime(att.checkIn))}</td>
+          <td>${escapeHtml(formatPrintTime(att.checkOut))}</td>
+          <td>${escapeHtml(att.status || "-")}</td>
+          <td>${escapeHtml(att.workHours || "-")}</td>
+          <td>${escapeHtml(att.notes || "-")}</td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  const quotaCards = recap.submissions.leaveQuotas
+    .map(
+      (quota) => `
+        <div class="quota-card">
+          <p class="quota-title">${escapeHtml(quota.configName)}</p>
+          <p class="quota-value">${escapeHtml(quota.remainingDays)} <span>/ ${escapeHtml(quota.maxDays)} hari</span></p>
+          <p class="quota-used">Terpakai: ${escapeHtml(quota.usedDays)} hari</p>
+        </div>
+      `,
+    )
+    .join("");
+
+  const submissionRows = recap.submissions.history
+    .map(
+      (sub) => `
+        <tr>
+          <td>${escapeHtml(sub.type)}</td>
+          <td>${escapeHtml(formatPrintDate(sub.startDate))}</td>
+          <td>${escapeHtml(formatPrintDate(sub.endDate))}</td>
+          <td>${escapeHtml(sub.reason || "-")}</td>
+          <td>${escapeHtml(getSubmissionStatusLabel(sub.status))}</td>
+          <td>${escapeHtml(formatPrintDate(sub.createdAt))}</td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  return `
+    <section class="employee-page">
+      <div class="profile">
+        <div>
+          <h1>${escapeHtml(employee.name)}</h1>
+          <div class="subtitle">${escapeHtml(employee.position || "-")} &bull; ${escapeHtml(employee.department?.name || "-")}</div>
+          <div class="meta">
+            <div class="meta-item"><span class="label">NIK</span><span class="value">${escapeHtml(employee.nik || "-")}</span></div>
+            <div class="meta-item"><span class="label">Gender</span><span class="value">${escapeHtml(gender)}</span></div>
+            <div class="meta-item"><span class="label">Email</span><span class="value">${escapeHtml(employee.email || "-")}</span></div>
+            <div class="meta-item"><span class="label">Lahir</span><span class="value">${escapeHtml(employee.birthPlace ? `${employee.birthPlace}, ${formatPrintDate(employee.birthDate)}` : formatPrintDate(employee.birthDate))}</span></div>
+            <div class="meta-item wide"><span class="label">Alamat</span><span class="value">${escapeHtml(employee.address || "-")}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <h2>Rekap Kehadiran - ${escapeHtml(MONTHS[recap.month - 1])} ${escapeHtml(recap.year)}</h2>
+      <div class="summary-cards">
+        <div class="summary-card green"><span>Hadir</span><strong>${escapeHtml(summary.totalHadir || 0)}</strong></div>
+        <div class="summary-card yellow"><span>Telat</span><strong>${escapeHtml(summary.totalTelat || 0)}</strong></div>
+        <div class="summary-card red"><span>Alpha</span><strong>${escapeHtml(summary.totalAlpha || 0)}</strong></div>
+        <div class="summary-card blue"><span>Izin/Cuti</span><strong>${escapeHtml(summary.totalIzin || 0)}</strong></div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Status</th><th>Jam Kerja</th><th>Catatan</th></tr>
+        </thead>
+        <tbody>
+          ${attendanceRows || '<tr><td colspan="6" class="empty">Tidak ada data kehadiran</td></tr>'}
+        </tbody>
+      </table>
+
+      <h2>Pengajuan Ketidakhadiran - Tahun ${escapeHtml(recap.year)}</h2>
+      ${quotaCards ? `<div class="quota-cards">${quotaCards}</div>` : '<p class="empty-block">Tidak ada kuota cuti.</p>'}
+      <table>
+        <thead>
+          <tr><th>Jenis</th><th>Mulai</th><th>Selesai</th><th>Alasan</th><th>Status</th><th>Diajukan</th></tr>
+        </thead>
+        <tbody>
+          ${submissionRows || '<tr><td colspan="6" class="empty">Tidak ada pengajuan</td></tr>'}
+        </tbody>
+      </table>
+    </section>
+  `;
+}
+
+function buildBulkRecapHtml(
+  rows: { employee: UserDto; recap: RecapData }[],
+  month: number,
+  year: number,
+) {
+  return `
+    <div id="bulk-recap-print-container">
+      <style>
+        #bulk-recap-print-container {
+          font-family: Arial, sans-serif;
+          color: #111827;
+          padding: 24px;
+          font-size: 12px;
+          background: #fff;
+        }
+        #bulk-recap-print-container .document-title {
+          margin: 0 0 18px;
+          padding-bottom: 10px;
+          border-bottom: 3px solid #2563eb;
+        }
+        #bulk-recap-print-container .document-title h1 {
+          margin: 0 0 4px;
+          font-size: 24px;
+        }
+        #bulk-recap-print-container .document-title p { margin: 0; color: #4b5563; }
+        #bulk-recap-print-container .employee-page {
+          break-after: page;
+          page-break-after: always;
+          padding-bottom: 16px;
+        }
+        #bulk-recap-print-container .employee-page:last-child {
+          break-after: auto;
+          page-break-after: auto;
+        }
+        #bulk-recap-print-container .profile {
+          padding: 14px;
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+        }
+        #bulk-recap-print-container h1 { font-size: 22px; margin: 0 0 6px; }
+        #bulk-recap-print-container h2 {
+          font-size: 15px;
+          margin: 20px 0 10px;
+          padding-bottom: 6px;
+          border-bottom: 2px solid #2563eb;
+          color: #1e40af;
+        }
+        #bulk-recap-print-container .subtitle { color:#2563eb; font-weight:700; }
+        #bulk-recap-print-container .meta {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px 24px;
+          margin-top: 12px;
+        }
+        #bulk-recap-print-container .meta-item { display:flex; flex-direction:column; gap:2px; }
+        #bulk-recap-print-container .meta-item.wide { grid-column: 1 / -1; }
+        #bulk-recap-print-container .label {
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .08em;
+          color: #6b7280;
+        }
+        #bulk-recap-print-container .value { font-weight: 600; }
+        #bulk-recap-print-container .summary-cards {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+        #bulk-recap-print-container .summary-card {
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 10px;
+        }
+        #bulk-recap-print-container .summary-card span { display:block; font-weight:700; margin-bottom:5px; }
+        #bulk-recap-print-container .summary-card strong { font-size: 24px; }
+        #bulk-recap-print-container .green { background:#f0fdf4; color:#15803d; }
+        #bulk-recap-print-container .yellow { background:#fefce8; color:#a16207; }
+        #bulk-recap-print-container .red { background:#fef2f2; color:#b91c1c; }
+        #bulk-recap-print-container .blue { background:#eff6ff; color:#1d4ed8; }
+        #bulk-recap-print-container table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 8px;
+        }
+        #bulk-recap-print-container th {
+          background: #f3f4f6;
+          text-align: left;
+          padding: 8px;
+          border-bottom: 2px solid #d1d5db;
+        }
+        #bulk-recap-print-container td {
+          padding: 8px;
+          border-bottom: 1px solid #e5e7eb;
+          vertical-align: top;
+        }
+        #bulk-recap-print-container .quota-cards {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+        #bulk-recap-print-container .quota-card {
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 10px;
+        }
+        #bulk-recap-print-container .quota-title { margin:0 0 4px; font-weight:700; }
+        #bulk-recap-print-container .quota-value { margin:0; color:#2563eb; font-size:20px; font-weight:700; }
+        #bulk-recap-print-container .quota-value span { color:#6b7280; font-size:12px; font-weight:500; }
+        #bulk-recap-print-container .quota-used { margin:4px 0 0; color:#6b7280; font-size:11px; }
+        #bulk-recap-print-container .empty,
+        #bulk-recap-print-container .empty-block {
+          text-align:center;
+          color:#6b7280;
+          padding:14px;
+        }
+        @page { margin: 15mm; size: A4; }
+      </style>
+      <div class="document-title">
+        <h1>Rekap Karyawan</h1>
+        <p>${escapeHtml(MONTHS[month - 1])} ${escapeHtml(year)} &bull; ${escapeHtml(rows.length)} karyawan</p>
+      </div>
+      ${rows.map(({ employee, recap }) => buildEmployeeRecapSection(employee, recap)).join("")}
+    </div>
+  `;
+}
+
 export default function EmployeesPage() {
   const { checkRole, checkRoleMulti } = usePermission();
   const [userData, setUserData] = useState({ id: "", role: "" });
@@ -48,6 +371,7 @@ export default function EmployeesPage() {
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
   const [formData, setFormData] = useState<UserDto>({
     roleId: "",
     departmentId: "",
@@ -208,6 +532,110 @@ export default function EmployeesPage() {
       toast.error("Gagal mengexport data");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleBulkRecapDownload = async () => {
+    try {
+      setIsBulkDownloading(true);
+
+      const params = new URLSearchParams();
+      params.set("limit", "999999");
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+      if (filterDepartment !== "all")
+        params.set("departmentId", filterDepartment);
+      if (isSuperAdmin && filterCompany !== "all") {
+        params.set("tenantId", filterCompany);
+      }
+
+      const usersRes = await fetch(`/api/users?${params.toString()}`);
+      if (!usersRes.ok) throw new Error("Gagal mengambil data karyawan");
+
+      const usersJson = await usersRes.json();
+      const allData: UserDto[] = usersJson.data || [];
+      if (allData.length === 0) {
+        toast.error("Tidak ada data karyawan untuk didownload");
+        return;
+      }
+
+      const now = new Date();
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+
+      const recapResults = await Promise.all(
+        allData.map(async (employee) => {
+          if (!employee.id) return null;
+          const recapRes = await fetch(
+            `/api/users/${employee.id}/recap?month=${month}&year=${year}`,
+          );
+          if (!recapRes.ok) return null;
+          const recapJson = await recapRes.json();
+          return {
+            employee,
+            recap: recapJson.data as RecapData,
+          };
+        }),
+      );
+
+      const printableRows = recapResults.filter(
+        (row): row is { employee: UserDto; recap: RecapData } => Boolean(row),
+      );
+
+      if (printableRows.length === 0) {
+        toast.error("Gagal mengambil data rekap karyawan");
+        return;
+      }
+
+      const printDiv = document.createElement("div");
+      printDiv.id = "temp-bulk-recap-print-area";
+      printDiv.innerHTML = buildBulkRecapHtml(printableRows, month, year);
+      document.body.appendChild(printDiv);
+
+      const style = document.createElement("style");
+      style.id = "temp-bulk-recap-print-style";
+      style.innerHTML = `
+        @media print {
+          body > *:not(#temp-bulk-recap-print-area) { display: none !important; }
+          #temp-bulk-recap-print-area {
+            display: block !important;
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            background: white !important;
+            z-index: 99999 !important;
+          }
+          #temp-bulk-recap-print-area * { visibility: visible !important; }
+          body, html { height: auto !important; overflow: visible !important; background: white !important; }
+          @page { margin: 15mm; size: A4; }
+        }
+      `;
+      document.head.appendChild(style);
+
+      const oldTitle = document.title;
+      document.title = `rekap-karyawan-${year}-${String(month).padStart(2, "0")}`;
+
+      const cleanup = () => {
+        if (document.body.contains(printDiv)) document.body.removeChild(printDiv);
+        if (document.head.contains(style)) document.head.removeChild(style);
+        document.title = oldTitle;
+        window.removeEventListener("afterprint", cleanup);
+      };
+
+      window.addEventListener("afterprint", cleanup);
+      setTimeout(() => window.print(), 250);
+      setTimeout(cleanup, 60000);
+
+      const failedCount = allData.length - printableRows.length;
+      toast.success(
+        failedCount > 0
+          ? `Menyiapkan ${printableRows.length} rekap. ${failedCount} gagal dimuat.`
+          : `Menyiapkan ${printableRows.length} rekap karyawan`,
+      );
+    } catch {
+      toast.error("Gagal menyiapkan download bulk");
+    } finally {
+      setIsBulkDownloading(false);
     }
   };
 
@@ -374,15 +802,27 @@ export default function EmployeesPage() {
 
             {/* Export Button */}
             {checkRole("users", "export") && (
-              <Button
-                onClick={handleExport}
-                disabled={isExporting}
-                variant="outline"
-                className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
-              >
-                <Download className="w-4 h-4" />
-                {isExporting ? "Mengexport..." : "Export Excel"}
-              </Button>
+              <>
+                <Button
+                  onClick={handleBulkRecapDownload}
+                  disabled={isBulkDownloading || total === 0}
+                  variant="outline"
+                  className="flex items-center gap-2 border-blue-600 text-blue-700 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                >
+                  <Printer className="w-4 h-4" />
+                  {isBulkDownloading ? "Menyiapkan..." : "Download Semua PDF"}
+                </Button>
+
+                <Button
+                  onClick={handleExport}
+                  disabled={isExporting}
+                  variant="outline"
+                  className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+                >
+                  <Download className="w-4 h-4" />
+                  {isExporting ? "Mengexport..." : "Export Excel"}
+                </Button>
+              </>
             )}
           </div>
 
