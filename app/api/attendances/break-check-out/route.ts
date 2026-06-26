@@ -2,7 +2,6 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
@@ -71,10 +70,6 @@ export async function POST(req: NextRequest) {
       breakIn: string;
       breakOut?: string | null;
       duration?: string | null;
-      breakInLocation?: unknown;
-      breakOutLocation?: unknown;
-      breakInFaceImage?: string | null;
-      breakOutFaceImage?: string | null;
     }>;
     const last = sessions[sessions.length - 1];
     if (!last || last.breakOut) {
@@ -103,7 +98,7 @@ export async function POST(req: NextRequest) {
 
     const updated = await prisma.attendance.update({
       where: { id: attendance.id },
-      data: { breakSessions: sessions as Prisma.InputJsonValue, breakDuration: totalBreakHours },
+      data: { breakSessions: sessions, breakDuration: totalBreakHours },
     });
 
     return NextResponse.json({ message: "Break Check Out successful", data: updated });
