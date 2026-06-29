@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import LiveClock from "./components/live-clock";
+import LiveDate from "./components/live-date";
 import {
   BarChart,
   Bar,
@@ -235,7 +235,7 @@ export default function DashboardPage() {
           👋
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          <LiveClock />
+          <LiveDate />
         </p>
       </div>
 
