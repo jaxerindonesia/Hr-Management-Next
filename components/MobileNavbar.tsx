@@ -121,7 +121,6 @@ export default function MobileNavbar() {
     { icon: ListTodo, path: "/task-managements", label: "Tugas" },
     { icon: Calendar, path: "/submissions", label: "Cuti" },
     { icon: Receipt, path: "/reimbursements", label: "Reimbursement" },
-    { icon: TrendingUp, path: "/performances", label: "Kinerja" },
   ];
 
   const handleLogout = async () => {
