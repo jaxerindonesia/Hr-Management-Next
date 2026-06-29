@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import LiveClock from "./components/live-clock";
 import {
   BarChart,
   Bar,
@@ -149,7 +150,6 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [holidays, setHolidays] = useState<HolidayItem[]>([]);
   const [holidaysLoading, setHolidaysLoading] = useState(true);
   const [userRole] = useState<string | null>(() => {
@@ -174,8 +174,6 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-
     fetch("/api/dashboard")
       .then((r) => r.json())
       .then((res) => {
@@ -192,8 +190,6 @@ export default function DashboardPage() {
       })
       .catch(() => { })
       .finally(() => setHolidaysLoading(false));
-
-    return () => clearInterval(timer);
   }, []);
   const canViewEmployeeStats =
     userRole === "Super Admin" || userRole === "Admin";
@@ -239,18 +235,7 @@ export default function DashboardPage() {
           👋
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {currentTime.toLocaleDateString("id-ID", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}{" "}
-          &bull;{" "}
-          {currentTime.toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          })}
+          <LiveClock />
         </p>
       </div>
 
