@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CategoryFormState } from "./types";
+import { CategoryFormState } from "../types";
 
 type Props = {
   open: boolean;
