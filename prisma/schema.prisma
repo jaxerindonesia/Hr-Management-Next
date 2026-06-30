@@ -43,6 +43,7 @@ model Tenant {
   submissions       Submission[]
   pettyCashes       PettyCash[]
   accounts          Account[]
+  accountCategories AccountCategory[]
   banks             Bank[]
   customers         Customer[]
   vendors           Vendor[]
@@ -445,9 +446,12 @@ model AccountCategory {
   id        String    @id @default(uuid()) @db.Uuid
   code      String
   name      String
+  tenantId  String?   @map("tenant_id") @db.Uuid
+  tenant    Tenant?   @relation(fields: [tenantId], references: [id])
   accounts  Account[]
 
-  @@unique([code])
+  @@unique([tenantId, code])
+  @@index([tenantId])
   @@map("account_categories")
 }
 

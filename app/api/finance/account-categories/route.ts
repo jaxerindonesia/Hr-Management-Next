@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { requireSessionUser } from "@/lib/auth/tenant";
+import { requireSessionUser, ensureTenantScope } from "@/lib/auth/tenant";
 
 export async function GET(req: NextRequest) {
   const auth = await requireSessionUser();
@@ -14,8 +14,10 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
   const search = searchParams.get("search") || "";
+  const tenantScope = ensureTenantScope(auth.user);
+  const tenantId = searchParams.get("tenantId") || tenantScope;
 
-  const where: Prisma.AccountCategoryWhereInput = {};
+  const where: Prisma.AccountCategoryWhereInput = tenantId ? { tenantId } : {};
   if (search) {
     where.OR = [
       { code: { contains: search, mode: "insensitive" } },
@@ -50,6 +52,23 @@ export async function POST(req: NextRequest) {
   if (auth.error) return auth.error;
   const body = await req.json();
   if (!body.code || !body.name) return NextResponse.json({ message: "Code and name are required" }, { status: 400 });
-  const data = await prisma.accountCategory.create({ data: { code: String(body.code), name: String(body.name) } });
+  const tenantId = ensureTenantScope(auth.user) ?? body.tenantId ?? null;
+  const code = String(body.code).trim();
+  const name = String(body.name).trim();
+
+  const duplicate = await prisma.accountCategory.findFirst({
+    where: {
+      tenantId,
+      code,
+    },
+  });
+
+  if (duplicate) {
+    return NextResponse.json({ message: "Kode kategori akun sudah digunakan." }, { status: 409 });
+  }
+
+  const data = await prisma.accountCategory.create({
+    data: { code, name, tenantId },
+  });
   return NextResponse.json({ data }, { status: 201 });
 }

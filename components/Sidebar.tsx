@@ -217,6 +217,10 @@ export default function Sidebar() {
         permissions: ["get-all", "get-by-id"],
         subItems: [
           {
+            name: "Dashboard",
+            path: "/finance/dashboard",
+          },
+          {
             name: "Kategori Akun",
             path: "/finance/account-categories",
           },
@@ -235,6 +239,10 @@ export default function Sidebar() {
           {
             name: "Jurnal Umum",
             path: "/finance/journals",
+          },
+          {
+            name: "Buku Besar",
+            path: "/finance/ledger",
           },
         ],
       },

@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { requireSessionUser } from "@/lib/auth/tenant";
+import { requireSessionUser, ensureTenantScope } from "@/lib/auth/tenant";
 
 export async function GET(req: NextRequest) {
   const auth = await requireSessionUser();
@@ -16,9 +16,10 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") || "";
   const status = searchParams.get("status") || "";
   const accountCategoryId = searchParams.get("accountCategoryId") || "";
-  const tenantId = searchParams.get("tenantId");
+  const tenantScope = ensureTenantScope(auth.user);
+  const tenantId = searchParams.get("tenantId") || tenantScope;
 
-  const where: Prisma.AccountWhereInput = tenantId ? { tenantId } : { tenantId: null };
+  const where: Prisma.AccountWhereInput = tenantId ? { tenantId } : {};
 
   if (search) {
     where.OR = [
@@ -64,15 +65,36 @@ export async function POST(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
   const body = await req.json();
+  const code = String(body.code || "").trim();
+  const name = String(body.name || "").trim();
+  const accountCategoryId = String(body.accountCategoryId || "").trim();
+  const normalBalance = String(body.normalBalance || "").toUpperCase();
+  const tenantId = ensureTenantScope(auth.user) ?? body.tenantId ?? null;
+
+  if (!code || !name || !accountCategoryId || !normalBalance) {
+    return NextResponse.json({ message: "Kode, nama, kategori, dan saldo normal wajib diisi." }, { status: 400 });
+  }
+
+  const duplicate = await prisma.account.findFirst({
+    where: {
+      code,
+      tenantId,
+    },
+  });
+
+  if (duplicate) {
+    return NextResponse.json({ message: "Kode akun sudah digunakan." }, { status: 409 });
+  }
+
   const data = await prisma.account.create({
     data: {
-      code: String(body.code),
-      name: String(body.name),
-      normalBalance: body.normalBalance,
+      code,
+      name,
+      normalBalance: normalBalance as "DEBIT" | "CREDIT",
       isActive: body.isActive ?? true,
-      accountCategoryId: String(body.accountCategoryId),
+      accountCategoryId,
       parentId: body.parentId || null,
-      tenantId: body.tenantId || null,
+      tenantId,
     },
   });
   return NextResponse.json({ data }, { status: 201 });

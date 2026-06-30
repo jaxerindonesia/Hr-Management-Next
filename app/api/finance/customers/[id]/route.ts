@@ -38,7 +38,7 @@ export async function PUT(req: NextRequest, context: Context) {
     where: { ...scope, code, NOT: { id } },
   });
   if (duplicateCode) {
-    return NextResponse.json({ message: "Code sudah digunakan" }, { status: 409 });
+    return NextResponse.json({ message: "Kode sudah digunakan" }, { status: 409 });
   }
 
   if (email) {

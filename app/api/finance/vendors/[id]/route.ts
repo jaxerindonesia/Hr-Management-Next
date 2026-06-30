@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, context: Context) {
   const email = body.email ? String(body.email).trim().toLowerCase() : "";
 
   if (!code) {
-    return NextResponse.json({ message: "Code wajib diisi" }, { status: 400 });
+    return NextResponse.json({ message: "Kode wajib diisi" }, { status: 400 });
   }
   if (!name) {
     return NextResponse.json({ message: "Name wajib diisi" }, { status: 400 });
@@ -38,7 +38,7 @@ export async function PUT(req: NextRequest, context: Context) {
     where: { ...scope, code, NOT: { id } },
   });
   if (duplicateCode) {
-    return NextResponse.json({ message: "Code sudah digunakan" }, { status: 409 });
+    return NextResponse.json({ message: "Kode sudah digunakan" }, { status: 409 });
   }
 
   if (email) {
