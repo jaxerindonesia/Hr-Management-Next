@@ -6,6 +6,17 @@ datasource db {
   provider = "postgresql"
 }
 
+enum NormalBalance {
+  DEBIT
+  CREDIT
+}
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+  VOID
+}
+
 model Tenant {
   id                String             @id @default(uuid()) @db.Uuid
   companyName       String             @map("company_name")
@@ -31,6 +42,10 @@ model Tenant {
   submissionTypes   SubmissionType[]
   submissions       Submission[]
   pettyCashes       PettyCash[]
+  accounts          Account[]
+  banks             Bank[]
+  customers         Customer[]
+  vendors           Vendor[]
   taskBoards        TaskBoard[]
   tasks             Task[]
   users             User[]
@@ -104,6 +119,7 @@ model User {
   submissions                 Submission[]
   taskMembers                 TaskMember[]
   createdTasks                Task[]                       @relation("task_creator")
+  journalEntries              Journal[]                    @relation("journal_creator")
   department                  Department?                  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   role                        Role                         @relation(fields: [roleId], references: [id], onDelete: Cascade)
   tenant                      Tenant?                      @relation(fields: [tenantId], references: [id])
@@ -423,6 +439,130 @@ model PettyCashUsage {
 
   @@index([pettyCashId])
   @@map("petty_cash_usages")
+}
+
+model AccountCategory {
+  id        String    @id @default(uuid()) @db.Uuid
+  code      String
+  name      String
+  accounts  Account[]
+
+  @@unique([code])
+  @@map("account_categories")
+}
+
+model Account {
+  id                String          @id @default(uuid()) @db.Uuid
+  accountCategoryId  String          @map("account_category_id") @db.Uuid
+  parentId          String?         @map("parent_id") @db.Uuid
+  code              String
+  name              String
+  normalBalance     NormalBalance   @map("normal_balance")
+  isActive          Boolean         @default(true) @map("is_active")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  tenantId          String?         @map("tenant_id") @db.Uuid
+  tenant            Tenant?         @relation(fields: [tenantId], references: [id])
+  accountCategory   AccountCategory @relation(fields: [accountCategoryId], references: [id], onDelete: Cascade)
+  parent            Account?        @relation("AccountParent", fields: [parentId], references: [id])
+  children          Account[]       @relation("AccountParent")
+  banks             Bank[]
+  journalDetails    JournalDetail[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([accountCategoryId])
+  @@index([parentId])
+  @@map("accounts")
+}
+
+model Journal {
+  id           String          @id @default(uuid()) @db.Uuid
+  journalNo    String          @map("journal_no")
+  date         DateTime
+  referenceNo  String?         @map("reference_no")
+  description  String?
+  createdBy    String?         @map("created_by") @db.Uuid
+  status       JournalStatus   @default(DRAFT)
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  creator      User?           @relation("journal_creator", fields: [createdBy], references: [id], onDelete: SetNull)
+  details      JournalDetail[]
+
+  @@unique([journalNo])
+  @@index([createdBy])
+  @@index([date])
+  @@map("journals")
+}
+
+model JournalDetail {
+  id          String    @id @default(uuid()) @db.Uuid
+  journalId   String    @map("journal_id") @db.Uuid
+  accountId   String    @map("account_id") @db.Uuid
+  debit       Float     @default(0)
+  credit      Float     @default(0)
+  description String?
+  customerId  String?   @map("customer_id") @db.Uuid
+  vendorId    String?   @map("vendor_id") @db.Uuid
+  journal     Journal   @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  vendor      Vendor?   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([journalId])
+  @@index([accountId])
+  @@index([customerId])
+  @@index([vendorId])
+  @@map("journal_details")
+}
+
+model Customer {
+  id          String          @id @default(uuid()) @db.Uuid
+  code        String
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+  tenantId    String?         @map("tenant_id") @db.Uuid
+  tenant      Tenant?         @relation(fields: [tenantId], references: [id])
+  journals    JournalDetail[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("customers")
+}
+
+model Vendor {
+  id          String          @id @default(uuid()) @db.Uuid
+  code        String
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+  tenantId    String?         @map("tenant_id") @db.Uuid
+  tenant      Tenant?         @relation(fields: [tenantId], references: [id])
+  journals    JournalDetail[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("vendors")
+}
+
+model Bank {
+  id             String   @id @default(uuid()) @db.Uuid
+  accountId      String   @map("account_id") @db.Uuid
+  bankName       String   @map("bank_name")
+  accountNumber  String   @map("account_number")
+  accountHolder  String   @map("account_holder")
+  tenantId       String?  @map("tenant_id") @db.Uuid
+  tenant         Tenant?  @relation(fields: [tenantId], references: [id])
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([accountId])
+  @@map("banks")
 }
 
 model TaskBoard {

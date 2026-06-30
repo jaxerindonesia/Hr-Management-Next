@@ -48,6 +48,10 @@ export const MASTER_PERMISSIONS = [
     actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
   },
   {
+    model: "finance",
+    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
+  },
+  {
     model: "tenants",
     actions: ["get-all", "get-by-id", "create", "update", "delete"],
   },

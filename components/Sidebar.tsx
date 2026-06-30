@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
@@ -35,17 +35,35 @@ type TenantConfig = {
   logoDarkUrl: string | null;
 } | null;
 
+type SidebarSubItem = {
+  name: string;
+  path: string;
+  isSpecial?: boolean;
+};
+
+type SidebarItem = {
+  id: string;
+  name: string;
+  icon: React.ComponentType<{ className?: string }>;
+  path: string;
+  permissions?: string[];
+  superadminOnly?: boolean;
+  subItems?: SidebarSubItem[];
+};
+
 export default function Sidebar() {
-  const { checkRoleMulti, permissions } = usePermission();
+  const { checkRoleMulti } = usePermission();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(
+    pathname.startsWith("/finance") ? ["finance"] : [],
+  );
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [tenantConfig, setTenantConfig] = useState<TenantConfig>(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Easter egg states
   const [showCredits, setShowCredits] = useState(false);
-  const [logoClicks, setLogoClicks] = useState(0);
+  const [, setLogoClicks] = useState(0);
   const clickResetTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleLogoClick = () => {
@@ -63,7 +81,6 @@ export default function Sidebar() {
       setLogoClicks(0);
     }, 1500);
   };
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -73,14 +90,6 @@ export default function Sidebar() {
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
-
-  // Collapse sidebar by default on small screens
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const isSmall = window.matchMedia("(max-width: 767px)").matches;
-      if (isSmall) setSidebarOpen(false);
-    }
-  }, []);
 
   // Fetch tenant config untuk logo sidebar
   useEffect(() => {
@@ -92,24 +101,24 @@ export default function Sidebar() {
       .catch(() => { });
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = localStorage.getItem("hr_user_data");
-    if (!raw) {
-      setIsSuperAdmin(false);
-      return;
-    }
+  const isSuperAdmin = useSyncExternalStore(
+    () => () => {},
+    () => {
+      const raw = localStorage.getItem("hr_user_data");
+      if (!raw) return false;
 
-    try {
-      const userData = JSON.parse(raw);
-      const rawRoleName =
-        typeof userData?.role === "string" ? userData.role : userData?.role?.name;
-      const roleName = rawRoleName?.toLowerCase().replace(/\s/g, "") || "";
-      setIsSuperAdmin(roleName === "superadmin");
-    } catch {
-      setIsSuperAdmin(false);
-    }
-  }, []);
+      try {
+        const userData = JSON.parse(raw);
+        const rawRoleName =
+          typeof userData?.role === "string" ? userData.role : userData?.role?.name;
+        const roleName = rawRoleName?.toLowerCase().replace(/\s/g, "") || "";
+        return roleName === "superadmin";
+      } catch {
+        return false;
+      }
+    },
+    () => false,
+  );
 
   const handleLogout = async () => {
     try {
@@ -129,7 +138,7 @@ export default function Sidebar() {
   };
 
   const menuItems = React.useMemo(() => {
-    const allItems = [
+    const allItems: SidebarItem[] = [
       {
         id: "dashboard",
         name: "Dashboard",
@@ -201,6 +210,35 @@ export default function Sidebar() {
         permissions: ["get-all", "get-by-id"],
       },
       {
+        id: "finance",
+        name: "Keuangan",
+        icon: Wallet,
+        path: "/finance",
+        permissions: ["get-all", "get-by-id"],
+        subItems: [
+          {
+            name: "Kategori Akun",
+            path: "/finance/account-categories",
+          },
+          {
+            name: "Akun",
+            path: "/finance/accounts",
+          },
+          {
+            name: "Customer",
+            path: "/finance/customers",
+          },
+          {
+            name: "Vendor",
+            path: "/finance/vendors",
+          },
+          {
+            name: "Jurnal Umum",
+            path: "/finance/journals",
+          },
+        ],
+      },
+      {
         id: "performances",
         name: "Penilaian Kinerja",
         icon: TrendingUp,
@@ -216,14 +254,14 @@ export default function Sidebar() {
       },
     ];
 
-    return allItems.filter((item: any) => {
+    return allItems.filter((item) => {
       if (!item.permissions) return true;
       if (item.superadminOnly) {
         return isSuperAdmin;
       }
       return checkRoleMulti(item.id, item.permissions);
     });
-  }, [permissions, checkRoleMulti, isSuperAdmin]);
+  }, [checkRoleMulti, isSuperAdmin]);
 
   return (
     <>
@@ -311,7 +349,7 @@ export default function Sidebar() {
 
         {/* ===== MENU ===== */}
         <nav className="flex-1 p-2 space-y-1">
-          {menuItems.map((item: any) => {
+          {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive =
               pathname === item.path ||
@@ -362,18 +400,19 @@ export default function Sidebar() {
                   {sidebarOpen && (
                     <div
                       className={`transition-all duration-500 ease-in-out overflow-hidden ${isExpanded
-                        ? "max-h-[60vh] opacity-100 mt-1"
+                        ? "max-h-[60vh] opacity-100 mt-0.5"
                         : "max-h-0 opacity-0"
                         }`}
                     >
-                      <div className="pl-12 pr-4 py-1 space-y-1">
-                        {item.subItems.map((sub: any, index: any) => {
+                      <div className="ml-6 mr-3 border-l border-blue-100 py-1 pl-3 dark:border-blue-900/40">
+                        {item.subItems.map((sub, index) => {
                           const isSubActive =
-                            (pathname === item.path &&
+                            pathname === sub.path ||
+                            ((pathname === item.path &&
                               currentType === sub.name) ||
-                            (pathname === item.path &&
-                              currentAction === "new" &&
-                              sub.name.includes("Form Pengajuan"));
+                              (pathname === item.path &&
+                                currentAction === "new" &&
+                                sub.name.includes("Form Pengajuan")));
 
                           const isFormPengajuan =
                             "isSpecial" in sub ? sub.isSpecial : false;
@@ -383,16 +422,21 @@ export default function Sidebar() {
                               key={sub.name}
                               href={sub.path}
                               prefetch={false}
+                              onClick={() =>
+                                setExpandedMenus((prev) =>
+                                  prev.filter((menuId) => menuId !== item.id),
+                                )
+                              }
                               style={{
                                 animationDelay: `${index * 50}ms`,
                               }}
-                              className={`block text-sm py-2 px-3 rounded-md transition-all duration-300
+                              className={`block rounded-lg px-3 py-2 text-sm transition-all duration-300
                                 ${isExpanded ? "animate-in slide-in-from-left-2 fade-in" : ""}
                                 ${isFormPengajuan
                                   ? "font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-l-4 border-green-500 hover:scale-[1.02] hover:shadow-md"
                                   : isSubActive
-                                    ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 font-medium shadow-sm"
-                                    : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:translate-x-1"
+                                    ? "bg-blue-50 font-medium text-blue-700 shadow-sm dark:bg-blue-900/30 dark:text-blue-300"
+                                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 hover:text-blue-600 dark:hover:bg-gray-700/50 dark:hover:text-blue-400"
                                 }`}
                             >
                               {sub.name}
