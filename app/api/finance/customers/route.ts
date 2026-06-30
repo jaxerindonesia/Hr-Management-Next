@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   const email = body.email ? String(body.email).trim().toLowerCase() : "";
 
   if (!code) {
-    return NextResponse.json({ message: "Code wajib diisi" }, { status: 400 });
+    return NextResponse.json({ message: "Kode wajib diisi" }, { status: 400 });
   }
   if (!name) {
     return NextResponse.json({ message: "Name wajib diisi" }, { status: 400 });

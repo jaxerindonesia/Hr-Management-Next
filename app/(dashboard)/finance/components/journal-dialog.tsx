@@ -25,6 +25,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onChange: (form: JournalFormState) => void;
   onSubmit: () => void;
+  onGenerateJournalNo: () => void;
   onAddDetail: () => void;
   onRemoveDetail: (index: number) => void;
   onChangeDetail: (index: number, detail: JournalDetail) => void;
@@ -41,6 +42,7 @@ export default function JournalDialog({
   onOpenChange,
   onChange,
   onSubmit,
+  onGenerateJournalNo,
   onAddDetail,
   onRemoveDetail,
   onChangeDetail,
@@ -77,7 +79,7 @@ export default function JournalDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{readOnly ? "Detail Jurnal Umum" : form.id ? "Edit Jurnal Umum" : "Buat Jurnal Umum"}</DialogTitle>
+          <DialogTitle>{readOnly ? "Detail Jurnal Umum" : form.id ? "Edit Jurnal Umum" : "Tambah Jurnal Umum"}</DialogTitle>
           <DialogDescription>
             {readOnly
               ? "Lihat rincian jurnal umum beserta detail debit dan kredit."
@@ -85,18 +87,26 @@ export default function JournalDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-[1.5fr_1fr_0.8fr]">
             <div className="grid gap-2">
-              <Label>No Jurnal</Label>
-              <Input
-                value={form.journalNo}
-                disabled={readOnly}
-                onChange={(e) => onChange({ ...form, journalNo: e.target.value })}
-                placeholder="Mis. JRNL-2026-0001"
-              />
+              <Label>No Jurnal *</Label>
+              <div className="flex gap-2">
+                <Input
+                  className="flex-1"
+                  value={form.journalNo}
+                  disabled={readOnly}
+                  onChange={(e) => onChange({ ...form, journalNo: e.target.value })}
+                  placeholder="Mis. JRNL-2026-0001"
+                />
+                {!readOnly && !form.id && (
+                  <Button type="button" variant="outline" onClick={onGenerateJournalNo} disabled={loading} className="shrink-0">
+                    Generate
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="grid gap-2">
-              <Label>Tanggal</Label>
+              <Label>Tanggal *</Label>
               <Input
                 type="date"
                 value={form.date}
@@ -162,7 +172,7 @@ export default function JournalDialog({
 
                 <div className="grid gap-4 xl:grid-cols-3">
                   <div className="grid gap-2">
-                    <Label>Akun</Label>
+                    <Label>Akun *</Label>
                     <Select
                       disabled={readOnly}
                       value={row.accountId}
@@ -322,10 +332,10 @@ export default function JournalDialog({
                 </div>
               </div>
             ))}
-            <div className="grid gap-3 border-t pt-3 text-sm font-medium text-slate-700 md:grid-cols-4">
+            <div className="grid gap-3 border-t pt-3 pr-3 text-sm font-medium text-slate-700 md:grid-cols-4">
               <div className="md:col-span-2">Total</div>
-              <div>Debit: Rp {totalDebit.toLocaleString("id-ID")}</div>
-              <div>Credit: Rp {totalCredit.toLocaleString("id-ID")}</div>
+              <div className="whitespace-nowrap">Debit: <b>Rp {totalDebit.toLocaleString("id-ID")}</b></div>
+              <div className="whitespace-nowrap">Credit: <b>Rp {totalCredit.toLocaleString("id-ID")}</b></div>
             </div>
           </div>
         </div>

@@ -139,11 +139,13 @@ export default function DesktopNavbar() {
 
     if (path === "finance") {
       const financeTitles: { [key: string]: string } = {
+        dashboard: "Dashboard",
         "account-categories": "Kategori Akun",
         accounts: "Akun",
         journals: "Jurnal Umum",
         customers: "Customer",
         vendors: "Vendor",
+        ledger: "Buku Besar",
       };
 
       return subPath ? `Keuangan - ${financeTitles[subPath] || "Keuangan"}` : "Keuangan";
@@ -274,7 +276,7 @@ export default function DesktopNavbar() {
         <div className="flex items-center justify-between px-6 py-2 h-full">
           {/* Left Section */}
           <div className="flex flex-col">
-            <h1 className="text-[20px] font-bold text-gray-900 dark:text-white">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
               {getPageTitle()}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">

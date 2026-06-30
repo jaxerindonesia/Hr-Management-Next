@@ -97,6 +97,7 @@ export default function FinanceListPage({ title, mode }: Props) {
   const [journalDialogOpen, setJournalDialogOpen] = useState(false);
   const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
   const [journalDialogMode, setJournalDialogMode] = useState<"create" | "edit" | "view">("create");
+  const [savingAccount, setSavingAccount] = useState(false);
   const [categoryForm, setCategoryForm] = useState<CategoryFormState>({ id: "", code: "", name: "" });
   const [accountForm, setAccountForm] = useState<AccountFormState>({
     id: "",
@@ -104,6 +105,7 @@ export default function FinanceListPage({ title, mode }: Props) {
     name: "",
     normalBalance: "DEBIT",
     accountCategoryId: "",
+    parentId: "",
     isActive: true,
   });
   const [journalForm, setJournalForm] = useState<JournalFormState>({
@@ -124,7 +126,6 @@ export default function FinanceListPage({ title, mode }: Props) {
     address: "",
   });
   const hasLoadedCategoryOptions = useRef(false);
-  const hasLoadedAccountOptions = useRef(false);
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
@@ -143,7 +144,6 @@ export default function FinanceListPage({ title, mode }: Props) {
     const res = await fetch("/api/finance/accounts?scope=options");
     const json: PaginatedResponse<Account> = await res.json();
     setAccountOptions(json.data || []);
-    hasLoadedAccountOptions.current = true;
   };
 
   const fetchCustomerOptions = async () => {
@@ -156,6 +156,26 @@ export default function FinanceListPage({ title, mode }: Props) {
     const res = await fetch("/api/finance/vendors?page=1&limit=100");
     const json: PaginatedResponse<Partner> = await res.json();
     setVendorOptions(json.data || []);
+  };
+
+  const generateJournalNo = async () => {
+    const params = new URLSearchParams();
+    params.set("scope", "generate-no");
+    if (journalForm.date) {
+      params.set("date", journalForm.date);
+    }
+
+    const res = await fetch(`/api/finance/journals?${params.toString()}`);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.journalNo) {
+      toast.error(json.message || "Gagal generate no jurnal");
+      return;
+    }
+
+    setJournalForm((current) => ({
+      ...current,
+      journalNo: json.journalNo,
+    }));
   };
 
   const loadData = useCallback(async () => {
@@ -231,7 +251,10 @@ export default function FinanceListPage({ title, mode }: Props) {
     if (mode === "accounts" && !hasLoadedCategoryOptions.current) {
       void fetchCategoriesOptions();
     }
-    if (mode === "journals" && !hasLoadedAccountOptions.current) {
+    if (mode === "accounts") {
+      void fetchAccountOptions();
+    }
+    if (mode === "journals") {
       void fetchAccountOptions();
     }
     if (mode === "journals" && customerOptions.length === 0) {
@@ -320,7 +343,7 @@ export default function FinanceListPage({ title, mode }: Props) {
   const saveCategory = async () => {
     setLoading(true);
     try {
-      await fetch(
+      const res = await fetch(
         categoryForm.id
           ? `/api/finance/account-categories/${categoryForm.id}`
           : "/api/finance/account-categories",
@@ -330,6 +353,17 @@ export default function FinanceListPage({ title, mode }: Props) {
           body: JSON.stringify(categoryForm),
         },
       );
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        if (res.status === 409) {
+          toast.error(json.message || "Kode kategori akun sudah digunakan");
+          return;
+        }
+        toast.error(json.message || "Gagal menyimpan kategori akun");
+        return;
+      }
+
       setCategoryDialogOpen(false);
       setCategoryForm({ id: "", code: "", name: "" });
       await loadData();
@@ -340,9 +374,15 @@ export default function FinanceListPage({ title, mode }: Props) {
   };
 
   const saveAccount = async () => {
+    if (savingAccount) return;
+    if (!accountForm.code.trim() || !accountForm.name.trim() || !accountForm.accountCategoryId.trim() || !accountForm.normalBalance.trim()) {
+      toast.error("Kode, nama, kategori, dan saldo normal wajib diisi");
+      return;
+    }
+    setSavingAccount(true);
     setLoading(true);
     try {
-      await fetch(
+      const res = await fetch(
         accountForm.id ? `/api/finance/accounts/${accountForm.id}` : "/api/finance/accounts",
         {
           method: accountForm.id ? "PUT" : "POST",
@@ -350,6 +390,11 @@ export default function FinanceListPage({ title, mode }: Props) {
           body: JSON.stringify(accountForm),
         },
       );
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.message || "Gagal menyimpan akun");
+        return;
+      }
       setAccountDialogOpen(false);
       setAccountForm({
         id: "",
@@ -357,11 +402,14 @@ export default function FinanceListPage({ title, mode }: Props) {
         name: "",
         normalBalance: "DEBIT",
         accountCategoryId: "",
+        parentId: "",
         isActive: true,
       });
       await loadData();
+      await fetchAccountOptions();
     } finally {
       setLoading(false);
+      setSavingAccount(false);
     }
   };
 
@@ -400,7 +448,7 @@ export default function FinanceListPage({ title, mode }: Props) {
       }
 
       const res = await fetch(
-            journalForm.id ? `/api/finance/journals/${journalForm.id}` : "/api/finance/journals",
+        journalForm.id ? `/api/finance/journals/${journalForm.id}` : "/api/finance/journals",
         {
           method: journalForm.id ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -489,6 +537,7 @@ export default function FinanceListPage({ title, mode }: Props) {
       name: item.name,
       normalBalance: item.normalBalance,
       accountCategoryId: item.accountCategory?.id || "",
+      parentId: item.parent?.id || "",
       isActive: item.isActive,
     });
     setAccountDialogOpen(true);
@@ -624,6 +673,9 @@ export default function FinanceListPage({ title, mode }: Props) {
     await fetch(endpoint, { method: "DELETE" });
     setOpenPopoverId(null);
     await loadData();
+    if (type === "account") {
+      await fetchAccountOptions();
+    }
     if (type === "category") {
       await fetchCategoriesOptions();
     }
@@ -642,6 +694,15 @@ export default function FinanceListPage({ title, mode }: Props) {
                 }
 
                 if (mode === "accounts") {
+                  setAccountForm({
+                    id: "",
+                    code: "",
+                    name: "",
+                    normalBalance: "DEBIT",
+                    accountCategoryId: "",
+                    parentId: "",
+                    isActive: true,
+                  });
                   setAccountDialogOpen(true);
                   return;
                 }
@@ -706,8 +767,8 @@ export default function FinanceListPage({ title, mode }: Props) {
                 variant="outline"
                 onClick={() => setShowFilterPanel(!showFilterPanel)}
                 className={`relative flex items-center gap-2 px-4 py-2 ${showFilterPanel
-                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
-                    : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
+                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                  : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
                   }`}
               >
                 <Filter className="w-4 h-4" />
@@ -844,7 +905,7 @@ export default function FinanceListPage({ title, mode }: Props) {
               <TableRow className="border-b dark:border-gray-700">
                 {mode === "categories" && (
                   <>
-                    <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Code</TableHead>
+                    <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Kode</TableHead>
                     <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Nama</TableHead>
                     {checkRoleMulti("finance", ["update", "delete"]) && (
                       <TableHead className="text-right p-3 font-semibold dark:text-gray-300">Aksi</TableHead>
@@ -853,7 +914,7 @@ export default function FinanceListPage({ title, mode }: Props) {
                 )}
                 {mode === "accounts" && (
                   <>
-                    <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Code</TableHead>
+                    <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Kode</TableHead>
                     <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Nama</TableHead>
                     <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Kategori</TableHead>
                     <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Saldo Normal</TableHead>
@@ -878,7 +939,7 @@ export default function FinanceListPage({ title, mode }: Props) {
                 )}
                 {(mode === "customers" || mode === "vendors") && (
                   <>
-                    <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Code</TableHead>
+                    <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Kode</TableHead>
                     <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Nama</TableHead>
                     <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Telepon</TableHead>
                     <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Email</TableHead>
@@ -978,8 +1039,8 @@ export default function FinanceListPage({ title, mode }: Props) {
                       <TableCell className="p-3">
                         <span
                           className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${item.isActive
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                              : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                             }`}
                         >
                           {item.isActive ? "Aktif" : "Nonaktif"}
@@ -1096,10 +1157,10 @@ export default function FinanceListPage({ title, mode }: Props) {
                     <TableCell className="p-3">
                       <span
                         className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${item.status === "POSTED"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            : item.status === "VOID"
-                              ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          : item.status === "VOID"
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                           }`}
                       >
                         {item.status}
@@ -1203,8 +1264,8 @@ export default function FinanceListPage({ title, mode }: Props) {
                       onClick={() => setCurrentPage(page)}
                       disabled={loading}
                       className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page
-                          ? "bg-blue-600 text-white"
-                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                         }`}
                     >
                       {page}
@@ -1235,8 +1296,9 @@ export default function FinanceListPage({ title, mode }: Props) {
 
       <AccountDialog
         open={accountDialogOpen}
-        loading={loading}
+        loading={loading || savingAccount}
         categories={categoryOptions}
+        accounts={accountOptions}
         form={accountForm}
         onOpenChange={setAccountDialogOpen}
         onChange={setAccountForm}
@@ -1254,6 +1316,7 @@ export default function FinanceListPage({ title, mode }: Props) {
         onOpenChange={setJournalDialogOpen}
         onChange={setJournalForm}
         onSubmit={saveJournal}
+        onGenerateJournalNo={generateJournalNo}
         onAddDetail={handleAddJournalDetail}
         onRemoveDetail={handleRemoveJournalDetail}
         onChangeDetail={handleChangeJournalDetail}
@@ -1263,8 +1326,12 @@ export default function FinanceListPage({ title, mode }: Props) {
         <PartnerDialog
           open={partnerDialogOpen}
           loading={loading}
-          title={mode === "customers" ? "Kelola Customer" : "Kelola Vendor"}
-          description={mode === "customers" ? "Tambah customer untuk data finance." : "Tambah vendor untuk data finance."}
+          title={`${partnerForm.id ? "Edit" : "Tambah"} ${mode === "customers" ? "Customer" : "Vendor"}`}
+          description={
+            partnerForm.id
+              ? `Ubah data ${mode === "customers" ? "customer" : "vendor"}.`
+              : `Tambah ${mode === "customers" ? "customer" : "vendor"} untuk data finance.`
+          }
           form={partnerForm}
           onOpenChange={setPartnerDialogOpen}
           onChange={setPartnerForm}

@@ -7,6 +7,11 @@ export type Account = {
   normalBalance: string;
   isActive: boolean;
   accountCategory: AccountCategory;
+  parent?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
 };
 
 export type JournalDetail = {
@@ -42,6 +47,7 @@ export type AccountFormState = {
   name: string;
   normalBalance: string;
   accountCategoryId: string;
+  parentId: string;
   isActive: boolean;
 };
 
@@ -71,4 +77,37 @@ export type PartnerFormState = {
   phone: string;
   email: string;
   address: string;
+};
+
+export type FinanceSummary = {
+  accountCount: number;
+  journalCount: number;
+  postedJournalCount: number;
+  draftJournalCount: number;
+  totalDebit: number;
+  totalCredit: number;
+  monthlyTrend: Array<{
+    month: string;
+    debit: number;
+    credit: number;
+  }>;
+  statusBreakdown: Array<{
+    status: string;
+    total: number;
+  }>;
+};
+
+export type FinanceLedgerRow = {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  normalBalance: "DEBIT" | "CREDIT";
+  journalNo: string;
+  journalDate: string;
+  referenceNo: string | null;
+  description: string | null;
+  detailDescription: string | null;
+  debit: number;
+  credit: number;
+  balance: number;
 };

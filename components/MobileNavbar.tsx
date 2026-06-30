@@ -123,11 +123,13 @@ export default function MobileNavbar() {
       icon: Wallet,
       path: "/finance",
       subItems: [
+        { name: "Dashboard", path: "/finance/dashboard" },
         { name: "Kategori Akun", path: "/finance/account-categories" },
         { name: "Akun", path: "/finance/accounts" },
         { name: "Customer", path: "/finance/customers" },
         { name: "Vendor", path: "/finance/vendors" },
         { name: "Jurnal Umum", path: "/finance/journals" },
+        { name: "Buku Besar", path: "/finance/ledger" },
       ],
     },
   ];

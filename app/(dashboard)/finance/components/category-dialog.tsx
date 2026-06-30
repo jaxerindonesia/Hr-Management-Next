@@ -33,8 +33,8 @@ export default function CategoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Kelola Kategori Akun</DialogTitle>
-          <DialogDescription>Tambah kategori akun untuk struktur finance yang lebih rapi.</DialogDescription>
+          <DialogTitle>{form.id ? "Edit": "Tambah"} Kategori Akun</DialogTitle>
+          <DialogDescription>{form.id ? "Edit": "Tambah"} kategori akun untuk struktur finance yang lebih rapi.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-2">

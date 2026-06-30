@@ -14,17 +14,38 @@ export async function PUT(req: NextRequest, context: Context) {
 
   const { id } = await context.params;
   const body = await req.json();
+  const code = String(body.code || "").trim();
+  const name = String(body.name || "").trim();
+  const accountCategoryId = String(body.accountCategoryId || "").trim();
+  const normalBalance = String(body.normalBalance || "").toUpperCase();
+  const tenantId = auth.user.tenantId ?? body.tenantId ?? null;
+
+  if (!code || !name || !accountCategoryId || !normalBalance) {
+    return NextResponse.json({ message: "Kode, nama, kategori, dan saldo normal wajib diisi." }, { status: 400 });
+  }
+
+  const duplicate = await prisma.account.findFirst({
+    where: {
+      code,
+      tenantId,
+      NOT: { id },
+    },
+  });
+
+  if (duplicate) {
+    return NextResponse.json({ message: "Kode akun sudah digunakan." }, { status: 409 });
+  }
 
   const data = await prisma.account.update({
     where: { id },
     data: {
-      code: String(body.code),
-      name: String(body.name),
-      normalBalance: body.normalBalance,
+      code,
+      name,
+      normalBalance,
       isActive: body.isActive ?? true,
-      accountCategoryId: String(body.accountCategoryId),
+      accountCategoryId,
       parentId: body.parentId || null,
-      tenantId: body.tenantId || null,
+      tenantId,
     },
     include: { accountCategory: true, parent: true },
   });

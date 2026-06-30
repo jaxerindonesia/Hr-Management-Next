@@ -15,15 +15,45 @@ function calcTotals(details: Array<{ debit?: number; credit?: number }>) {
   );
 }
 
+async function generateJournalNo(dateInput?: string | null) {
+  const baseDate = dateInput ? new Date(dateInput) : new Date();
+  const year = Number.isNaN(baseDate.getTime()) ? new Date().getFullYear() : baseDate.getFullYear();
+  const prefix = `JRNL-${year}-`;
+  const latestJournal = await prisma.journal.findFirst({
+    where: {
+      journalNo: {
+        startsWith: prefix,
+      },
+    },
+    orderBy: {
+      journalNo: "desc",
+    },
+    select: {
+      journalNo: true,
+    },
+  });
+
+  const latestSequence = latestJournal?.journalNo.match(new RegExp(`^JRNL-${year}-(\\d{4})$`));
+  const nextNumber = (latestSequence ? Number(latestSequence[1]) : 0) + 1;
+
+  return `${prefix}${String(nextNumber).padStart(4, "0")}`;
+}
+
 export async function GET(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
 
   const { searchParams } = new URL(req.url);
+  const scope = searchParams.get("scope") || "list";
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
   const limit = Math.max(1, parseInt(searchParams.get("limit") || "10", 10));
   const search = searchParams.get("search") || "";
   const status = searchParams.get("status") || "";
+
+  if (scope === "generate-no") {
+    const journalNo = await generateJournalNo(searchParams.get("date"));
+    return NextResponse.json({ journalNo });
+  }
 
   const where: Prisma.JournalWhereInput = {};
 

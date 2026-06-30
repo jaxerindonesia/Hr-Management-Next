@@ -134,7 +134,7 @@ export default function PartnerListPage({
       const name = form.name.trim();
       const email = form.email.trim().toLowerCase();
 
-      if (!code) return toast.error("Code wajib diisi");
+      if (!code) return toast.error("Kode wajib diisi");
       if (!name) return toast.error("Name wajib diisi");
       if (!email) return toast.error("Email wajib diisi");
       if (!isValidEmail(email)) return toast.error("Email harus berupa alamat email yang valid");
@@ -242,7 +242,7 @@ export default function PartnerListPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Code</TableHead>
+                <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Kode</TableHead>
                 <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Nama</TableHead>
                 <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Telepon</TableHead>
                 <TableHead className="text-left p-3 font-semibold dark:text-gray-300">Email</TableHead>
