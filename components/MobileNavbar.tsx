@@ -23,17 +23,21 @@ import {
   Shield,
   Banknote,
   Clock,
+  ChevronDown,
 } from "lucide-react";
 
 export default function MobileNavbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(
+    pathname.startsWith("/finance") ? ["finance"] : [],
+  );
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
   // Easter egg states
   const [showCredits, setShowCredits] = useState(false);
-  const [logoClicks, setLogoClicks] = useState(0);
+  const [, setLogoClicks] = useState(0);
   const clickResetTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleLogoClick = () => {
@@ -113,6 +117,19 @@ export default function MobileNavbar() {
       icon: Banknote,
       path: "/pettycash",
     },
+    {
+      id: "finance",
+      name: "Keuangan",
+      icon: Wallet,
+      path: "/finance",
+      subItems: [
+        { name: "Kategori Akun", path: "/finance/account-categories" },
+        { name: "Akun", path: "/finance/accounts" },
+        { name: "Customer", path: "/finance/customers" },
+        { name: "Vendor", path: "/finance/vendors" },
+        { name: "Jurnal Umum", path: "/finance/journals" },
+      ],
+    },
   ];
 
   const bottomNavItems = [
@@ -141,6 +158,12 @@ export default function MobileNavbar() {
   };
 
   const closeMenu = () => setIsMenuOpen(false);
+
+  const toggleMenu = (id: string) => {
+    setExpandedMenus((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
 
   const handleBottomNavClick = (path: string) => {
     if (pathname === path) return;
@@ -250,6 +273,58 @@ export default function MobileNavbar() {
               const Icon = item.icon;
               const isActive =
                 pathname === item.path || pathname.startsWith(item.path);
+              const isExpanded = expandedMenus.includes(item.id);
+
+              if ("subItems" in item && item.subItems) {
+                return (
+                  <div key={item.id} className="space-y-1">
+                    <button
+                      onClick={() => toggleMenu(item.id)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                        isActive
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <Icon className="w-5 h-5 shrink-0" />
+                      <span className="flex-1 text-left">{item.name}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          isExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="ml-6 border-l border-blue-100 pl-3 pt-1 dark:border-blue-900/40">
+                        {item.subItems.map((subItem) => {
+                          const isSubActive = pathname === subItem.path;
+
+                          return (
+                            <Link
+                              key={subItem.path}
+                              href={subItem.path}
+                              onClick={() => {
+                                setExpandedMenus((prev) =>
+                                  prev.filter((menuId) => menuId !== item.id),
+                                );
+                                closeMenu();
+                              }}
+                              className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                                isSubActive
+                                  ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-medium"
+                                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              }`}
+                            >
+                              {subItem.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
 
               return (
                 <Link
