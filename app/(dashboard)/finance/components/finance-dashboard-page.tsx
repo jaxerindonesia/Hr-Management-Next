@@ -36,7 +36,7 @@ export default function FinanceDashboardPage({ summary }: Props) {
               Sorotan cepat untuk pengambilan keputusan lebih cepat.
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 p-3 text-blue-600 dark:border-gray-800">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 text-blue-600 dark:border-slate-700 dark:bg-slate-800/80 dark:text-blue-300">
             <BarChart3 className="h-5 w-5" />
           </div>
         </div>
@@ -213,13 +213,13 @@ function DashboardPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-900">
+    <section className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h2>
           <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">{description}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 p-3 text-blue-600 dark:border-gray-800">{icon}</div>
+        <div className="rounded-2xl border border-slate-200 bg-white/70 p-3 text-blue-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-blue-300">{icon}</div>
       </div>
       {children}
     </section>
@@ -228,7 +228,7 @@ function DashboardPanel({
 
 function EmptyState() {
   return (
-    <div className="flex h-[340px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-sm text-slate-400 dark:border-gray-700 dark:bg-gray-950/20">
+    <div className="flex h-[340px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-sm text-slate-400 dark:border-slate-700 dark:bg-slate-900/40">
       Belum ada data untuk ditampilkan
     </div>
   );
@@ -246,7 +246,7 @@ function FinanceTooltip({
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-xl dark:border-gray-700 dark:bg-gray-950">
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-xl dark:border-slate-700 dark:bg-slate-800">
       {label ? <p className="mb-2 font-semibold text-slate-900 dark:text-white">{label}</p> : null}
       <div className="space-y-1">
         {payload.map((item) => (
@@ -279,7 +279,7 @@ function MetricCard({
   };
 
   return (
-    <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-900">
+    <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-center gap-4">
         <div className={`rounded-2xl p-3 ${toneClasses[tone]}`}>
           <Icon className="h-5 w-5" />
@@ -309,16 +309,16 @@ function InsightCard({
   positive?: boolean;
 }) {
   const toneClasses: Record<typeof tone, string> = {
-    blue: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/20",
-    teal: "bg-cyan-50 text-cyan-700 ring-cyan-200 dark:bg-cyan-500/10 dark:text-cyan-300 dark:ring-cyan-500/20",
-    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20",
-    orange: "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-500/10 dark:text-orange-300 dark:ring-orange-500/20",
-    violet: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/20",
+    blue: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-500/12 dark:text-blue-300 dark:ring-blue-500/25",
+    teal: "bg-cyan-50 text-cyan-700 ring-cyan-200 dark:bg-cyan-500/12 dark:text-cyan-300 dark:ring-cyan-500/25",
+    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/12 dark:text-emerald-300 dark:ring-emerald-500/25",
+    orange: "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-500/12 dark:text-orange-300 dark:ring-orange-500/25",
+    violet: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/12 dark:text-violet-300 dark:ring-violet-500/25",
   };
 
   return (
     <div className={`rounded-[19px] p-[1px] ${toneClasses[tone]}`}>
-      <div className="rounded-[18px] bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.05)] dark:bg-gray-900">
+      <div className="rounded-[18px] bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.05)] dark:bg-slate-800">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
@@ -360,7 +360,7 @@ function TopListPanel({
   };
 
   return (
-    <section className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgba(15,23,42,0.05)] dark:border-gray-800 dark:bg-gray-900">
+    <section className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-5">
         <h3 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h3>
         <p className="mt-1 text-[13px] text-slate-500 dark:text-slate-400">{description}</p>
@@ -368,14 +368,14 @@ function TopListPanel({
 
       <div className="space-y-3">
         {items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center text-sm text-slate-400 dark:border-gray-700 dark:bg-gray-950/20">
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center text-sm text-slate-400 dark:border-slate-700 dark:bg-slate-900/40">
             Belum ada data yang cukup untuk ditampilkan.
           </div>
         ) : (
           items.map((item, index) => (
             <div
               key={item.id}
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/60"
+              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/55"
             >
               <div className="flex items-center gap-3">
                 <div className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm font-semibold text-white ${toneClasses[tone]}`}>
