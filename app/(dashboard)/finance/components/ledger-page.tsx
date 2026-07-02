@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatCurrency } from "@/lib/helper/format-currency";
 import type { FinanceLedgerRow } from "../types";
 import { fetchFinanceLedger } from "../actions";
 
@@ -58,7 +59,7 @@ export default function LedgerPage({ accounts }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="rounded-2xl border bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         <div className="mb-3 flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -66,7 +67,7 @@ export default function LedgerPage({ accounts }: Props) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari jurnal, akun, atau deskripsi..."
-              className="pl-9"
+              className="pl-9 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-400"
             />
           </div>
           <Button
@@ -88,7 +89,7 @@ export default function LedgerPage({ accounts }: Props) {
           </Button>
         </div>
         {showFilterPanel && (
-          <div className="mb-6 rounded-lg border bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800/50">
+          <div className="mb-6 rounded-lg border bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white">Filter Data Buku Besar</h3>
@@ -109,7 +110,7 @@ export default function LedgerPage({ accounts }: Props) {
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Akun</label>
                 <Select value={accountId} onValueChange={setAccountId}>
-                  <SelectTrigger>
+                  <SelectTrigger className="dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                     <SelectValue placeholder="Semua akun" />
                   </SelectTrigger>
                   <SelectContent>
@@ -128,16 +129,16 @@ export default function LedgerPage({ accounts }: Props) {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Cari jurnal, akun, atau deskripsi..."
-                  className="w-full"
+                  className="w-full dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-400"
                 />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Dari</label>
-                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Sampai</label>
-                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+                <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
               </div>
             </div>
             {activeFilterCount > 0 && (
@@ -181,35 +182,35 @@ export default function LedgerPage({ accounts }: Props) {
         <div className="overflow-x-auto mt-5">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Tanggal</TableHead>
-                <TableHead>No Jurnal</TableHead>
-                <TableHead>Akun</TableHead>
-                <TableHead>Debit</TableHead>
-                <TableHead>Credit</TableHead>
-                <TableHead>Saldo</TableHead>
+              <TableRow className="border-b dark:border-gray-700">
+                <TableHead className="dark:text-gray-300">Tanggal</TableHead>
+                <TableHead className="dark:text-gray-300">No Jurnal</TableHead>
+                <TableHead className="dark:text-gray-300">Akun</TableHead>
+                <TableHead className="dark:text-gray-300">Debit</TableHead>
+                <TableHead className="dark:text-gray-300">Credit</TableHead>
+                <TableHead className="dark:text-gray-300">Saldo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-gray-500">
+                  <TableCell colSpan={6} className="py-10 text-center text-gray-500 dark:text-gray-400">
                     Belum ada data buku besar.
                   </TableCell>
                 </TableRow>
               ) : (
                 rows.map((row, index) => (
-                  <TableRow key={`${row.journalNo}-${row.accountId}-${index}`}>
-                    <TableCell>{new Date(row.journalDate).toLocaleDateString("id-ID")}</TableCell>
-                    <TableCell>{row.journalNo}</TableCell>
+                  <TableRow key={`${row.journalNo}-${row.accountId}-${index}`} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <TableCell className="dark:text-gray-300">{new Date(row.journalDate).toLocaleDateString("id-ID")}</TableCell>
+                    <TableCell className="font-medium dark:text-white">{row.journalNo}</TableCell>
                     <TableCell>
                       <div className="font-medium text-gray-900 dark:text-white">{row.accountCode}</div>
-                      <div className="text-xs text-gray-500">{row.accountName}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{row.accountName}</div>
                     </TableCell>
-                    <TableCell className={row.debit > 0 ? "font-medium text-emerald-600 dark:text-emerald-400" : "text-gray-500"}>
+                    <TableCell className={row.debit > 0 ? "font-medium text-emerald-600 dark:text-emerald-400" : "text-gray-500 dark:text-gray-400"}>
                       {formatCurrency(row.debit)}
                     </TableCell>
-                    <TableCell className={row.credit > 0 ? "font-medium text-red-600 dark:text-red-400" : "text-gray-500"}>
+                    <TableCell className={row.credit > 0 ? "font-medium text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}>
                       {formatCurrency(row.credit)}
                     </TableCell>
                     <TableCell className={row.balance >= 0 ? "font-medium text-gray-900 dark:text-white" : "font-medium text-red-600 dark:text-red-400"}>
@@ -224,12 +225,4 @@ export default function LedgerPage({ accounts }: Props) {
       </div>
     </div>
   );
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
 }

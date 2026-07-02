@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   ]);
 
   if (duplicateCode) {
-    return NextResponse.json({ message: "Code sudah digunakan" }, { status: 409 });
+    return NextResponse.json({ message: "Kode sudah digunakan" }, { status: 409 });
   }
   if (duplicateEmail) {
     return NextResponse.json({ message: "Email sudah digunakan" }, { status: 409 });
