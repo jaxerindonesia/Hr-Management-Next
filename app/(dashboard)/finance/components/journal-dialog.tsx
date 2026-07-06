@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Account, JournalDetail, JournalFormState, Partner } from "../types";
+import { ListPlus } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -153,11 +154,6 @@ export default function JournalDialog({
           <div className="rounded-lg border p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-medium">Detail Jurnal</h3>
-              {!readOnly && (
-                <Button type="button" variant="outline" onClick={onAddDetail}>
-                  Tambah Baris
-                </Button>
-              )}
             </div>
             {form.details.map((row, idx) => (
               <div key={idx} className="rounded-lg border bg-slate-50/60 p-4 space-y-4 dark:border-gray-700 dark:bg-gray-800/40">
@@ -288,15 +284,15 @@ export default function JournalDialog({
                           Masuk
                         </span>
                       </div>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={formatRupiahInput(row.debit)}
-                      disabled={readOnly}
-                      onChange={(e) => onChangeDetail(idx, { ...row, debit: parseRupiahInput(e.target.value) })}
-                      className="border-emerald-200 focus-visible:ring-emerald-500"
-                    />
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={formatRupiahInput(row.debit)}
+                        disabled={readOnly}
+                        onChange={(e) => onChangeDetail(idx, { ...row, debit: parseRupiahInput(e.target.value) })}
+                        className="border-emerald-200 focus-visible:ring-emerald-500"
+                      />
                     </div>
                     <div className="grid grid-cols-1 mb-4 md:grid-cols-2 gap-4">
                       <div className="flex items-center justify-between">
@@ -310,15 +306,15 @@ export default function JournalDialog({
                           Keluar
                         </span>
                       </div>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={formatRupiahInput(row.credit)}
-                      disabled={readOnly}
-                      onChange={(e) => onChangeDetail(idx, { ...row, credit: parseRupiahInput(e.target.value) })}
-                      className="border-rose-200 focus-visible:ring-rose-500"
-                    />
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={formatRupiahInput(row.credit)}
+                        disabled={readOnly}
+                        onChange={(e) => onChangeDetail(idx, { ...row, credit: parseRupiahInput(e.target.value) })}
+                        className="border-rose-200 focus-visible:ring-rose-500"
+                      />
                     </div>
                   </div>
                   <div className="xl:col-span-3">
@@ -332,6 +328,14 @@ export default function JournalDialog({
                 </div>
               </div>
             ))}
+            <div className="flex w-full items-center justify-between">
+              {!readOnly && (
+                <Button type="button" variant="outline" onClick={onAddDetail} className="w-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 backdrop-blur hover:bg-emerald-500/15">
+                  <ListPlus className="h-5 w-5" />
+                  Tambah Baris
+                </Button>
+              )}
+            </div>
             <div className="grid gap-3 border-t pt-3 pr-3 text-sm font-medium text-slate-700 md:grid-cols-4">
               <div className="md:col-span-2">Total</div>
               <div className="whitespace-nowrap">Debit: <b>Rp {totalDebit.toLocaleString("id-ID")}</b></div>
