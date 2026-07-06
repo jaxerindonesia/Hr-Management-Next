@@ -3,6 +3,7 @@
 import { Filter, Plus, Search, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePermission } from "@/lib/helper/check-role";
 
 type OvertimeToolbarProps = {
   isAdmin: boolean;
@@ -31,9 +32,10 @@ export function OvertimeToolbar({
   onClearSearch,
   onToggleFilter,
 }: OvertimeToolbarProps) {
+  const { checkRole } = usePermission();
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-      {!isAdmin && userId && (
+      {checkRole("overtimes", "create") && userId && (
         <Button
           onClick={onOpenRequest}
           disabled={requestLoading}
@@ -44,7 +46,7 @@ export function OvertimeToolbar({
         </Button>
       )}
 
-      {isAdmin && (
+      {checkRole("overtimes", "set-config") && (
         <Button
           onClick={onOpenConfig}
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"

@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Clock3, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -165,11 +165,21 @@ export function OvertimeModals(props: OvertimeModalsProps) {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Jam Mulai</Label>
-                <Input type="time" value={requestStartTime} onChange={(e) => onRequestStartTimeChange(e.target.value)} />
+                <Input
+                  type="time"
+                  value={requestStartTime}
+                  onChange={(e) => onRequestStartTimeChange(e.target.value)}
+                  className="[color-scheme:light] dark:[color-scheme:dark]"
+                />
               </div>
               <div className="grid gap-2">
                 <Label>Jam Selesai</Label>
-                <Input type="time" value={requestEndTime} onChange={(e) => onRequestEndTimeChange(e.target.value)} />
+                <Input
+                  type="time"
+                  value={requestEndTime}
+                  onChange={(e) => onRequestEndTimeChange(e.target.value)}
+                  className="[color-scheme:light] dark:[color-scheme:dark]"
+                />
               </div>
             </div>
             <div className="grid gap-2">

@@ -33,7 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function SubmissionsPage() {
-  const { checkRole, checkRoleMulti } = usePermission();
+  const { checkRole } = usePermission();
   const [submissions, setSubmissions] = useState<SubmissionDto[]>([]);
   const [total, setTotal] = useState(0);
   const [submissionType, setSubmissionType] = useState<SubmissionTypeDto[]>([]);
@@ -287,6 +287,14 @@ export default function SubmissionsPage() {
       ),
     ),
   );
+  const canApproveSubmission = submissions.some((submission) => {
+    const isCurrentUserApprover = (submission.submissionType?.approverConfigs || []).some(
+      (config) => config.approverUserId === userData.id,
+    );
+
+    const canApproveSubmission = submission.status === "PENDING" && isCurrentUserApprover && checkRole("submissions", "update");
+    return canApproveSubmission;
+  });
 
   return (
     <div className="space-y-6">
@@ -348,8 +356,8 @@ export default function SubmissionsPage() {
             variant="outline"
             onClick={() => setShowFilterPanel(!showFilterPanel)}
             className={`relative flex items-center gap-2 px-4 py-2 ${showFilterPanel
-                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
-                : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
+              ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+              : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
               }`}
           >
             <Filter className="w-4 h-4" />
@@ -505,157 +513,158 @@ export default function SubmissionsPage() {
                     Approval {name}
                   </th>
                 ))}
-                {checkRoleMulti("submissions", ["update", "delete"]) && (
-                  <th className="text-right p-3 font-semibold dark:text-gray-300">
-                    Aksi
-                  </th>
-                )}
+                <th className="text-right p-3 font-semibold dark:text-gray-300">
+                  Aksi
+                </th>
               </tr>
             </thead>
             <tbody>
               {submissions.length > 0 ? (
                 submissions.map((emp) => (
-                  <tr
-                    key={emp.id}
-                    className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <td className="p-3 font-medium dark:text-white">
-                      {emp.user?.name}
-                    </td>
-                    <td className="p-3 dark:text-gray-300">
-                      {emp.submissionType?.name}
-                    </td>
-                    <td className="p-3 dark:text-gray-300">
-                      {new Date(emp.startDate).toLocaleDateString("id-ID", {
-                        weekday: "short",
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </td>
-                    <td className="p-3 dark:text-gray-300">
-                      {new Date(emp.endDate).toLocaleDateString("id-ID", {
-                        weekday: "short",
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </td>
-                    <td className="p-3 dark:text-gray-300">
-                      {emp.reason || "-"}
-                    </td>
-                    <td className="p-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === "APPROVED"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            : emp.status === "REJECTED"
-                              ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                          }`}
+                  (() => {
+                    return (
+                      <tr
+                        key={emp.id}
+                        className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
-                        {emp.status === "APPROVED"
-                          ? "Disetujui"
-                          : emp.status === "REJECTED"
-                            ? "Ditolak"
-                            : "Menunggu"}
-                      </span>
-                    </td>
-                    {approverHeaders.map((name) => {
-                      const cfg = (emp.submissionType?.approverConfigs || []).find(
-                        (c) => c.approverUser.name === name,
-                      );
-                      const decision = (emp.approvalDecisions || []).find(
-                        (d) => d.approverUserId === cfg?.approverUserId,
-                      );
-                      const text =
-                        decision?.status === "APPROVED"
-                          ? "Disetujui"
-                          : decision?.status === "REJECTED"
-                            ? `Ditolak${decision.reason ? `: ${decision.reason}` : ""}`
-                            : emp.status === "REJECTED"
-                              ? "Tidak diproses"
-                              : cfg
-                                ? "Menunggu"
-                                : "-";
-                      return (
-                        <td key={`${emp.id}-${name}`} className="p-3 text-sm dark:text-gray-300">
-                          {text}
+                        <td className="p-3 font-medium dark:text-white">
+                          {emp.user?.name}
                         </td>
-                      );
-                    })}
-
-                    <td className="p-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        {emp.status === "PENDING" &&
-                          checkRole("submissions", "update") && (
-                            <>
-                              <button
-                                onClick={() => handleApprove(emp.id!)}
-                                className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg"
-                                title="Setujui"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => openRejectDialog(emp.id!)}
-                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                                title="Tolak"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                        {emp.status === "PENDING" &&
-                          checkRole("submissions", "update") && (
-                            <button
-                              onClick={() => handleOpenModal(emp)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                          )}
-                        {checkRole("submissions", "delete") && (
-                          <Popover
-                            open={openPopoverId === emp.id}
-                            onOpenChange={(isOpen) =>
-                              setOpenPopoverId(isOpen ? emp.id! : null)
-                            }
+                        <td className="p-3 dark:text-gray-300">
+                          {emp.submissionType?.name}
+                        </td>
+                        <td className="p-3 dark:text-gray-300">
+                          {new Date(emp.startDate).toLocaleDateString("id-ID", {
+                            weekday: "short",
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </td>
+                        <td className="p-3 dark:text-gray-300">
+                          {new Date(emp.endDate).toLocaleDateString("id-ID", {
+                            weekday: "short",
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </td>
+                        <td className="p-3 dark:text-gray-300">
+                          {emp.reason || "-"}
+                        </td>
+                        <td className="p-3">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === "APPROVED"
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              : emp.status === "REJECTED"
+                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                              }`}
                           >
-                            <PopoverTrigger asChild>
-                              <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                <Trash2 className="w-4 h-4" />
+                            {emp.status === "APPROVED"
+                              ? "Disetujui"
+                              : emp.status === "REJECTED"
+                                ? "Ditolak"
+                                : "Menunggu"}
+                          </span>
+                        </td>
+                        {approverHeaders.map((name) => {
+                          const cfg = (emp.submissionType?.approverConfigs || []).find(
+                            (c) => c.approverUser.name === name,
+                          );
+                          const decision = (emp.approvalDecisions || []).find(
+                            (d) => d.approverUserId === cfg?.approverUserId,
+                          );
+                          const text =
+                            decision?.status === "APPROVED"
+                              ? "Disetujui"
+                              : decision?.status === "REJECTED"
+                                ? `Ditolak${decision.reason ? `: ${decision.reason}` : ""}`
+                                : emp.status === "REJECTED"
+                                  ? "Tidak diproses"
+                                  : cfg
+                                    ? "Menunggu"
+                                    : "-";
+                          return (
+                            <td key={`${emp.id}-${name}`} className="p-3 text-sm dark:text-gray-300">
+                              {text}
+                            </td>
+                          );
+                        })}
+
+
+                        <td className="p-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            {canApproveSubmission && (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(emp.id!)}
+                                  className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg"
+                                  title="Setujui"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => openRejectDialog(emp.id!)}
+                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                                  title="Tolak"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                            {checkRole("submissions", "update") && (
+                              <button
+                                onClick={() => handleOpenModal(emp)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
                               </button>
-                            </PopoverTrigger>
+                            )}
+                            {checkRole("submissions", "delete") && (
+                              <Popover
+                                open={openPopoverId === emp.id}
+                                onOpenChange={(isOpen) =>
+                                  setOpenPopoverId(isOpen ? emp.id! : null)
+                                }
+                              >
+                                <PopoverTrigger asChild>
+                                  <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </PopoverTrigger>
 
-                            <PopoverContent className="w-56 space-y-3">
-                              <p className="text-sm">
-                                Yakin ingin menghapus pengajuan ini?
-                              </p>
+                                <PopoverContent className="w-56 space-y-3">
+                                  <p className="text-sm">
+                                    Yakin ingin menghapus pengajuan ini?
+                                  </p>
 
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setOpenPopoverId(null)}
-                                >
-                                  Batal
-                                </Button>
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setOpenPopoverId(null)}
+                                    >
+                                      Batal
+                                    </Button>
 
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDelete(emp.id!)}
-                                >
-                                  Hapus
-                                </Button>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleDelete(emp.id!)}
+                                    >
+                                      Hapus
+                                    </Button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })()
                 ))
               ) : (
                 <tr>

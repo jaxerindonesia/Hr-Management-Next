@@ -13,7 +13,7 @@ export const MASTER_PERMISSIONS = [
   },
   {
     model: "submissions",
-    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
+    actions: ["get-all", "get-by-id", "create", "update", "set-config", "delete", "export"],
   },
   {
     model: "submission_types",
@@ -21,7 +21,7 @@ export const MASTER_PERMISSIONS = [
   },
   {
     model: "attendances",
-    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
+    actions: ["get-all", "get-by-id", "create", "update", "set-config", "delete", "export"],
   },
   {
     model: "task-managements",
@@ -41,11 +41,11 @@ export const MASTER_PERMISSIONS = [
   },
   {
     model: "overtimes",
-    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
+    actions: ["get-all", "get-by-id", "create", "update", "set-config", "delete", "export"],
   },
   {
     model: "pettycash",
-    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
+    actions: ["get-all", "get-by-id", "create", "update", "update-report", "delete", "export"],
   },
   {
     model: "finance",

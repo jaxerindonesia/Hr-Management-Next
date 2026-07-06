@@ -1038,7 +1038,7 @@ export default function AttendancePage() {
                 </div>
               )}
 
-              {["Super Admin", "Admin"].includes(userData.role) && (
+              {checkRole("attendances", "set-config") && (
                 <Button
                   variant="outline"
                   onClick={() => setShowAttendanceConfig(true)}
