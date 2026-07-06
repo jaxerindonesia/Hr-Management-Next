@@ -63,8 +63,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     // Allow Admin to edit anything
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
-    const isAdminRole =
-      normalizedRole === "superadmin" || normalizedRole === "admin";
+    const isAdminRole = normalizedRole !== "karyawan";
 
     if (!isAdminRole) {
       return NextResponse.json(
