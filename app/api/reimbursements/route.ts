@@ -23,8 +23,7 @@ export async function GET(req: NextRequest) {
     if (scopedTenantId) where.tenantId = scopedTenantId;
 
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
-    const isAdminRole =
-      normalizedRole === "superadmin" || normalizedRole === "admin";
+    const isAdminRole = normalizedRole !== "karyawan";
     if (!isAdminRole) where.userId = auth.user.id;
 
     if (search) {
