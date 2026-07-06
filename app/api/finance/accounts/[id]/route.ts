@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest, context: Context) {
     data: {
       code,
       name,
-      normalBalance,
+      normalBalance: normalBalance as "DEBIT" | "CREDIT",
       isActive: body.isActive ?? true,
       accountCategoryId,
       parentId: body.parentId || null,
