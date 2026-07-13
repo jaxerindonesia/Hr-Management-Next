@@ -258,8 +258,9 @@ export default function FaceRecognitionModal({
           const eyeDistance = Math.max(Math.abs(rightEyeCenterX - leftEyeCenterX), 1);
           const yawRatio = (noseTip.x - eyeCenterX) / eyeDistance;
 
-          const TURN_THRESHOLD = 0.12;
-          const REQUIRED_TURN_FRAMES = 2;
+          // Lower threshold so smaller head turns are accepted faster.
+          const TURN_THRESHOLD = 0.08;
+          const REQUIRED_TURN_FRAMES = 1;
 
           if (yawRatio >= TURN_THRESHOLD) {
             turnedRightFramesRef.current += 1;
