@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { months } from "@/lib/helper/date";
 import { UserDto } from "@/lib/dto/user";
+import { formatCurrency } from "@/lib/helper/format-currency";
 
 export default function FormData({
   initialData,
@@ -242,16 +243,16 @@ export default function FormData({
             </div>
             
             {/* Total Preview */}
-            {/* <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-gray-600 mb-1">Total Gaji:</p>
-              <p className="text-2xl font-bold text-blue-600">
+            <div className="mt-2 py-2 px-4 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-600 mb-1">Total Gaji:</p>
+              <p className="text-md font-bold text-blue-600">
                 {formatCurrency(
-                  (parseFloat(formData.basicSalary) || 0) +
-                    (parseFloat(formData.allowances) || 0) -
-                    (parseFloat(formData.deductions) || 0),
+                  (formData.basicSalary || 0) +
+                    (formData.allowances || 0) -
+                    (formData.deductions || 0),
                 )}
               </p>
-            </div> */}
+            </div>
           </div>
 
           {/* Buttons */}

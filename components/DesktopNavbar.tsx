@@ -118,12 +118,15 @@ export default function DesktopNavbar() {
   };
 
   const getPageTitle = () => {
-    const path = pathname.split("/").pop();
+    const segments = pathname.split("/").filter(Boolean);
+    const path = segments[0] || "dashboard";
+    const subPath = segments[1] || "";
     const titles: { [key: string]: string } = {
       dashboard: "Dashboard",
       employees: "Data Karyawan",
       submissions: "Pengajuan Ketidakhadiran",
       pettycash: "Petty Cash",
+      finance: "Keuangan",
       attendances: "Kehadiran",
       "task-managements": "Manajemen Tugas",
       payrolls: "Payroll",
@@ -133,7 +136,22 @@ export default function DesktopNavbar() {
       overtimes: "Lembur",
       tenants: "Tenant",
     };
-    return titles[path || "dashboard"] || "Dashboard";
+
+    if (path === "finance") {
+      const financeTitles: { [key: string]: string } = {
+        dashboard: "Dashboard",
+        "account-categories": "Kategori Akun",
+        accounts: "Akun",
+        journals: "Jurnal Umum",
+        customers: "Customer",
+        vendors: "Vendor",
+        ledger: "Buku Besar",
+      };
+
+      return subPath ? `Keuangan - ${financeTitles[subPath] || "Keuangan"}` : "Keuangan";
+    }
+
+    return titles[path] || "Dashboard";
   };
 
   const getCurrentDateTime = () => {
@@ -143,6 +161,7 @@ export default function DesktopNavbar() {
       year: "numeric",
       month: "long",
       day: "numeric",
+      timeZone: "Asia/Jakarta",
     };
     return now.toLocaleDateString("id-ID", options);
   };
@@ -257,7 +276,7 @@ export default function DesktopNavbar() {
         <div className="flex items-center justify-between px-6 py-2 h-full">
           {/* Left Section */}
           <div className="flex flex-col">
-            <h1 className="text-[20px] font-bold text-gray-900 dark:text-white">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
               {getPageTitle()}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">

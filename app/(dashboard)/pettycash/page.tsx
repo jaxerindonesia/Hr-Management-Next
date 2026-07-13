@@ -62,7 +62,7 @@ const STATUS_COLOR: Record<string, string> = {
 const ITEMS_PER_PAGE = 10;
 
 export default function PettyCashPage() {
-  usePermission();
+  const { checkRole } = usePermission();
   const [pettyCashes, setPettyCashes] = useState<PettyCashDto[]>([]);
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
@@ -74,7 +74,6 @@ export default function PettyCashPage() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const [userData, setUserData] = useState({ id: "", role: "" });
   const [isExporting, setIsExporting] = useState(false);
 
   const [formData, setFormData] = useState<PettyCashDto>({
@@ -253,18 +252,16 @@ export default function PettyCashPage() {
     fetchData();
   }, [fetchData]);
 
-  useEffect(() => {
-    const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
-    setUserData(data);
-  }, []);
-
-  const isAdmin = ["Super Admin", "Admin"].includes(userData.role);
+  // useEffect(() => {
+  //   const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
+  //   setUserData(data);
+  // }, []);
 
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-          {isAdmin && (
+          {checkRole("pettycash", "create") && (
             <Button
               onClick={() => handleOpenModal()}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -458,7 +455,7 @@ export default function PettyCashPage() {
                           </button>
 
                           {/* Lapor Penggunaan (Karyawan/Admin can report usage) */}
-                          {r.status === "TRANSFER" && (
+                          {r.status === "TRANSFER" && checkRole("pettycash", "update-report") && (
                             <button
                               onClick={() => handleOpenUsageModal(r.id!)}
                               className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
@@ -468,8 +465,7 @@ export default function PettyCashPage() {
                             </button>
                           )}
 
-                          {/* Edit (Admin only) */}
-                          {isAdmin && (
+                          {checkRole("pettycash", "update") && (
                             <button
                               onClick={() => handleOpenModal(r)}
                               className="p-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg"
@@ -479,8 +475,7 @@ export default function PettyCashPage() {
                             </button>
                           )}
 
-                          {/* Delete (Admin only) */}
-                          {isAdmin && (
+                          {checkRole("pettycash", "delete") && (
                             <Popover
                               open={openPopoverId === r.id}
                               onOpenChange={(open) =>
@@ -651,147 +646,147 @@ export default function PettyCashPage() {
                 Memuat detail petty cash...
               </div>
             ) : (
-            <div className="space-y-6 pt-3">
-              {/* Header Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border dark:border-gray-700 flex items-center gap-3">
-                  <Wallet className="w-8 h-8 text-blue-600" />
+              <div className="space-y-6 pt-3">
+                {/* Header Info Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border dark:border-gray-700 flex items-center gap-3">
+                    <Wallet className="w-8 h-8 text-blue-600" />
+                    <div>
+                      <p className="text-xs text-gray-500">Pemberian Dana</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {formatCurrency(detailItem.amount)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border dark:border-gray-700 flex items-center gap-3">
+                    <Receipt className="w-8 h-8 text-indigo-600" />
+                    <div>
+                      <p className="text-xs text-gray-500">Total Digunakan</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {formatCurrency(
+                          detailItem.usages?.reduce((sum, u) => sum + u.amount, 0) || 0
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border dark:border-gray-700 flex items-center gap-3">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                    <div>
+                      <p className="text-xs text-gray-500">Sisa Saldo</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {formatCurrency(
+                          detailItem.amount -
+                          (detailItem.usages?.reduce((sum, u) => sum + u.amount, 0) || 0)
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main Metadata */}
+                <div className="grid grid-cols-2 gap-4 border-b pb-4">
                   <div>
-                    <p className="text-xs text-gray-500">Pemberian Dana</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(detailItem.amount)}
+                    <p className="text-xs text-gray-500">Karyawan Penerima</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {detailItem.user?.name ?? "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Tujuan</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {detailItem.purpose}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Kategori</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {detailItem.category}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Status</p>
+                    <span
+                      className={`inline-block px-2 py-0.5 mt-1 rounded-full text-xs font-medium ${STATUS_COLOR[detailItem.status] ?? ""
+                        }`}
+                    >
+                      {STATUS_LABEL[detailItem.status] ?? detailItem.status}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Bank Tujuan</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {detailItem.bankName} - {detailItem.accountNumber}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Tanggal Ditransfer</p>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {detailItem.transferDate
+                        ? new Date(detailItem.transferDate).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                        : "Belum ditransfer"}
                     </p>
                   </div>
                 </div>
 
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border dark:border-gray-700 flex items-center gap-3">
-                  <Receipt className="w-8 h-8 text-indigo-600" />
-                  <div>
-                    <p className="text-xs text-gray-500">Total Digunakan</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(
-                        detailItem.usages?.reduce((sum, u) => sum + u.amount, 0) || 0
-                      )}
-                    </p>
-                  </div>
-                </div>
+                {/* Usages Section */}
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-gray-500" />
+                    Rincian Penggunaan Dana
+                  </h4>
 
-                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border dark:border-gray-700 flex items-center gap-3">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
-                  <div>
-                    <p className="text-xs text-gray-500">Sisa Saldo</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(
-                        detailItem.amount -
-                        (detailItem.usages?.reduce((sum, u) => sum + u.amount, 0) || 0)
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                  {detailItem.usages && detailItem.usages.length > 0 ? (
+                    <div className="space-y-3">
+                      {detailItem.usages.map((u) => (
+                        <div
+                          key={u.id}
+                          className="p-4 rounded-xl border dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-start"
+                        >
+                          <div className="space-y-1">
+                            <p className="font-medium text-gray-900 dark:text-white">
+                              {u.description}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <Calendar className="w-3.5 h-3.5" />
+                              {new Date(u.usageDate).toLocaleDateString("id-ID", {
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              })}
+                            </div>
+                          </div>
 
-              {/* Main Metadata */}
-              <div className="grid grid-cols-2 gap-4 border-b pb-4">
-                <div>
-                  <p className="text-xs text-gray-500">Karyawan Penerima</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {detailItem.user?.name ?? "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Tujuan</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {detailItem.purpose}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Kategori</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {detailItem.category}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Status</p>
-                  <span
-                    className={`inline-block px-2 py-0.5 mt-1 rounded-full text-xs font-medium ${STATUS_COLOR[detailItem.status] ?? ""
-                      }`}
-                  >
-                    {STATUS_LABEL[detailItem.status] ?? detailItem.status}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Bank Tujuan</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {detailItem.bankName} - {detailItem.accountNumber}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Tanggal Ditransfer</p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {detailItem.transferDate
-                      ? new Date(detailItem.transferDate).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })
-                      : "Belum ditransfer"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Usages Section */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-gray-500" />
-                  Rincian Penggunaan Dana
-                </h4>
-
-                {detailItem.usages && detailItem.usages.length > 0 ? (
-                  <div className="space-y-3">
-                    {detailItem.usages.map((u) => (
-                      <div
-                        key={u.id}
-                        className="p-4 rounded-xl border dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-start"
-                      >
-                        <div className="space-y-1">
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {u.description}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {new Date(u.usageDate).toLocaleDateString("id-ID", {
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            })}
+                          <div className="flex flex-col items-end gap-2">
+                            <p className="font-semibold text-gray-900 dark:text-white text-right">
+                              {formatCurrency(u.amount)}
+                            </p>
+                            {u.receiptUrl && (
+                              <a
+                                href={u.receiptUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                              >
+                                <ExternalLink className="w-3 h-3" /> Bukti Struk
+                              </a>
+                            )}
                           </div>
                         </div>
-
-                        <div className="flex flex-col items-end gap-2">
-                          <p className="font-semibold text-gray-900 dark:text-white text-right">
-                            {formatCurrency(u.amount)}
-                          </p>
-                          {u.receiptUrl && (
-                            <a
-                              href={u.receiptUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                            >
-                              <ExternalLink className="w-3 h-3" /> Bukti Struk
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-6 text-center text-gray-500 dark:text-gray-400 border border-dashed rounded-xl">
-                    Belum ada penggunaan dana yang dilaporkan.
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center text-gray-500 dark:text-gray-400 border border-dashed rounded-xl">
+                      Belum ada penggunaan dana yang dilaporkan.
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
             )}
           </DialogContent>
         </Dialog>

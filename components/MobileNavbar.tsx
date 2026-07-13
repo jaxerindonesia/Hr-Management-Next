@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { startTransition, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -23,17 +23,21 @@ import {
   Shield,
   Banknote,
   Clock,
+  ChevronDown,
 } from "lucide-react";
 
 export default function MobileNavbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(
+    pathname.startsWith("/finance") ? ["finance"] : [],
+  );
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
   // Easter egg states
   const [showCredits, setShowCredits] = useState(false);
-  const [logoClicks, setLogoClicks] = useState(0);
+  const [, setLogoClicks] = useState(0);
   const clickResetTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleLogoClick = () => {
@@ -113,15 +117,29 @@ export default function MobileNavbar() {
       icon: Banknote,
       path: "/pettycash",
     },
+    {
+      id: "finance",
+      name: "Keuangan",
+      icon: Wallet,
+      path: "/finance",
+      subItems: [
+        { name: "Dashboard", path: "/finance/dashboard" },
+        { name: "Kategori Akun", path: "/finance/account-categories" },
+        { name: "Akun", path: "/finance/accounts" },
+        { name: "Customer", path: "/finance/customers" },
+        { name: "Vendor", path: "/finance/vendors" },
+        { name: "Jurnal Umum", path: "/finance/journals" },
+        { name: "Buku Besar", path: "/finance/ledger" },
+      ],
+    },
   ];
 
   const bottomNavItems = [
     { icon: Home, path: "/dashboard", label: "Home" },
+    { icon: Calendar, path: "/submissions", label: "Cuti" },
     { icon: ClipboardCheck, path: "/attendances", label: "Kehadiran" },
     { icon: ListTodo, path: "/task-managements", label: "Tugas" },
-    { icon: Calendar, path: "/submissions", label: "Cuti" },
-    { icon: Receipt, path: "/reimbursements", label: "Reimbursement" },
-    { icon: TrendingUp, path: "/performances", label: "Kinerja" },
+    { icon: Receipt, path: "/reimbursements", label: "Reimburse" },
   ];
 
   const handleLogout = async () => {
@@ -142,6 +160,20 @@ export default function MobileNavbar() {
   };
 
   const closeMenu = () => setIsMenuOpen(false);
+
+  const toggleMenu = (id: string) => {
+    setExpandedMenus((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const handleBottomNavClick = (path: string) => {
+    if (pathname === path) return;
+
+    startTransition(() => {
+      router.push(path);
+    });
+  };
 
   // Lock body scroll when menu is open
   useEffect(() => {
@@ -243,6 +275,58 @@ export default function MobileNavbar() {
               const Icon = item.icon;
               const isActive =
                 pathname === item.path || pathname.startsWith(item.path);
+              const isExpanded = expandedMenus.includes(item.id);
+
+              if ("subItems" in item && item.subItems) {
+                return (
+                  <div key={item.id} className="space-y-1">
+                    <button
+                      onClick={() => toggleMenu(item.id)}
+                      className={`flex w-full items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                        isActive
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <Icon className="w-5 h-5 shrink-0" />
+                      <span className="flex-1 text-left">{item.name}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          isExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="ml-6 border-l border-blue-100 pl-3 pt-1 dark:border-blue-900/40">
+                        {item.subItems.map((subItem) => {
+                          const isSubActive = pathname === subItem.path;
+
+                          return (
+                            <Link
+                              key={subItem.path}
+                              href={subItem.path}
+                              onClick={() => {
+                                setExpandedMenus((prev) =>
+                                  prev.filter((menuId) => menuId !== item.id),
+                                );
+                                closeMenu();
+                              }}
+                              className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                                isSubActive
+                                  ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-medium"
+                                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              }`}
+                            >
+                              {subItem.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
 
               return (
                 <Link
@@ -309,20 +393,22 @@ export default function MobileNavbar() {
         className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-transform duration-300 ease-in-out ${isMenuOpen ? "translate-y-full" : "translate-y-0"
           }`}
       >
-        <div className="flex items-center justify-around px-2 py-2">
+        <div className="flex items-center justify-around px-2 py-2 touch-manipulation">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive =
               pathname === item.path || pathname.startsWith(item.path);
 
             return (
-              <Link
+              <button
                 key={item.path}
-                href={item.path}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all duration-200 min-w-[60px] ${isActive
+                type="button"
+                onClick={() => handleBottomNavClick(item.path)}
+                className={`flex min-w-[60px] touch-manipulation flex-col items-center justify-center rounded-lg px-3 py-2 transition-all duration-200 ${isActive
                   ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                   }`}
+                aria-current={isActive ? "page" : undefined}
               >
                 <Icon
                   className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`}
@@ -332,7 +418,7 @@ export default function MobileNavbar() {
                 >
                   {item.label}
                 </span>
-              </Link>
+              </button>
             );
           })}
         </div>

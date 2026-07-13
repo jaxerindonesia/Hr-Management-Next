@@ -6,8 +6,11 @@ export const metadata: Metadata = {
   title: "HR Management System",
   description: "Human Resource Management System",
   icons: {
-    // jangan sentuh udh bener!!
     icon: "/favicon..ico",
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon-precomposed.png", sizes: "180x180", type: "image/png" },
+    ],
   },
 };
 

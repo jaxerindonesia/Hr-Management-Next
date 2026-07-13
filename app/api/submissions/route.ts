@@ -24,7 +24,12 @@ export async function GET(req: NextRequest) {
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
     const isAdminRole =
       normalizedRole === "superadmin" || normalizedRole === "admin";
-    if (!isAdminRole) where.userId = auth.user.id;
+    if (!isAdminRole) {
+      where.OR = [
+        { userId: auth.user.id },
+        { approvalDecisions: { some: { approverUserId: auth.user.id } } },
+      ];
+    }
 
     if (search) {
       where.user = {

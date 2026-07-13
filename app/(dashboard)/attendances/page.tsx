@@ -101,7 +101,6 @@ export default function AttendancePage() {
   );
   const [locationReady, setLocationReady] = useState(false);
   const [locationChecking, setLocationChecking] = useState(true);
-  const [locationBlocked, setLocationBlocked] = useState(false);
   const [locationWarning, setLocationWarning] = useState("");
   const isIOSBrowser =
     typeof navigator !== "undefined" &&
@@ -132,11 +131,9 @@ export default function AttendancePage() {
   const refreshLocationReadiness = useCallback(async () => {
     if (typeof window === "undefined") return;
     setLocationChecking(true);
-    setLocationBlocked(false);
     if (!navigator.geolocation) {
       setLocationReady(false);
       setLocationChecking(false);
-      setLocationBlocked(true);
       setLocationWarning("Perangkat tidak mendukung akses lokasi.");
       return;
     }
@@ -148,7 +145,6 @@ export default function AttendancePage() {
         if (perm.state === "denied") {
           setLocationReady(false);
           setLocationChecking(false);
-          setLocationBlocked(true);
           setLocationWarning(
             "Lokasi belum diizinkan. Aktifkan izin lokasi di browser/perangkat.",
           );
@@ -177,14 +173,12 @@ export default function AttendancePage() {
       const geoError = error as GeolocationPositionError | undefined;
       if (geoError?.code === 1) {
         setLocationReady(false);
-        setLocationBlocked(true);
         setLocationWarning(
           "Lokasi belum diizinkan. Aktifkan izin lokasi di browser/perangkat.",
         );
       } else if (isIOSBrowser) {
         // Safari iOS often needs user gesture before location becomes available.
         setLocationReady(true);
-        setLocationBlocked(false);
         setLocationWarning("");
       } else {
         setLocationReady(false);
@@ -192,6 +186,91 @@ export default function AttendancePage() {
           "Lokasi belum aktif. Nyalakan GPS/lokasi perangkat terlebih dahulu.",
         );
       }
+    } finally {
+      setLocationChecking(false);
+    }
+  }, [isIOSBrowser]);
+
+  const ensureLocationAccess = useCallback(async () => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    setLocationChecking(true);
+
+    if (!navigator.geolocation) {
+      setLocationReady(false);
+      setLocationWarning("Perangkat tidak mendukung akses lokasi.");
+      setLocationChecking(false);
+      toast.error("Perangkat ini tidak mendukung akses lokasi");
+      return false;
+    }
+
+    try {
+      const permissionName = "geolocation" as PermissionName;
+      if (navigator.permissions?.query) {
+        const perm = await navigator.permissions.query({ name: permissionName });
+        if (perm.state === "denied") {
+          setLocationReady(false);
+          setLocationWarning(
+            "Akses lokasi diblokir. Izinkan lokasi di browser/perangkat lalu coba lagi.",
+          );
+          toast.error(
+            "Akses lokasi diblokir. Izinkan lokasi di browser/perangkat lalu coba lagi.",
+          );
+          return false;
+        }
+      }
+
+      await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          ...LOCATION_OPTIONS,
+          timeout: 8000,
+        }),
+      );
+
+      setLocationReady(true);
+      setLocationWarning("");
+      return true;
+    } catch (error) {
+      const geoError = error as GeolocationPositionError | undefined;
+      setLocationReady(false);
+
+      if (geoError?.code === 1) {
+        setLocationWarning(
+          "Lokasi belum diizinkan. Tap tombol lagi setelah mengizinkan akses lokasi.",
+        );
+        toast.error(
+          "Lokasi belum diizinkan. Izinkan akses lokasi saat diminta, lalu coba lagi.",
+        );
+      } else if (isIOSBrowser) {
+        setLocationReady(true);
+        setLocationWarning("");
+        return true;
+      } else if (geoError?.code === 2) {
+        setLocationWarning(
+          "Lokasi belum tersedia. Pastikan GPS aktif dan tunggu beberapa saat.",
+        );
+        toast.error(
+          "Lokasi belum tersedia. Pastikan GPS aktif dan tunggu beberapa saat.",
+        );
+      } else if (geoError?.code === 3) {
+        setLocationWarning(
+          "Permintaan lokasi terlalu lama. Pastikan sinyal GPS baik lalu coba lagi.",
+        );
+        toast.error(
+          "Permintaan lokasi terlalu lama. Pastikan sinyal GPS baik lalu coba lagi.",
+        );
+      } else {
+        setLocationWarning(
+          "Lokasi belum aktif. Nyalakan GPS/lokasi perangkat terlebih dahulu.",
+        );
+        toast.error(
+          "Lokasi belum aktif. Nyalakan GPS/lokasi perangkat terlebih dahulu.",
+        );
+      }
+
+      return false;
     } finally {
       setLocationChecking(false);
     }
@@ -655,30 +734,18 @@ export default function AttendancePage() {
   }, [userData, fetchAttendance, fetchTodayAttendance, getBreakLocation]);
 
   // ── Open face-recognition modal first ──────────────────────────────────
-  const handleCheckIn = () => {
-    const canProceed = !locationBlocked && (locationReady || isIOSBrowser);
-    if (!canProceed) {
-      toast.error(
-        locationWarning ||
-          "Lokasi belum aktif/diizinkan. Aktifkan lokasi terlebih dahulu.",
-      );
-      refreshLocationReadiness();
-      return;
-    }
+  const handleCheckIn = async () => {
+    const canProceed =
+      locationReady || isIOSBrowser || (await ensureLocationAccess());
+    if (!canProceed) return;
     setFaceModalMode("check-in");
     setIsFaceModalOpen(true);
   };
 
-  const handleCheckOut = () => {
-    const canProceed = !locationBlocked && (locationReady || isIOSBrowser);
-    if (!canProceed) {
-      toast.error(
-        locationWarning ||
-          "Lokasi belum aktif/diizinkan. Aktifkan lokasi terlebih dahulu.",
-      );
-      refreshLocationReadiness();
-      return;
-    }
+  const handleCheckOut = async () => {
+    const canProceed =
+      locationReady || isIOSBrowser || (await ensureLocationAccess());
+    if (!canProceed) return;
     setFaceModalMode("check-out");
     setIsFaceModalOpen(true);
   };
@@ -918,11 +985,6 @@ export default function AttendancePage() {
                   {!todayAttendance ? (
                     <Button
                       onClick={handleCheckIn}
-                      disabled={
-                        locationChecking ||
-                        locationBlocked ||
-                        (!locationReady && !isIOSBrowser)
-                      }
                       className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
                     >
                       <Clock className="w-4 h-4 mr-2" />
@@ -932,11 +994,6 @@ export default function AttendancePage() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       <Button
                         onClick={handleCheckOut}
-                        disabled={
-                          locationChecking ||
-                          locationBlocked ||
-                          (!locationReady && !isIOSBrowser)
-                        }
                         className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
                       >
                         <Clock className="w-4 h-4 mr-2" />
@@ -974,13 +1031,14 @@ export default function AttendancePage() {
                     </p>
                   ) : !locationReady ? (
                     <p className="text-xs leading-5 text-amber-600 dark:text-amber-400">
-                      {locationWarning}
+                      {locationWarning ||
+                        "Jika prompt lokasi belum muncul, tekan tombol Check In/Out untuk memicu izin lokasi."}
                     </p>
                   ) : null}
                 </div>
               )}
 
-              {["Super Admin", "Admin"].includes(userData.role) && (
+              {checkRole("attendances", "set-config") && (
                 <Button
                   variant="outline"
                   onClick={() => setShowAttendanceConfig(true)}
