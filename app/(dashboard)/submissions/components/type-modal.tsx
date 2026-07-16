@@ -5,14 +5,17 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2, X } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export default function ModalType({ onClose }: { onClose: () => void }) {
+export default function TypeModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [submissionTypes, setSubmissionTypes] = useState<SubmissionTypeDto[]>(
     [],
   );
@@ -20,9 +23,9 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<UserDto[]>([]);
   const [approverUserIds, setApproverUserIds] = useState<string[]>([]);
+  const [selectedApproverId, setSelectedApproverId] = useState("");
 
-  const handleAddType = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddType = async () => {
     if (!newType.trim()) return;
 
     try {
@@ -69,7 +72,7 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
       if (!res.ok) throw new Error("Gagal mengambil data tipe pengajuan");
       const json = await res.json();
       setSubmissionTypes(json.data || []);
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat tipe pengajuan");
     }
   };
@@ -99,40 +102,45 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-            Kelola Jenis Ketidakhadiran
-          </DialogTitle>
+          <DialogTitle>Kelola Jenis Ketidakhadiran</DialogTitle>
+          <DialogDescription>
+            Tambah dan kelola jenis pengajuan beserta approver yang terkait.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleAddType} className="space-y-4">
+        
+        <div className="space-y-4">
           <div>
             <div>
-              <p className="text-sm">Pemberi Persetujuan (dapat dipilih lebih dari satu)</p>
-              <p className="text-xs text-gray-500 mb-2">
+              <Label>Pemberi Persetujuan (dapat dipilih lebih dari satu)</Label>
+              <p className="text-xs text-muted-foreground my-2">
                 Jika tidak dipilih, sistem otomatis memakai user dengan role Admin/Super Admin.
               </p>
-              <select
-                defaultValue=""
-                onChange={(e) => {
-                  handleAddApprover(e.target.value);
-                  e.currentTarget.value = "";
+              <Select
+                value={selectedApproverId}
+                onValueChange={(value) => {
+                  handleAddApprover(value);
+                  setSelectedApproverId("");
                 }}
-                className="w-full border rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
-                <option value="">Pilih user approver...</option>
-                {approverUsers
-                  .filter((u: any) => !approverUserIds.includes(u.id))
-                  .map((u: any) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.email})
-                    </option>
-                  ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih user approver..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {approverUsers
+                    .filter((user) => user.id && !approverUserIds.includes(user.id))
+                    .map((user) => (
+                      <SelectItem key={user.id} value={user.id ?? ""}>
+                        {user.name} ({user.email})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
               <div className="my-2 flex flex-wrap gap-2">
                 {approverUserIds.map((id) => {
-                  const user = users.find((u: any) => u.id === id);
+                  const user = users.find((item) => item.id === id);
                   if (!user) return null;
                   return (
                     <span
@@ -159,7 +167,7 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setNewType(e.target.value)}
                 placeholder="Tambah jenis baru..."
               />
-              <Button type="submit" disabled={!newType.trim() || loading}>
+              <Button type="button" onClick={handleAddType} disabled={!newType.trim() || loading}>
                 Tambah
               </Button>
             </div>
@@ -206,7 +214,7 @@ export default function ModalType({ onClose }: { onClose: () => void }) {
               </p>
             )}
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

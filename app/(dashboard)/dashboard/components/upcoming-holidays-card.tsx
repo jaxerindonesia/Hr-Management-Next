@@ -10,7 +10,7 @@ type Props = {
 
 export default function UpcomingHolidaysCard({ holidays, holidaysLoading }: Props) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-4 flex items-center gap-2">
         <Calendar className="h-5 w-5 text-red-500" />
         <h3 className="font-semibold dark:text-white">Hari Libur Mendatang</h3>

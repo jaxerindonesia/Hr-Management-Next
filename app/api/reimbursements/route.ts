@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
         amount: Number(amount),
         date: new Date(date),
         description: description || null,
-        status: "pending",
+        status: "PENDING",
       },
     });
 

@@ -1,12 +1,16 @@
 "use client";
 
-import { CheckCircle, ClipboardList, DollarSign, Users } from "lucide-react";
-import { DashboardStats } from "./types";
-
-const formatRp = (n: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" })
-    .format(n)
-    .replace("IDR", "Rp");
+import {
+  Briefcase,
+  Building2,
+  CheckCircle,
+  ClipboardList,
+  Clock3,
+  DollarSign,
+  ReceiptText,
+  Users,
+} from "lucide-react";
+import type { DashboardSummaryCard } from "./types";
 
 function StatCard({
   title,
@@ -40,46 +44,45 @@ function StatCard({
 }
 
 type Props = {
-  canViewEmployeeStats: boolean;
-  stats: DashboardStats;
-  userRole: string | null;
+  summaryCards: DashboardSummaryCard[];
 };
 
-export default function StatsGrid({ canViewEmployeeStats, stats, userRole }: Props) {
+const iconMap = {
+  users: Users,
+  check: CheckCircle,
+  money: DollarSign,
+  clipboard: ClipboardList,
+  building: Building2,
+  briefcase: Briefcase,
+  receipt: ReceiptText,
+  clock: Clock3,
+} as const;
+
+const gradientMap: Record<DashboardSummaryCard["tone"], string> = {
+  blue: "bg-gradient-to-br from-blue-500 to-blue-700",
+  emerald: "bg-gradient-to-br from-emerald-500 to-emerald-700",
+  orange: "bg-gradient-to-br from-orange-500 to-orange-700",
+  violet: "bg-gradient-to-br from-purple-500 to-purple-700",
+  teal: "bg-gradient-to-br from-cyan-500 to-cyan-700",
+};
+
+export default function StatsGrid({ summaryCards }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {canViewEmployeeStats && (
-        <>
+      {summaryCards.map((card) => {
+        const Icon = iconMap[card.icon];
+
+        return (
           <StatCard
-            title="Total Karyawan"
-            value={stats.totalKaryawan}
-            icon={Users}
-            gradient="bg-gradient-to-br from-blue-500 to-blue-700"
-            sub={userRole === "Super Admin" ? "Semua karyawan terdaftar" : "Karyawan di tenant Anda"}
+            key={card.title}
+            title={card.title}
+            value={card.value}
+            icon={Icon}
+            gradient={gradientMap[card.tone]}
+            sub={card.sub}
           />
-          <StatCard
-            title="Karyawan Aktif"
-            value={stats.karyawanAktif}
-            icon={CheckCircle}
-            gradient="bg-gradient-to-br from-emerald-500 to-emerald-700"
-            sub={`${stats.totalKaryawan - stats.karyawanAktif} tidak aktif`}
-          />
-          <StatCard
-            title="Total Gaji Bulan Ini"
-            value={formatRp(stats.totalGajiBulanIni)}
-            icon={DollarSign}
-            gradient="bg-gradient-to-br from-purple-500 to-purple-700"
-            sub="Sudah dibayar (paid)"
-          />
-        </>
-      )}
-      <StatCard
-        title="Pengajuan Pending"
-        value={stats.pendingSubmissions}
-        icon={ClipboardList}
-        gradient="bg-gradient-to-br from-orange-500 to-orange-700"
-        sub="Menunggu persetujuan"
-      />
+        );
+      })}
     </div>
   );
 }

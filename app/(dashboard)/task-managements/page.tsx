@@ -1010,7 +1010,7 @@ export default function TaskManagementPage() {
   if (!selectedDepartmentId) {
     return (
       <div className="space-y-7">
-        <section className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6">
+        <section className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
             {[
               {
@@ -1051,20 +1051,20 @@ export default function TaskManagementPage() {
             ].map((stat, index) => {
               const Icon = stat.icon;
               const colorMap = {
-                blue: "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300",
+                blue: "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-200",
                 emerald:
-                  "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300",
+                  "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200",
                 amber:
-                  "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300",
+                  "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-200",
                 violet:
-                  "bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300",
-                rose: "bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300",
+                  "bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-200",
+                rose: "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-200",
               }[stat.color];
 
               return (
                 <div
                   key={stat.label}
-                  className={`flex items-center gap-4 xl:border-r xl:border-gray-200 xl:pr-5 xl:dark:border-gray-800 ${index === 4 ? "xl:border-r-0 xl:pr-0" : ""
+                  className={`flex items-center gap-4 xl:border-r xl:border-gray-200 xl:pr-5 xl:dark:border-slate-700 ${index === 4 ? "xl:border-r-0 xl:pr-0" : ""
                     }`}
                 >
                   <div
@@ -1105,10 +1105,10 @@ export default function TaskManagementPage() {
                 value={departmentSearch}
                 onChange={(event) => setDepartmentSearch(event.target.value)}
                 placeholder="Cari department..."
-                className="h-10 w-full pl-10 sm:w-72"
+                className="h-10 w-full pl-10 sm:w-72 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
-            <div className="flex h-10 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex h-10 rounded-lg border border-gray-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
               <Button
                 type="button"
                 size="icon-sm"
@@ -1134,7 +1134,7 @@ export default function TaskManagementPage() {
         </div>
 
         {loadingDepartments ? (
-          <div className="rounded-xl border bg-white p-6 text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-xl border bg-white p-6 text-sm text-gray-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
             Memuat department...
           </div>
         ) : filteredDepartments.length > 0 ? (
@@ -1158,22 +1158,22 @@ export default function TaskManagementPage() {
                   : 0;
               const palette = [
                 {
-                  icon: "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300",
-                  band: "from-blue-50 to-blue-100/70 dark:from-blue-950/40 dark:to-blue-900/20",
+                  icon: "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-200",
+                  band: "from-blue-50 to-blue-100/70 dark:from-blue-500/12 dark:to-slate-800",
                   button:
-                    "bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/50",
+                    "bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/20",
                 },
                 {
-                  icon: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300",
-                  band: "from-emerald-50 to-emerald-100/70 dark:from-emerald-950/40 dark:to-emerald-900/20",
+                  icon: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200",
+                  band: "from-emerald-50 to-emerald-100/70 dark:from-emerald-500/12 dark:to-slate-800",
                   button:
-                    "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/50",
+                    "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20",
                 },
                 {
-                  icon: "bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300",
-                  band: "from-violet-50 to-violet-100/70 dark:from-violet-950/40 dark:to-violet-900/20",
+                  icon: "bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-200",
+                  band: "from-violet-50 to-violet-100/70 dark:from-violet-500/12 dark:to-slate-800",
                   button:
-                    "bg-violet-50 text-violet-700 hover:bg-violet-100 dark:bg-violet-950/50 dark:text-violet-300 dark:hover:bg-violet-900/50",
+                    "bg-violet-50 text-violet-700 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-200 dark:hover:bg-violet-500/20",
                 },
               ][index % 3];
 
@@ -1181,7 +1181,7 @@ export default function TaskManagementPage() {
                 <button
                   key={department.id}
                   onClick={() => router.push(`/task-managements/${department.id}`)}
-                  className={`group overflow-hidden rounded-xl border border-gray-100 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-gray-800 dark:bg-gray-900 ${departmentView === "list" ? "flex items-stretch" : ""
+                  className={`group overflow-hidden rounded-xl border border-gray-100 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg dark:border-slate-700 dark:bg-slate-800 ${departmentView === "list" ? "flex items-stretch" : ""
                     }`}
                 >
                   <div
@@ -1189,7 +1189,7 @@ export default function TaskManagementPage() {
                       }`}
                   >
                     <div
-                      className={`absolute flex h-16 w-16 items-center justify-center rounded-xl border-4 border-white shadow-md dark:border-gray-900 ${palette.icon} ${departmentView === "list"
+                      className={`absolute flex h-16 w-16 items-center justify-center rounded-xl border-4 border-white shadow-md dark:border-slate-800 ${palette.icon} ${departmentView === "list"
                         ? "left-4 top-1/2 -translate-y-1/2"
                         : "bottom-0 left-6 translate-y-1/2"
                         }`}
@@ -1213,7 +1213,7 @@ export default function TaskManagementPage() {
                           <div
                             key={user.id}
                             title={user.name}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-[10px] font-bold text-white shadow-sm dark:border-gray-900"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-[10px] font-bold text-white shadow-sm dark:border-slate-800"
                             style={{
                               backgroundColor: ["#2563eb", "#059669", "#7c3aed"][userIndex % 3],
                             }}
@@ -1222,14 +1222,14 @@ export default function TaskManagementPage() {
                           </div>
                         ))}
                         {department._count.users > 3 && (
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-[10px] font-bold text-gray-600 shadow-sm dark:border-gray-900 dark:bg-gray-800 dark:text-gray-300">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-[10px] font-bold text-gray-600 shadow-sm dark:border-slate-800 dark:bg-slate-700 dark:text-slate-200">
                             +{department._count.users - 3}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
+                    <div className="mt-6 grid grid-cols-3 divide-x divide-gray-100 dark:divide-slate-700">
                       <div className="flex items-center gap-2 pr-3">
                         <Users className="h-4 w-4 text-blue-600 dark:text-blue-300" />
                         <div>
@@ -1259,7 +1259,7 @@ export default function TaskManagementPage() {
                             background: `conic-gradient(#2563eb ${progress}%, #e5e7eb 0)`,
                           }}
                         >
-                          <span className="grid h-10 w-10 place-items-center rounded-full bg-white dark:bg-gray-900">
+                          <span className="grid h-10 w-10 place-items-center rounded-full bg-white dark:bg-slate-800">
                             {progress}%
                           </span>
                         </div>
@@ -1281,7 +1281,7 @@ export default function TaskManagementPage() {
             })}
           </div>
         ) : (
-          <div className="rounded-xl border bg-white p-8 text-center text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-xl border bg-white p-8 text-center text-gray-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
             {departments.length > 0
               ? "Department tidak ditemukan."
               : "Belum ada department yang terdaftar."}

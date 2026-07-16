@@ -103,6 +103,8 @@ export async function POST(req: NextRequest) {
         permissions: user.role.permission,
         avatarUrl: user.avatarUrl ?? "",
         tenantId: user.tenantId ?? null,
+        tenantName: user.tenant?.companyName ?? null,
+        tenantLogoUrl: user.tenant?.logoUrl ?? null,
         departmentId: user.departmentId ?? null,
       },
     });

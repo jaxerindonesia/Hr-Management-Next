@@ -16,6 +16,22 @@ const STATUS_COLORS: Record<string, string> = {
   VOID: "#ef4444",
 };
 
+function getInsightValueClassName(value: string) {
+  if (value.length >= 18) {
+    return "text-[12px] leading-5";
+  }
+
+  if (value.length >= 15) {
+    return "text-[14px] leading-5";
+  }
+
+  if (value.length >= 12) {
+    return "text-[16px] leading-6";
+  }
+
+  return "text-[18px] leading-6";
+}
+
 export default function FinanceDashboardPage({ summary }: Props) {
   const trendData = summary?.monthlyTrend ?? [];
   const statusData = summary?.statusBreakdown ?? [];
@@ -315,6 +331,8 @@ function InsightCard({
     orange: "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-500/12 dark:text-orange-300 dark:ring-orange-500/25",
     violet: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/12 dark:text-violet-300 dark:ring-violet-500/25",
   };
+  const formattedValue = formatCurrency(value);
+  const valueClassName = getInsightValueClassName(formattedValue);
 
   return (
     <div className={`rounded-[19px] p-[1px] ${toneClasses[tone]}`}>
@@ -322,8 +340,8 @@ function InsightCard({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
-            <p className={`mt-2 text-[18px] font-semibold tracking-tight ${positive ? "text-slate-950 dark:text-white" : "text-red-600 dark:text-red-400"}`}>
-              {formatCurrency(value)}
+            <p className={`mt-2 font-semibold tracking-tight ${valueClassName} ${positive ? "text-slate-950 dark:text-white" : "text-red-600 dark:text-red-400"}`}>
+              {formattedValue}
             </p>
           </div>
           <div className={`rounded-2xl p-2 ring-1 ${toneClasses[tone]}`}>

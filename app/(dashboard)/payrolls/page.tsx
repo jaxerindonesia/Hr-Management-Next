@@ -1,114 +1,128 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  Edit,
-  Plus,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  X,
-  Download,
-  Printer,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import DynamicPage from "@/components/dynamic-page";
 import { PayrollDto } from "@/lib/dto/payroll";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/helper/format-currency";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import FormData from "./components/form-data";
 import SlipGajiModal from "./components/slip-gaji-modal";
-import { months } from "@/lib/helper/date";
 import { usePermission } from "@/lib/helper/check-role";
+import { months } from "@/lib/helper/date";
+import { ITEMS_PER_PAGE, columnFormats, headerToolbar, renderActions } from "./page.config";
+import { CheckCircle, Clock } from "lucide-react";
+import SummaryCard from "./components/summary-card";
+import { ApiResponse } from "@/lib/utils";
 
-type TenantConfig = {
-  companyName?: string | null;
-  logoUrl?: string | null;
-};
-
-export default function PayrollPage() {
-  const { checkRole, checkRoleMulti } = usePermission();
-  const [payrolls, setPayrolls] = useState<PayrollDto[]>([]);
+export default function Page() {
+  const { checkRole } = usePermission();
+  const [data, setData] = useState<PayrollDto[]>([]);
   const [total, setTotal] = useState(0);
-  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [isExporting, setIsExporting] = useState(false);
-  const [formData, setFormData] = useState<PayrollDto>({
-    userId: "",
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    basicSalary: 0,
-    allowances: 0,
-    deductions: 0,
-    totalSalary: 0,
-    status: "pending",
-  });
+  const [loading, setLoading] = useState(false);
+  const [detailItem, setDetailItem] = useState<PayrollDto | undefined>(undefined);
 
-  // Filter states
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
+  const [debouncedFilterYear, setDebouncedFilterYear] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const [selectedSlip, setSelectedSlip] = useState<PayrollDto | null>(null);
-  const [tenantConfig, setTenantConfig] = useState<TenantConfig | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Summary stats (fetched separately without pagination)
-  const [summaryPaid, setSummaryPaid] = useState(0);
-  const [summaryPending, setSummaryPending] = useState(0);
-  const [summaryTotal, setSummaryTotal] = useState(0);
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(total / itemsPerPage);
+  const currentYear = new Date().getFullYear();
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)), [total]);
 
-  const handleOpenModal = (data?: PayrollDto) => {
-    if (data) setFormData(data);
-    setShowModal(true);
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (searchTerm) count++;
+    if (filterMonth !== "all") count++;
+    if (filterYear !== "all") count++;
+    if (filterStatus !== "all") count++;
+    return count;
+  }, [searchTerm, filterMonth, filterYear, filterStatus]);
+
+  const summaryCards = useMemo(() => {
+    const summaryPaid = data.filter((p) => p.status === "PAID").reduce((sum, p) => sum + p.totalSalary, 0);
+    const summaryPending = data.filter((p) => p.status === "PENDING").reduce((sum, p) => sum + p.totalSalary, 0);
+    const summaryTotal = data.reduce((sum, p) => sum + p.totalSalary, 0);
+
+    return [
+      {
+        label: "Gaji Dibayarkan",
+        value: summaryPaid,
+        subtitle: `Tahun ${currentYear}`,
+        tone: "emerald",
+        icon: CheckCircle,
+      },
+      {
+        label: "Gaji Pending",
+        value: summaryPending,
+        subtitle: `Tahun ${currentYear}`,
+        tone: "amber",
+        icon: Clock,
+      },
+      {
+        label: "Total Gaji",
+        value: summaryTotal,
+        subtitle: `Tahun ${currentYear}`,
+        tone: "violet",
+        icon: CheckCircle,
+      },
+    ];
+  }, [data, currentYear]);
+
+  const clearFilters = useCallback(() => {
+    setFilterMonth("all");
+    setFilterYear("all");
+    setDebouncedFilterYear("all");
+    setFilterStatus("all");
+    setSearchTerm("");
+  }, []);
+
+  const onAdd = useCallback(() => {
+    setDetailItem(undefined);
+    setShowFormModal(true);
+  }, []);
+
+  const onView = async (id: string) => {
+    await fetchDetail(id);
+    setShowFormModal(true);
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setFormData({
-      userId: "",
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
-      basicSalary: 0,
-      allowances: 0,
-      deductions: 0,
-      totalSalary: 0,
-      status: "pending",
-    });
+  const onViewDetail = async (id: string) => {
+    await fetchDetail(id);
+    setShowDetailModal(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const onDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/payrolls/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Gagal menghapus gaji");
+      const res = await fetch(`/api/payrolls/${id}`, { method: "DELETE" });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || "Gaji berhasil dihapus");
+
       toast.success("Gaji berhasil dihapus!");
-      fetchPayrolls();
-      fetchSummary();
+      fetchData();
     } catch (error) {
-      toast.error("Gagal menghapus gaji");
+      toast.error(`Gagal menghapus gaji: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setDeleteId(null);
     }
   };
 
-  const handleExport = async () => {
+  const onExport = useCallback(async () => {
+    setIsExporting(true);
     try {
-      setIsExporting(true);
-
       const params = new URLSearchParams();
       params.set("limit", "999999");
-      if (searchTerm) params.set("search", searchTerm);
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
       if (filterMonth !== "all") params.set("month", filterMonth);
-      if (filterYear !== "all") params.set("year", filterYear);
+      if (debouncedFilterYear !== "all") params.set("year", debouncedFilterYear);
       if (filterStatus !== "all") params.set("status", filterStatus);
 
       const res = await fetch(`/api/payrolls?${params.toString()}`);
@@ -133,604 +147,154 @@ export default function PayrollPage() {
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data Payroll");
 
-      // Auto column width
-      const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
-        wch:
-          Math.max(
-            key.length,
-            ...rows.map((r) => String((r as any)[key] ?? "").length),
-          ) + 2,
-      }));
-      worksheet["!cols"] = colWidths;
-
-      // Format currency columns
-      const currencyCols = [
-        "Gaji Pokok",
-        "Tunjangan",
-        "Potongan",
-        "Total Gaji",
-      ];
-      currencyCols.forEach((colName) => {
-        const colIndex = Object.keys(rows[0] ?? {}).indexOf(colName);
-        if (colIndex < 0) return;
-        const colLetter = XLSX.utils.encode_col(colIndex);
-        for (let i = 2; i <= rows.length + 1; i++) {
-          const cellRef = `${colLetter}${i}`;
-          if (worksheet[cellRef]) {
-            worksheet[cellRef].z = "#,##0";
-          }
-        }
-      });
-
       const fileName = `data-payroll-${new Date().toISOString().split("T")[0]}.xlsx`;
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data payroll`);
-    } catch (err) {
+    } catch {
       toast.error("Gagal mengexport data");
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [debouncedFilterYear, debouncedSearchTerm, filterMonth, filterStatus]);
 
-  const currentYear = new Date().getFullYear();
+  const toolbar = useMemo(() => {
+    return headerToolbar({
+      actions: {
+        onAdd,
+        onExport,
+        checkRole,
+        isExporting,
+      },
+      filters: {
+        show: showFilterPanel,
+        setShow: setShowFilterPanel,
+        activeCount: activeFilterCount,
+        clear: clearFilters,
+        searchTerm,
+        setSearchTerm,
+        status: filterStatus,
+        setStatus: setFilterStatus,
+        month: filterMonth,
+        setMonth: setFilterMonth,
+        year: filterYear,
+        setYear: setFilterYear,
+      },
+    })
+  }, [searchTerm, filterStatus, filterMonth, filterYear, activeFilterCount, clearFilters, onAdd, onExport, isExporting, checkRole, showFilterPanel]);
 
-  const clearAllFilters = () => {
-    setFilterMonth("all");
-    setFilterYear("all");
-    setFilterStatus("all");
-    setSearchTerm("");
-  };
-
-  const activeFilterCount = [
-    filterMonth !== "all",
-    filterYear !== "all",
-    filterStatus !== "all",
-    searchTerm !== "",
-  ].filter(Boolean).length;
-
-  const fetchPayrolls = useCallback(async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set("page", String(currentPage));
-      params.set("limit", String(itemsPerPage));
-      if (searchTerm) params.set("search", searchTerm);
+      params.set("limit", String(ITEMS_PER_PAGE));
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
       if (filterMonth !== "all") params.set("month", filterMonth);
-      if (filterYear !== "all") params.set("year", filterYear);
+      if (debouncedFilterYear !== "all") params.set("year", debouncedFilterYear);
       if (filterStatus !== "all") params.set("status", filterStatus);
 
       const res = await fetch(`/api/payrolls?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data gaji");
-      const json = await res.json();
-      setPayrolls(json.data || []);
-      setTotal(json.total || 0);
-    } catch (err) {
-      toast.error("Gagal memuat data gaji");
-    }
-  }, [currentPage, searchTerm, filterMonth, filterYear, filterStatus]);
+      const json: ApiResponse = await res.json().catch(() => ({}));
 
-  // Fetch summary stats (all payrolls for current year, no pagination)
-  const fetchSummary = async () => {
-    try {
-      const res = await fetch(`/api/payrolls?limit=9999&year=${currentYear}`);
-      if (!res.ok) return;
-      const json = await res.json();
-      const all: PayrollDto[] = json.data || [];
-      setSummaryPaid(
-        all
-          .filter((p) => p.status === "paid")
-          .reduce((sum, p) => sum + p.totalSalary, 0),
-      );
-      setSummaryPending(
-        all
-          .filter((p) => p.status === "pending")
-          .reduce((sum, p) => sum + p.totalSalary, 0),
-      );
-      setSummaryTotal(all.reduce((sum, p) => sum + p.totalSalary, 0));
+      if (!res.ok) {
+        throw new Error((json as { message?: string })?.message || "Failed to load reimbursements");
+      }
+
+      setData(json.data ?? []);
+      setTotal(json.total ?? 0);
     } catch {
-      // ignore
+      toast.error("Gagal memuat data payroll");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [currentPage, debouncedFilterYear, debouncedSearchTerm, filterMonth, filterStatus]);
 
-  // Reset to page 1 when filters change
+  const fetchDetail = useCallback(async (id: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/payrolls/${id}`);
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      setDetailItem(json.data || undefined);
+    } catch {
+      toast.error("Gagal memuat detail payroll");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedFilterYear(filterYear.trim() || "all");
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [filterYear]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterMonth, filterYear, filterStatus]);
-
-  // Fetch data when page or filters change
-  useEffect(() => {
-    fetchPayrolls();
-  }, [fetchPayrolls]);
-
-  useEffect(() => {
-    fetchSummary();
-  }, []);
-
-  useEffect(() => {
-    const fetchTenantConfig = async () => {
-      try {
-        const res = await fetch("/api/tenant-config");
-        if (!res.ok) return;
-        const json = await res.json();
-        setTenantConfig(json.data ?? null);
-      } catch {
-        // Silent fail: slip will use fallback branding.
-      }
-    };
-    fetchTenantConfig();
-  }, []);
+  }, [debouncedSearchTerm, filterMonth, debouncedFilterYear, filterStatus]);
 
   return (
     <>
-      <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Total Paid */}
-          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-100 text-sm font-medium">
-                  Gaji Dibayar (Paid)
-                </p>
-                <p className="text-2xl font-bold mt-2">
-                  {formatCurrency(summaryPaid)}
-                </p>
-                <p className="text-green-200 text-xs mt-1">
-                  Tahun {currentYear}
-                </p>
-              </div>
-              <div className="w-12 h-12 flex items-center justify-center bg-green-400 bg-opacity-30 rounded-full">
-                <span className="text-2xl font-bold text-green-100">✓</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Pending */}
-          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-yellow-100 text-sm font-medium">
-                  Gaji Pending
-                </p>
-                <p className="text-2xl font-bold mt-2">
-                  {formatCurrency(summaryPending)}
-                </p>
-                <p className="text-yellow-200 text-xs mt-1">
-                  Tahun {currentYear}
-                </p>
-              </div>
-              <div className="w-12 h-12 flex items-center justify-center bg-yellow-400 bg-opacity-30 rounded-full">
-                <span className="text-2xl font-bold text-yellow-100">⏱</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Total All */}
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-100 text-sm font-medium">
-                  Total Semua Gaji
-                </p>
-                <p className="text-2xl font-bold mt-2">
-                  {formatCurrency(summaryTotal)}
-                </p>
-                <p className="text-purple-200 text-xs mt-1">
-                  Tahun {currentYear}
-                </p>
-              </div>
-              <div className="w-12 h-12 flex items-center justify-center bg-purple-400 bg-opacity-30 rounded-full">
-                <span className="text-2xl font-bold text-purple-100">Rp</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Payroll Table */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-            {checkRole("payrolls", "create") && (
-              <>
-                <Button
-                  onClick={() => handleOpenModal()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Proses Gaji
-                </Button>
-
-                <div className="flex-1" />
-              </>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => setShowFilterPanel(!showFilterPanel)}
-              className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${showFilterPanel || activeFilterCount > 0
-                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
-                : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-                }`}
-            >
-              <Filter className="w-4 h-4" />
-              Filter
-              {activeFilterCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
-            </Button>
-
-            {/* Export Button */}
-            {checkRole("payrolls", "export") && (
-              <Button
-                onClick={handleExport}
-                disabled={isExporting}
-                variant="outline"
-                className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
-              >
-                <Download className="w-4 h-4" />
-                {isExporting ? "Mengexport..." : "Export Excel"}
-              </Button>
-            )}
-          </div>
-
-          {showFilterPanel && (
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Filter Data Payroll
-                </h3>
-                {activeFilterCount > 0 && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                  >
-                    <X className="w-4 h-4" />
-                    Hapus Semua Filter
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Cari
-                  </label>
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Nama karyawan..."
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Bulan
-                  </label>
-                  <select
-                    value={filterMonth}
-                    onChange={(e) => setFilterMonth(e.target.value)}
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Semua Bulan</option>
-                    {months.map((month) => (
-                      <option key={month.value} value={month.value.toString()}>
-                        {month.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Tahun
-                  </label>
-                  <input
-                    type="number"
-                    value={filterYear === "all" ? "" : filterYear}
-                    onChange={(e) => setFilterYear(e.target.value || "all")}
-                    placeholder="Contoh: 2024"
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Status
-                  </label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Semua Status</option>
-                    <option value="paid">Dibayar (Paid)</option>
-                    <option value="pending">Pending</option>
-                  </select>
-                </div>
-              </div>
-              {activeFilterCount > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {searchTerm && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Cari: {searchTerm}
-                      <button
-                        onClick={() => setSearchTerm("")}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filterMonth !== "all" && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Bulan:{" "}
-                      {months.find((m) => m.value === Number(filterMonth))
-                        ?.label || filterMonth}
-                      <button
-                        onClick={() => setFilterMonth("all")}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filterYear !== "all" && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Tahun: {filterYear}
-                      <button
-                        onClick={() => setFilterYear("all")}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filterStatus !== "all" && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Status: {filterStatus === "paid" ? "Dibayar" : "Pending"}
-                      <button
-                        onClick={() => setFilterStatus("all")}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b dark:border-gray-700">
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Nama Karyawan
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Periode
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Gaji Pokok
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Tunjangan
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Potongan
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Total Gaji
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Status
-                  </th>
-                  {checkRoleMulti("payrolls", ["update", "delete"]) && (
-                    <th className="text-right p-3 font-semibold dark:text-gray-300">
-                      Aksi
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {payrolls.length > 0 ? (
-                  payrolls.map((emp) => (
-                    <tr
-                      key={emp.id}
-                      className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <td className="p-3 font-medium dark:text-white">
-                        {emp.user?.name}
-                      </td>
-                      <td className="p-3 dark:text-gray-300">
-                        {months.find((v) => v.value === emp.month)?.label}{" "}
-                        {emp.year}
-                      </td>
-                      <td className="p-3 dark:text-gray-300">
-                        {formatCurrency(emp.basicSalary)}
-                      </td>
-                      <td className="p-3 text-green-600 dark:text-green-400">
-                        + {formatCurrency(emp.allowances)}
-                      </td>
-                      <td className="p-3 text-red-600 dark:text-red-400">
-                        - {formatCurrency(emp.deductions)}
-                      </td>
-                      <td className="p-3 font-bold dark:text-white">
-                        {formatCurrency(emp.totalSalary)}
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === "paid"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                            }`}
-                        >
-                          {emp.status === "paid" ? "Dibayar" : "Pending"}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          {/* Slip Gaji Button */}
-                          <button
-                            onClick={() => setSelectedSlip(emp)}
-                            className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
-                            title="Cetak Slip Gaji"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          {checkRole("payrolls", "update") && (
-                            <button
-                              onClick={() => handleOpenModal(emp)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                          )}
-                          {checkRole("payrolls", "delete") && (
-                            <Popover
-                              open={openPopoverId === emp.id}
-                              onOpenChange={(isOpen) =>
-                                setOpenPopoverId(isOpen ? emp.id! : null)
-                              }
-                            >
-                              <PopoverTrigger asChild>
-                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </PopoverTrigger>
-
-                              <PopoverContent className="w-56 space-y-3">
-                                <p className="text-sm">
-                                  Yakin ingin menghapus gaji ini?
-                                </p>
-
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setOpenPopoverId(null)}
-                                  >
-                                    Batal
-                                  </Button>
-
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => handleDelete(emp.id!)}
-                                  >
-                                    Hapus
-                                  </Button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="p-8 text-center text-gray-500 dark:text-gray-400"
-                    >
-                      Tidak ada data payroll yang ditemukan
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Controls */}
-          <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Menampilkan{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {payrolls.length}
-              </span>{" "}
-              dari{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {total}
-              </span>{" "}
-              data
-              {totalPages > 0 && (
-                <span>
-                  {" "}
-                  — Halaman {currentPage} dari {totalPages}
-                </span>
-              )}
-            </p>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <div className="flex items-center gap-1">
-                  {(() => {
-                    const pages: (number | "...")[] = [];
-                    if (totalPages <= 5) {
-                      for (let i = 1; i <= totalPages; i++) pages.push(i);
-                    } else if (currentPage <= 3) {
-                      pages.push(1, 2, 3, "...", totalPages - 1, totalPages);
-                    } else if (currentPage >= totalPages - 2) {
-                      pages.push(1, 2, "...", totalPages - 2, totalPages - 1, totalPages);
-                    } else {
-                      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
-                    }
-                    return pages.map((page, idx) =>
-                      page === "..." ? (
-                        <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm select-none">...</span>
-                      ) : (
-                        <button key={page} onClick={() => setCurrentPage(page as number)}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"}`}>
-                          {page}
-                        </button>
-                      )
-                    );
-                  })()}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Card History Payroll */}
+      <div className="grid gap-4 md:grid-cols-3 mb-4">
+        {summaryCards.map((card) => (
+          <SummaryCard
+            key={card.label}
+            label={card.label}
+            value={card.value}
+            subtitle={card.subtitle}
+            tone={card.tone}
+            icon={card.icon}
+          />
+        ))}
       </div>
 
-      {showModal && (
-        <FormData
-          initialData={formData}
-          onClose={handleCloseModal}
-          onSuccess={() => {
-            fetchPayrolls();
-            fetchSummary();
-          }}
-        />
-      )}
+      <DynamicPage
+        toolbar={toolbar}
+        columns={columnFormats}
+        items={data}
+        total={total}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        loading={loading}
+        emptyMessage="Belum ada data payroll"
+        onPageChange={setCurrentPage}
+        renderActions={(row) => renderActions({ row, checkRole, onView, onViewDetail, onDelete, deleteId, setDeleteId })}
+      />
 
-      {selectedSlip && (
-        <SlipGajiModal
-          payroll={selectedSlip}
-          tenantConfig={tenantConfig}
-          onClose={() => setSelectedSlip(null)}
-        />
-      )}
+      {/* ─── Create/Edit Modal ─── */}
+      <FormData
+        isOpen={showFormModal}
+        initialData={detailItem}
+        onClose={() => setShowFormModal(false)}
+        onSuccess={fetchData}
+      />
+
+      {/* ─── Detail Slip Modal ─── */}
+      <SlipGajiModal
+        detailItem={detailItem}
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false);
+          setDetailItem(undefined);
+        }}
+        loading={loading}
+      />
     </>
   );
 }

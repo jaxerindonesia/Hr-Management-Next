@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
@@ -26,7 +27,7 @@ export async function GET(_: Request, { params }: Params) {
     });
 
     if (!item) return NextResponse.json({ message: "Overtime not found" }, { status: 404 });
-    return NextResponse.json(item);
+    return NextResponse.json({ message: "Success", data: item });
   } catch {
     return NextResponse.json({ message: "Failed to retrieve overtime" }, { status: 500 });
   }
@@ -51,7 +52,68 @@ export async function PUT(req: Request, { params }: Params) {
     if (!isAdmin && existing.userId !== auth.user.id && !isApprover) {
       return NextResponse.json({ message: "Anda tidak memiliki akses ke overtime ini" }, { status: 403 });
     }
-    const updateData: any = {};
+    const updateData: Prisma.OvertimeUncheckedUpdateInput = {};
+
+    const buildDateTime = (date: string, time: string) => new Date(`${date}T${time}:00`);
+
+    const nextOvertimeDate = body.overtimeDate !== undefined
+      ? String(body.overtimeDate || "").trim()
+      : "";
+    const nextStartTime = body.startTime !== undefined
+      ? String(body.startTime || "").trim()
+      : "";
+    const nextEndTime = body.endTime !== undefined
+      ? String(body.endTime || "").trim()
+      : "";
+
+    if (body.userId !== undefined) {
+      if (!isAdmin) {
+        return NextResponse.json({ message: "Karyawan tidak dapat mengubah karyawan pada lembur" }, { status: 403 });
+      }
+      updateData.userId = String(body.userId || "").trim();
+    }
+
+    const hasScheduleUpdate = nextOvertimeDate || nextStartTime || nextEndTime;
+    if (hasScheduleUpdate) {
+      if (existing.status !== "PENDING") {
+        return NextResponse.json({ message: "Tanggal dan jam lembur hanya bisa diubah saat masih menunggu approval" }, { status: 400 });
+      }
+
+      const overtimeDateValue = nextOvertimeDate || existing.overtimeDate.toISOString().split("T")[0];
+      const startTimeValue = nextStartTime
+        ? nextStartTime.slice(11, 16) || nextStartTime.slice(0, 5)
+        : existing.startTime.toTimeString().slice(0, 5);
+      const endTimeValue = nextEndTime
+        ? nextEndTime.slice(11, 16) || nextEndTime.slice(0, 5)
+        : existing.endTime.toTimeString().slice(0, 5);
+
+      const startTime = buildDateTime(overtimeDateValue, startTimeValue);
+      let endTime = buildDateTime(overtimeDateValue, endTimeValue);
+
+      if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
+        return NextResponse.json({ message: "Format tanggal atau jam lembur tidak valid" }, { status: 400 });
+      }
+
+      if (endTime <= startTime) {
+        endTime = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      const overtimeMinutes = Math.max(
+        0,
+        Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60)),
+      );
+
+      if (overtimeMinutes <= 0) {
+        return NextResponse.json({ message: "Durasi lembur harus lebih dari 0 menit" }, { status: 400 });
+      }
+
+      updateData.overtimeDate = startTime;
+      updateData.startTime = startTime;
+      updateData.endTime = endTime;
+      updateData.overtimeMinutes = overtimeMinutes;
+      updateData.requestedMinutes = overtimeMinutes;
+    }
+
     if (body.description !== undefined) {
       if (!isAdmin && existing.status !== "PENDING") {
         return NextResponse.json({ message: "Keterangan hanya bisa diubah saat overtime masih menunggu approval" }, { status: 400 });

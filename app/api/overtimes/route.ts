@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 
@@ -10,9 +11,12 @@ export async function GET(req: NextRequest) {
     if (auth.error) return auth.error;
     const scopedTenantId = ensureTenantScope(auth.user);
     const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
+    const search = (searchParams.get("search") || "").trim();
     const status = searchParams.get("status") || "";
 
-    const where: any = {};
+    const where: Prisma.OvertimeWhereInput = {};
     if (scopedTenantId) where.tenantId = scopedTenantId;
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
     if (!["superadmin", "admin"].includes(normalizedRole)) {
@@ -22,10 +26,29 @@ export async function GET(req: NextRequest) {
       ];
     }
     if (status) where.status = status;
+    if (search) {
+      const currentAnd = Array.isArray(where.AND)
+        ? where.AND
+        : where.AND
+          ? [where.AND]
+          : [];
+
+      where.AND = [
+        ...currentAnd,
+        {
+          OR: [
+            { description: { contains: search, mode: "insensitive" } },
+            { user: { name: { contains: search, mode: "insensitive" } } },
+          ],
+        },
+      ];
+    }
 
     const [overtimes, total] = await Promise.all([
       prisma.overtime.findMany({
         where,
+        skip: (page - 1) * limit,
+        take: limit,
         orderBy: { createdAt: "desc" },
         include: {
           user: { select: { id: true, name: true } },

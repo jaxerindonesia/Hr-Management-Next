@@ -36,10 +36,12 @@ const DAY_OPTIONS = [
 ] as const;
 
 export default function ModalAttendanceConfig({
+  isOpen,
   onClose,
   onSaved,
   initialConfig,
 }: {
+  isOpen: boolean;
   onClose: () => void;
   onSaved?: () => void;
   initialConfig?: AttendanceConfig;
@@ -114,7 +116,7 @@ export default function ModalAttendanceConfig({
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Konfigurasi Kehadiran</DialogTitle>

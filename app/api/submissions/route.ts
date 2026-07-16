@@ -49,17 +49,10 @@ export async function GET(req: NextRequest) {
         include: {
           user: { select: { id: true, name: true } },
           submissionType: {
-            select: {
-              id: true,
-              name: true,
-              approverConfigs: {
-                select: { approverUserId: true, approverUser: { select: { id: true, name: true } } },
-                orderBy: { createdAt: "asc" },
-              },
-            },
+            select: { id: true, name: true },
           },
           approvalDecisions: {
-            select: { approverUserId: true, status: true, reason: true, decidedAt: true },
+            select: { approverUserId: true, approverUser: { select: { name: true } }, status: true, reason: true, decidedAt: true },
           },
         },
       }),

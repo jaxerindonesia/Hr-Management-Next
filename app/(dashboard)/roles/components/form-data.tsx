@@ -9,24 +9,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { RoleDto } from "@/lib/dto/role";
 
 type MasterPermission = {
   model: string;
   actions: string[];
 };
 
+type RolePermissionItem = {
+  model: string;
+  action: string;
+};
+
 type PermissionState = Record<string, Set<string>>;
 
 export default function FormData({
+  isOpen,
   initialData,
   onClose,
   onSuccess,
 }: {
-  initialData?: any;
+  isOpen: boolean;
+  initialData?: RoleDto;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
   const [roleName, setRoleName] = useState(initialData?.name || "");
@@ -101,16 +109,18 @@ export default function FormData({
         `Role berhasil ${initialData?.id ? "diupdate" : "ditambahkan"}`,
       );
 
-      onSuccess();
+      await onSuccess();
       onClose();
-    } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Terjadi kesalahan",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMasterPermissions = async () => {
+  const fetchMasterPermissions = useCallback(async () => {
     try {
       const res = await fetch("/api/roles/master-permissions");
       if (!res.ok) throw new Error("Gagal mengambil master permission");
@@ -120,15 +130,17 @@ export default function FormData({
 
       setMasterPermissions(data);
 
-      const initialPermissionState: any = {};
+      const initialPermissionState: PermissionState = {};
 
-      const existingPermissions = initialData?.permission || [];
+      const existingPermissions = Array.isArray(initialData?.permission)
+        ? (initialData.permission as RolePermissionItem[])
+        : [];
 
       if (initialData?.id) {
         data.forEach((item: MasterPermission) => {
           const actionsForModel = existingPermissions
-            .filter((p: any) => p.model === item.model)
-            .map((p: any) => p.action);
+            .filter((permissionItem) => permissionItem.model === item.model)
+            .map((permissionItem) => permissionItem.action);
 
           initialPermissionState[item.model] = new Set(actionsForModel);
         });
@@ -138,14 +150,16 @@ export default function FormData({
       console.log(error);
       toast.error("Gagal memuat daftar permission");
     }
-  };
+  }, [initialData]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    setRoleName(initialData?.name || "");
     fetchMasterPermissions();
-  }, []);
+  }, [fetchMasterPermissions, initialData, isOpen]);
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>

@@ -7,11 +7,25 @@ import {
   Clock,
   Loader2,
   Printer,
-  X,
   AlertTriangle,
 } from "lucide-react";
-
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { UserDto } from "@/lib/dto/user";
 
 type AttendanceDetail = {
@@ -114,7 +128,7 @@ function getSubmissionStatusLabel(status: string) {
   return "Pending";
 }
 
-export default function ModalRecap({
+export default function RecapModal({
   employee,
   onClose,
 }: {
@@ -338,16 +352,14 @@ export default function ModalRecap({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center overflow-y-auto bg-black/50 p-0 touch-pan-y sm:items-center sm:p-3 sm:p-4">
-      <div className="relative flex h-[100dvh] w-full max-w-[1000px] flex-col overflow-hidden rounded-none border-0 bg-white shadow-2xl dark:bg-gray-900 sm:h-auto sm:max-h-[94vh] sm:w-[98vw] sm:rounded-2xl sm:border sm:border-gray-200 sm:dark:border-gray-700">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 z-20 rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:hover:bg-gray-800 dark:hover:text-white"
-          aria-label="Tutup"
-        >
-          <X className="h-5 w-5" />
-        </button>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="flex max-h-[90vh] w-[56vw] max-w-[56vw] flex-col overflow-hidden rounded-none border-0 p-0 sm:h-auto sm:max-h-[90vh] sm:w-[56vw] sm:!max-w-[1400px] sm:rounded-2xl sm:border sm:border-gray-200 dark:bg-gray-900 sm:dark:border-gray-700">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Rekap Karyawan</DialogTitle>
+          <DialogDescription>
+            Ringkasan kehadiran dan pengajuan ketidakhadiran karyawan.
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 border-b bg-gray-50/90 px-4 py-5 pr-14 sm:px-8 sm:py-6 sm:pr-16 dark:bg-gray-800/40">
@@ -356,20 +368,21 @@ export default function ModalRecap({
                 <div className="flex flex-col gap-3 xl:flex-row xl:justify-between xl:items-start">
                   <div>
 
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-[2.15rem]">
+                    <p className="text-2xl font-bold text-gray-800 dark:text-white">
                       {employee.name}
-                    </h2>
-                    <p className="text-blue-600 dark:text-blue-400 font-medium mt-1">
+                    </p>
+                    <p className="font-medium mb-2 text-gray-500 dark:text-white">
                       {employee.position || "Posisi belum diatur"} • {employee.department?.name || "Departemen belum diatur"}
                     </p>
                   </div>
-                  <button
+                  <Button
+                    type="button"
                     onClick={handlePrint}
-                    className="print-hide flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm self-start"
+                    className="print-hide flex items-center gap-2 self-start"
                   >
                     <Printer className="w-4 h-4" />
                     Cetak / Simpan PDF
-                  </button>
+                  </Button>
                 </div>
 
                 <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 xl:grid-cols-4 text-sm">
@@ -405,7 +418,9 @@ export default function ModalRecap({
 
           <div className="shrink-0 px-4 pt-5 sm:px-8">
             <div className="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-lg h-12 dark:bg-gray-800">
-              <button
+              <Button
+                type="button"
+                variant="ghost"
                 onClick={() => setActiveTab("attendance")}
                 className={`h-full px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center ${
                   activeTab === "attendance"
@@ -414,8 +429,10 @@ export default function ModalRecap({
                 }`}
               >
                 Rekap Kehadiran
-              </button>
-              <button
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
                 onClick={() => setActiveTab("submissions")}
                 className={`h-full px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center ${
                   activeTab === "submissions"
@@ -424,7 +441,7 @@ export default function ModalRecap({
                 }`}
               >
                 Pengajuan Ketidakhadiran
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -513,42 +530,42 @@ export default function ModalRecap({
                     Detail Kehadiran - {MONTHS[month - 1]} {year}
                   </h3>
                   <div className="overflow-x-auto border dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Tanggal</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Jam Masuk</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Jam Keluar</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Status</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Jam Kerja</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Catatan</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-transparent">
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Tanggal</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Jam Masuk</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Jam Keluar</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Status</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Jam Kerja</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Catatan</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {attendanceDetails.length > 0 ? (
                           attendanceDetails.map((att) => (
-                            <tr key={att.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                              <td className="p-3 dark:text-gray-300 whitespace-nowrap">{formatDate(att.date)}</td>
-                              <td className="p-3 dark:text-gray-300">{formatTime(att.checkIn)}</td>
-                              <td className="p-3 dark:text-gray-300">{formatTime(att.checkOut)}</td>
-                              <td className="p-3">
+                            <TableRow key={att.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                              <TableCell className="p-3 whitespace-nowrap dark:text-gray-300">{formatDate(att.date)}</TableCell>
+                              <TableCell className="p-3 dark:text-gray-300">{formatTime(att.checkIn)}</TableCell>
+                              <TableCell className="p-3 dark:text-gray-300">{formatTime(att.checkOut)}</TableCell>
+                              <TableCell className="p-3">
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(att.status)}`}>
                                   {att.status || "-"}
                                 </span>
-                              </td>
-                              <td className="p-3 dark:text-gray-300">{att.workHours || "-"}</td>
-                              <td className="p-3 dark:text-gray-300 max-w-[220px] truncate">{att.notes || "-"}</td>
-                            </tr>
+                              </TableCell>
+                              <TableCell className="p-3 dark:text-gray-300">{att.workHours || "-"}</TableCell>
+                              <TableCell className="p-3 dark:text-gray-300 max-w-[220px] truncate">{att.notes || "-"}</TableCell>
+                            </TableRow>
                           ))
                         ) : (
-                          <tr>
-                            <td colSpan={6} className="p-8 text-center text-gray-500 dark:text-gray-400">
+                          <TableRow>
+                            <TableCell colSpan={6} className="p-8 text-center text-gray-500 dark:text-gray-400">
                               Tidak ada data kehadiran untuk bulan ini
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               </div>
@@ -597,49 +614,49 @@ export default function ModalRecap({
                     Riwayat Pengajuan - Tahun {year}
                   </h3>
                   <div className="overflow-x-auto border dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Jenis</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Tanggal Mulai</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Tanggal Selesai</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Alasan</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Status</th>
-                          <th className="text-left p-3 font-semibold dark:text-gray-300">Diajukan</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-transparent">
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Jenis</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Tanggal Mulai</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Tanggal Selesai</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Alasan</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Status</TableHead>
+                          <TableHead className="p-3 font-semibold dark:text-gray-300">Diajukan</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {submissionHistory.length > 0 ? (
                           submissionHistory.map((sub) => (
-                            <tr key={sub.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                              <td className="p-3 dark:text-gray-300 font-medium">{sub.type}</td>
-                              <td className="p-3 dark:text-gray-300 whitespace-nowrap">{formatDate(sub.startDate)}</td>
-                              <td className="p-3 dark:text-gray-300 whitespace-nowrap">{formatDate(sub.endDate)}</td>
-                              <td className="p-3 dark:text-gray-300 max-w-[220px] truncate">{sub.reason || "-"}</td>
-                              <td className="p-3">
+                            <TableRow key={sub.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                              <TableCell className="p-3 font-medium dark:text-gray-300">{sub.type}</TableCell>
+                              <TableCell className="p-3 whitespace-nowrap dark:text-gray-300">{formatDate(sub.startDate)}</TableCell>
+                              <TableCell className="p-3 whitespace-nowrap dark:text-gray-300">{formatDate(sub.endDate)}</TableCell>
+                              <TableCell className="p-3 max-w-[220px] truncate dark:text-gray-300">{sub.reason || "-"}</TableCell>
+                              <TableCell className="p-3">
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSubmissionStatusBadge(sub.status)}`}>
                                   {getSubmissionStatusLabel(sub.status)}
                                 </span>
-                              </td>
-                              <td className="p-3 dark:text-gray-300 whitespace-nowrap">{formatDate(sub.createdAt)}</td>
-                            </tr>
+                              </TableCell>
+                              <TableCell className="p-3 whitespace-nowrap dark:text-gray-300">{formatDate(sub.createdAt)}</TableCell>
+                            </TableRow>
                           ))
                         ) : (
-                          <tr>
-                            <td colSpan={6} className="p-8 text-center text-gray-500 dark:text-gray-400">
+                          <TableRow>
+                            <TableCell colSpan={6} className="p-8 text-center text-gray-500 dark:text-gray-400">
                               Tidak ada pengajuan untuk tahun ini
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               </div>
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

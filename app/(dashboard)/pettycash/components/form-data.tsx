@@ -36,17 +36,18 @@ const STATUSES = [
 ];
 
 export default function PettyCashFormData({
+  isOpen,
   initialData,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   initialData?: PettyCashDto;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<UserDto[]>([]);
-  const [userData, setUserData] = useState({ id: "", role: "" });
 
   const [formData, setFormData] = useState<PettyCashDto>(
     initialData || {
@@ -74,8 +75,6 @@ export default function PettyCashFormData({
 
   useEffect(() => {
     fetchEmployees();
-    const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
-    setUserData(data);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,7 +108,7 @@ export default function PettyCashFormData({
   };
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>

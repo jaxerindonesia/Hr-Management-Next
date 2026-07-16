@@ -12,7 +12,7 @@ type Props = {
 
 export default function DepartmentChartCard({ departmentDist }: Props) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-4 flex items-center gap-2">
         <Users className="h-5 w-5 text-purple-500" />
         <h3 className="font-semibold dark:text-white">Distribusi Departemen</h3>

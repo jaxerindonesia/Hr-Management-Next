@@ -1,108 +1,134 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  Plus,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  X,
-  Edit,
-  Trash2,
-  Download,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import DynamicPage from "@/components/dynamic-page";
 import { PerformanceDto } from "@/lib/dto/performance";
 import { toast } from "sonner";
 import FormData from "./components/form-data";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { usePermission } from "@/lib/helper/check-role";
+import {
+  columnFormats,
+  headerToolbar,
+  ITEMS_PER_PAGE,
+  renderActions,
+} from "./page.config";
+
+const DEFAULT_FORM_DATA: PerformanceDto = {
+  userId: "",
+  period: "",
+  productivity: 0,
+  quality: 0,
+  teamwork: 0,
+  discipline: 0,
+  notes: "",
+  totalScore: 0,
+  evaluatedBy: "",
+};
 
 export default function PerformancePage() {
-  const { checkRole, checkRoleMulti } = usePermission();
+  const { checkRole } = usePermission();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [performances, setPerformances] = useState<PerformanceDto[]>([]);
+  const [data, setData] = useState<PerformanceDto[]>([]);
   const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [formData, setFormData] = useState<PerformanceDto>({
-    userId: "",
-    period: "",
-    productivity: 0,
-    quality: 0,
-    teamwork: 0,
-    discipline: 0,
-    notes: "",
-    totalScore: 0,
-    evaluatedBy: "",
-  });
+  const [detailItem, setDetailItem] = useState<PerformanceDto | undefined>(
+    undefined,
+  );
 
-  // Filter states
   const [filterPeriod, setFilterPeriod] = useState<string>("all");
   const [filterScore, setFilterScore] = useState<string>("all");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(total / itemsPerPage);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)),
+    [total],
+  );
 
-  const clearAllFilters = () => {
+  const activeFilterCount = useMemo(
+    () =>
+      [filterPeriod !== "all", filterScore !== "all", searchTerm !== ""].filter(
+        Boolean,
+      ).length,
+    [filterPeriod, filterScore, searchTerm],
+  );
+
+  const clearAllFilters = useCallback(() => {
     setFilterPeriod("all");
     setFilterScore("all");
     setSearchTerm("");
-  };
+  }, []);
 
-  const activeFilterCount = [
-    filterPeriod !== "all",
-    filterScore !== "all",
-    searchTerm !== "",
-  ].filter(Boolean).length;
-
-  const handleOpenModal = (data?: PerformanceDto) => {
-    if (data) setFormData(data);
+  const onAdd = useCallback(() => {
+    setDetailItem(undefined);
     setShowModal(true);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const onView = useCallback((item: PerformanceDto) => {
+    setDetailItem(item);
+    setShowModal(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
     setShowModal(false);
-    setFormData({
-      userId: "",
-      period: "",
-      productivity: 0,
-      quality: 0,
-      teamwork: 0,
-      discipline: 0,
-      notes: "",
-      totalScore: 0,
-      evaluatedBy: "",
-    });
-  };
+    setDetailItem(undefined);
+  }, []);
 
-  const handleDelete = async (id: string) => {
+  const fetchPerformances = useCallback(async () => {
     try {
-      const res = await fetch(`/api/performances/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Gagal menghapus penilaian");
-      toast.success("Penilaian berhasil dihapus!");
-      fetchPerformances();
-    } catch (error) {
-      toast.error("Gagal menghapus penilaian");
-    }
-  };
+      setLoading(true);
 
-  const handleExport = async () => {
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(ITEMS_PER_PAGE));
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
+      if (filterPeriod !== "all") params.set("period", filterPeriod);
+      if (filterScore !== "all") params.set("score", filterScore);
+
+      const res = await fetch(`/api/performances?${params.toString()}`);
+      if (!res.ok) throw new Error("Gagal mengambil data kinerja");
+
+      const json = await res.json();
+      setData(json.data || []);
+      setTotal(json.total || 0);
+    } catch {
+      toast.error("Gagal mengambil data kinerja");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, debouncedSearchTerm, filterPeriod, filterScore]);
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/performances/${id}`, {
+          method: "DELETE",
+        });
+
+        if (!res.ok) throw new Error("Gagal menghapus penilaian");
+
+        toast.success("Penilaian berhasil dihapus!");
+        fetchPerformances();
+      } catch {
+        toast.error("Gagal menghapus penilaian");
+      } finally {
+        setDeleteId(null);
+      }
+    },
+    [fetchPerformances],
+  );
+
+  const handleExport = useCallback(async () => {
     try {
       setIsExporting(true);
 
       const params = new URLSearchParams();
       params.set("limit", "999999");
-      if (searchTerm) params.set("search", searchTerm);
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
       if (filterPeriod !== "all") params.set("period", filterPeriod);
       if (filterScore !== "all") params.set("score", filterScore);
 
@@ -111,7 +137,6 @@ export default function PerformancePage() {
 
       const json = await res.json();
       const allData: PerformanceDto[] = json.data || [];
-
       const XLSX = await import("xlsx");
 
       const rows = allData.map((perf) => ({
@@ -130,12 +155,11 @@ export default function PerformancePage() {
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data Kinerja");
 
-      // Auto column width
       const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
         wch:
           Math.max(
             key.length,
-            ...rows.map((r) => String((r as any)[key] ?? "").length),
+            ...rows.map((row) => String(row[key as keyof typeof row] ?? "").length),
           ) + 2,
       }));
       worksheet["!cols"] = colWidths;
@@ -144,451 +168,93 @@ export default function PerformancePage() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data kinerja`);
-    } catch (err) {
+    } catch {
       toast.error("Gagal mengexport data");
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [debouncedSearchTerm, filterPeriod, filterScore]);
 
-  const StarRating = ({ rating }: { rating: number }) => (
-    <div className="flex items-center gap-1">
-      {[...Array(5)].map((_, i) => (
-        <span
-          key={i}
-          className={
-            i < rating
-              ? "text-yellow-400 dark:text-yellow-300"
-              : "text-gray-300 dark:text-gray-600"
-          }
-        >
-          ★
-        </span>
-      ))}
-    </div>
+  const toolbar = useMemo(
+    () =>
+      headerToolbar({
+        actions: {
+          onAdd,
+          onExport: handleExport,
+          checkRole,
+          isExporting,
+        },
+        filters: {
+          show: showFilterPanel,
+          setShow: setShowFilterPanel,
+          activeCount: activeFilterCount,
+          clear: clearAllFilters,
+          searchTerm,
+          setSearchTerm,
+          period: filterPeriod,
+          setPeriod: setFilterPeriod,
+          score: filterScore,
+          setScore: setFilterScore,
+        },
+      }),
+    [
+      activeFilterCount,
+      checkRole,
+      clearAllFilters,
+      filterPeriod,
+      filterScore,
+      handleExport,
+      isExporting,
+      onAdd,
+      searchTerm,
+      showFilterPanel,
+    ],
   );
 
-  const getRatingLabel = (rating: number) => {
-    if (rating >= 5) return "Sangat Baik";
-    if (rating >= 4) return "Baik";
-    if (rating >= 3) return "Cukup";
-    if (rating >= 2) return "Kurang Baik";
-    return "Sangat Kurang";
-  };
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
 
-  const fetchPerformances = useCallback(async () => {
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(currentPage));
-      params.set("limit", String(itemsPerPage));
-      if (searchTerm) params.set("search", searchTerm);
-      if (filterPeriod !== "all") params.set("period", filterPeriod);
-      if (filterScore !== "all") params.set("score", filterScore);
+    return () => window.clearTimeout(timeout);
+  }, [searchTerm]);
 
-      const res = await fetch(`/api/performances?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data kinerja");
-      const json = await res.json();
-      setPerformances(json.data || []);
-      setTotal(json.total || 0);
-    } catch (err) {
-      toast.error("Gagal mengambil data kinerja");
-    }
-  }, [currentPage, searchTerm, filterPeriod, filterScore]);
-
-  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterPeriod, filterScore]);
+  }, [debouncedSearchTerm, filterPeriod, filterScore]);
 
-  // Fetch data when page or filters change
   useEffect(() => {
     fetchPerformances();
   }, [fetchPerformances]);
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-            {checkRole("performances", "create") && (
-              <>
-                <Button
-                  onClick={() => handleOpenModal()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Tambah
-                </Button>
-
-                <div className="flex-1" />
-              </>
-            )}
-
-            <Button
-              variant="outline"
-              onClick={() => setShowFilterPanel(!showFilterPanel)}
-              className={`relative flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
-                showFilterPanel || activeFilterCount > 0
-                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30  "
-                  : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-              }`}
-            >
-              <Filter className="w-4 h-4" />
-              Filter
-              {activeFilterCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
-            </Button>
-
-            {/* Export Button */}
-            {checkRole("performances", "export") && (
-              <Button
-                onClick={handleExport}
-                disabled={isExporting}
-                variant="outline"
-                className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
-              >
-                <Download className="w-4 h-4" />
-                {isExporting ? "Mengexport..." : "Export Excel"}
-              </Button>
-            )}
-          </div>
-
-          {showFilterPanel && (
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Filter Data Kinerja
-                </h3>
-                {activeFilterCount > 0 && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                  >
-                    <X className="w-4 h-4" />
-                    Hapus Semua Filter
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Cari
-                  </label>
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Nama karyawan atau periode"
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Periode
-                  </label>
-                  <input
-                    type="text"
-                    value={filterPeriod === "all" ? "" : filterPeriod}
-                    onChange={(e) => setFilterPeriod(e.target.value || "all")}
-                    placeholder="Contoh: Q1 2024"
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                    Nilai Kinerja
-                  </label>
-                  <select
-                    value={filterScore}
-                    onChange={(e) => setFilterScore(e.target.value)}
-                    className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">Semua Nilai</option>
-                    <option value="excellent">Sangat Baik (≥ 4.5)</option>
-                    <option value="good">Baik (3.5 - 4.49)</option>
-                    <option value="fair">Cukup (2.5 - 3.49)</option>
-                    <option value="poor">Kurang (&lt; 2.5)</option>
-                  </select>
-                </div>
-              </div>
-              {activeFilterCount > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {searchTerm && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Cari: {searchTerm}
-                      <button
-                        onClick={() => setSearchTerm("")}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filterPeriod !== "all" && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Periode: {filterPeriod}
-                      <button
-                        onClick={() => setFilterPeriod("all")}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filterScore !== "all" && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                      Nilai: {filterScore}
-                      <button
-                        onClick={() => setFilterScore("all")}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b dark:border-gray-700">
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Nama Karyawan
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Periode
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Produktivitas
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Kualitas
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Kerjasama
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Disiplin
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Total Score
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Catatan
-                  </th>
-                  {checkRoleMulti("performances", ["update", "delete"]) && (
-                    <th className="text-right p-3 font-semibold dark:text-gray-300">
-                      Aksi
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {performances.length > 0 ? (
-                  performances.map((perf) => (
-                    <tr
-                      key={perf.id}
-                      className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <td className="p-3 font-medium dark:text-white">
-                        {perf.user?.name}
-                      </td>
-                      <td className="p-3 dark:text-gray-300">{perf.period}</td>
-                      <td className="p-3 dark:text-gray-300">
-                        <div className="space-y-1">
-                          <StarRating rating={perf.productivity} />
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {getRatingLabel(perf.productivity)}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="p-3 dark:text-gray-300">
-                        <div className="space-y-1">
-                          <StarRating rating={perf.quality} />
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {getRatingLabel(perf.quality)}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="p-3 dark:text-gray-300">
-                        <div className="space-y-1">
-                          <StarRating rating={perf.teamwork} />
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {getRatingLabel(perf.teamwork)}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="p-3 dark:text-gray-300">
-                        <div className="space-y-1">
-                          <StarRating rating={perf.discipline} />
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {getRatingLabel(perf.discipline)}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-blue-600 dark:text-blue-400">
-                            {perf.totalScore}
-                          </span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {getRatingLabel(Math.round(perf.totalScore))}
-                          </span>
-                        </div>
-                      </td>
-                      <td
-                        className="p-3 dark:text-gray-300 max-w-[260px] truncate"
-                        title={perf.notes || "-"}
-                      >
-                        {perf.notes || "-"}
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          {checkRole("performances", "update") && (
-                            <button
-                              onClick={() => handleOpenModal(perf)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                          )}
-                          {checkRole("performances", "delete") && (
-                            <Popover
-                              open={openPopoverId === perf.id}
-                              onOpenChange={(isOpen) =>
-                                setOpenPopoverId(isOpen ? perf.id! : null)
-                              }
-                            >
-                              <PopoverTrigger asChild>
-                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </PopoverTrigger>
-
-                              <PopoverContent className="w-56 space-y-3">
-                                <p className="text-sm">
-                                  Yakin ingin menghapus penilaian ini?
-                                </p>
-
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setOpenPopoverId(null)}
-                                  >
-                                    Batal
-                                  </Button>
-
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => handleDelete(perf.id!)}
-                                  >
-                                    Hapus
-                                  </Button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="p-8 text-center text-gray-500 dark:text-gray-400"
-                    >
-                      Tidak ada data penilaian yang ditemukan
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Controls */}
-          <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Menampilkan{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {performances.length}
-              </span>{" "}
-              dari{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {total}
-              </span>{" "}
-              data
-              {totalPages > 0 && (
-                <span>
-                  {" "}
-                  — Halaman {currentPage} dari {totalPages}
-                </span>
-              )}
-            </p>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <div className="flex items-center gap-1">
-                  {(() => {
-                    const pages: (number | "...")[] = [];
-                    if (totalPages <= 5) {
-                      for (let i = 1; i <= totalPages; i++) pages.push(i);
-                    } else if (currentPage <= 3) {
-                      pages.push(1, 2, 3, "...", totalPages - 1, totalPages);
-                    } else if (currentPage >= totalPages - 2) {
-                      pages.push(1, 2, "...", totalPages - 2, totalPages - 1, totalPages);
-                    } else {
-                      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
-                    }
-                    return pages.map((page, idx) =>
-                      page === "..." ? (
-                        <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm select-none">...</span>
-                      ) : (
-                        <button key={page} onClick={() => setCurrentPage(page as number)}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"}`}>
-                          {page}
-                        </button>
-                      )
-                    );
-                  })()}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <DynamicPage<PerformanceDto>
+        toolbar={toolbar}
+        columns={columnFormats}
+        items={data}
+        total={total}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        loading={loading}
+        emptyMessage="Tidak ada data penilaian yang ditemukan"
+        bodyRowClassName="align-top"
+        onPageChange={setCurrentPage}
+        renderActions={(row) =>
+          renderActions({
+            row,
+            checkRole,
+            onView,
+            onDelete: handleDelete,
+            deleteId,
+            setDeleteId,
+          })
+        }
+      />
 
       {showModal && (
         <FormData
-          initialData={formData}
+          initialData={detailItem ?? DEFAULT_FORM_DATA}
           onClose={handleCloseModal}
           onSuccess={fetchPerformances}
         />

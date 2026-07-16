@@ -1,9 +1,15 @@
 export const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    currencyDisplay: "code",
-  })
-    .format(amount)
-    .replace("IDR", "Rp");
+  const formatted = new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+  return `Rp ${formatted}`;
 };
+
+export function formatAmount(value: number) {
+    return `Rp ${new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(value)}`;
+}

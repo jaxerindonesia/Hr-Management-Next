@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 
-export default function ModalDepartment({ onClose }: { onClose: () => void }) {
+export default function DepartmentModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [newType, setNewType] = useState("");
   const [loading, setLoading] = useState(false);
@@ -93,7 +93,7 @@ export default function ModalDepartment({ onClose }: { onClose: () => void }) {
   }, []);
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,20 +14,21 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronsUpDown, Search } from "lucide-react";
-import { Account, AccountCategory, AccountFormState } from "../types";
+import type { AccountDto, AccountFormDto } from "@/lib/dto/finance-account";
+import type { AccountCategoryDto } from "@/lib/dto/finance-account-category";
 
 type Props = {
   open: boolean;
   loading: boolean;
-  categories: AccountCategory[];
-  accounts: Account[];
-  form: AccountFormState;
+  categories: AccountCategoryDto[];
+  accounts: AccountDto[];
+  form: AccountFormDto;
   onOpenChange: (open: boolean) => void;
-  onChange: (form: AccountFormState) => void;
+  onChange: (form: AccountFormDto) => void;
   onSubmit: () => void;
 };
 
-export default function AccountDialog({
+export default function FormData({
   open,
   loading,
   categories,
@@ -58,15 +59,17 @@ export default function AccountDialog({
       .slice(0, 5);
   }, [accounts, form.id, parentSearch]);
 
-  useEffect(() => {
-    if (!open) {
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       setParentOpen(false);
       setParentSearch("");
     }
-  }, [open]);
+
+    onOpenChange(nextOpen);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>

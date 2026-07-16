@@ -62,6 +62,26 @@ export function formatDateId(date: string | Date | null | undefined) {
   });
 }
 
+export function formatDateWithWeekdayId(date: string | Date | null | undefined) {
+  if (!date) return "-";
+  const value = date instanceof Date ? date : new Date(date);
+  return value.toLocaleDateString("id-ID", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+export function formatTimeId(date: string | Date | null | undefined) {
+  if (!date) return "-";
+  const value = date instanceof Date ? date : new Date(date);
+  return value.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function toDate(value?: string | null) {
   const date = value ? new Date(value) : new Date();
   date.setHours(0, 0, 0, 0);
@@ -87,4 +107,43 @@ export function formatMonthYear(date: Date) {
 
 export function isSameDay(a: Date, b: Date) {
   return a.toDateString() === b.toDateString();
+}
+
+export function formatNumberInput(value: number | string | null | undefined) {
+  const numeric = Number(value || 0);
+  return numeric ? numeric.toLocaleString("id-ID") : "";
+}
+
+export function formatDateInputValue(
+  value: string | Date | null | undefined
+) {
+  if (!value) return "";
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(date);
+}
+
+export function formatTimeInputValue(
+  value: string | Date | null | undefined
+) {
+  if (!value) return "";
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Jakarta",
+  }).format(date);
 }

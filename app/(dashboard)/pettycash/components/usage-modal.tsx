@@ -15,10 +15,12 @@ import { toast } from "sonner";
 import { Upload, FileText } from "lucide-react";
 
 export default function PettyCashUsageModal({
+  isOpen,
   pettyCashId,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   pettyCashId: string;
   onClose: () => void;
   onSuccess: () => void;
@@ -111,7 +113,7 @@ export default function PettyCashUsageModal({
   const isPdf = previewUrl === "pdf";
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Lapor Penggunaan Petty Cash</DialogTitle>

@@ -34,10 +34,12 @@ const CATEGORIES = [
 ];
 
 export default function ReimbursementFormData({
+  isOpen,
   initialData,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   initialData?: ReimbursementDto;
   onClose: () => void;
   onSuccess: () => void;
@@ -62,7 +64,7 @@ export default function ReimbursementFormData({
       date: "",
       description: "",
       receiptUrl: null,
-      status: "pending",
+      status: "PENDING",
     },
   );
 
@@ -76,10 +78,6 @@ export default function ReimbursementFormData({
       toast.error("Gagal memuat data karyawan");
     }
   };
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,7 +142,7 @@ export default function ReimbursementFormData({
       fd.append("amount", String(formData.amount));
       fd.append("date", formData.date);
       fd.append("description", formData.description || "");
-      fd.append("status", formData.status || "pending");
+      fd.append("status", formData.status || "PENDING");
 
       if (formData.id) {
         fd.append("id", formData.id);
@@ -182,17 +180,14 @@ export default function ReimbursementFormData({
     }
   };
 
-  const isPdf =
-    previewUrl === "pdf" ||
-    (!selectedFile && formData.receiptUrl?.toLowerCase().endsWith(".pdf"));
-
   useEffect(() => {
+    fetchEmployees();
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
   }, []);
 
   useEffect(() => {
-    if (userData.role && userData.role !== "Super Admin") {
+    if (userData.role && userData.role === "Karyawan") {
       setFormData((prev) => ({
         ...prev,
         userId: userData.id,
@@ -200,8 +195,30 @@ export default function ReimbursementFormData({
     }
   }, [userData]);
 
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+      return;
+    }
+
+    setFormData({
+      userId: "",
+      title: "",
+      category: "",
+      amount: 0,
+      date: "",
+      description: "",
+      receiptUrl: null,
+      status: "PENDING",
+    });
+  }, [initialData]);
+
+  const isPdf =
+    previewUrl === "pdf" ||
+    (!selectedFile && formData.receiptUrl?.toLowerCase().endsWith(".pdf"));
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -217,17 +234,15 @@ export default function ReimbursementFormData({
               <Select
                 value={
                   formData.userId ||
-                  (!["Super Admin", "Admin"].includes(userData.role) ? userData.id : "")
+                  (userData.role === "Karyawan" ? userData.id : "")
                 }
                 onValueChange={(val) => {
-                  if (["Super Admin", "Admin"].includes(userData.role)) {
-                    setFormData({
-                      ...formData,
-                      userId: val,
-                    });
-                  }
+                  setFormData({
+                    ...formData,
+                    userId: val,
+                  });
                 }}
-                disabled={!["Super Admin", "Admin"].includes(userData.role)}
+                disabled={userData.role === "Karyawan"}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={"Pilih Karyawan"} />

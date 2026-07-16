@@ -1,199 +1,128 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  Plus,
-  CheckCircle,
-  XCircle,
-  Trash2,
-  Edit,
-  ChevronLeft,
-  ChevronRight,
-  Settings,
-  Filter,
-  X,
-  Download,
-  Search,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import FormData from "./components/form-data";
-import { SubmissionDto } from "@/lib/dto/submission";
-import { SubmissionTypeDto } from "@/lib/dto/submission-type";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import ModalType from "./components/modal-type";
-import ModalLeaveConfig from "./components/modal-leave-config";
+import DynamicPage from "@/components/dynamic-page";
 import { usePermission } from "@/lib/helper/check-role";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { SubmissionDto } from "@/lib/dto/submission";
+import type { SubmissionTypeDto } from "@/lib/dto/submission-type";
+import type { ApiResponse } from "@/lib/utils";
+import FormData from "./components/form-data";
+import { columnFormats, headerToolbar, ITEMS_PER_PAGE, renderActions, STATUS_LABEL } from "./page.config";
+import TypeModal from "./components/type-modal";
+import LeaveConfigModal from "./components/leave-config-modal";
+import RejectModal from "./components/reject-modal";
 
-export default function SubmissionsPage() {
+export default function Page() {
   const { checkRole } = usePermission();
-  const [submissions, setSubmissions] = useState<SubmissionDto[]>([]);
+  const [data, setData] = useState<SubmissionDto[]>([]);
   const [total, setTotal] = useState(0);
-  const [submissionType, setSubmissionType] = useState<SubmissionTypeDto[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [showTypeModal, setShowTypeModal] = useState(false);
-  const [showLeaveConfigModal, setShowLeaveConfigModal] = useState(false);
-  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [userData, setUserData] = useState({ id: "", role: "" });
+  const [loading, setLoading] = useState(false);
+  const [detailItem, setDetailItem] = useState<SubmissionDto | undefined>(undefined);
+  const [submissionTypes, setSubmissionTypes] = useState<SubmissionTypeDto[]>([]);
+
   const [isExporting, setIsExporting] = useState(false);
-
-  // Filter states
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [selectedRejectId, setSelectedRejectId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [showLeaveConfigModal, setShowLeaveConfigModal] = useState(false);
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [filterType, setFilterType] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
 
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(total / itemsPerPage);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)), [total]);
 
-  const [formData, setFormData] = useState<SubmissionDto>({
-    userId: "",
-    submissionTypeId: "",
-    startDate: "",
-    endDate: "",
-    reason: "",
-    status: "PENDING",
-    approvedBy: null,
-    approvedAt: null,
-  });
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (searchTerm) count++;
+    if (filterType !== "all") count++;
+    if (filterStatus !== "all") count++;
+    return count;
+  }, [filterStatus, filterType, searchTerm]);
 
-  const clearAllFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilterType("all");
     setFilterStatus("all");
     setSearchTerm("");
+  }, []);
+
+  const onAdd = () => {
+    setDetailItem(undefined);
+    setShowFormModal(true);
   };
 
-  const activeFilterCount = [
-    filterType !== "all",
-    filterStatus !== "all",
-    searchTerm !== "",
-  ].filter(Boolean).length;
+  const onView = async (id: string) => {
+    await fetchDetail(id);
+    setShowFormModal(true);
+  };
 
-  const fetchSubmissions = useCallback(async () => {
+  const onDelete = async (id: string) => {
     try {
-      const params = new URLSearchParams();
-      params.set("page", String(currentPage));
-      params.set("limit", String(itemsPerPage));
-      if (searchTerm) params.set("search", searchTerm);
-      if (filterStatus !== "all") params.set("status", filterStatus);
-      if (filterType !== "all") params.set("submissionTypeId", filterType);
+      const res = await fetch(`/api/submissions/${id}`, { method: "DELETE" });
 
-      const res = await fetch(`/api/submissions?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data pengajuan");
-      const json = await res.json();
-      setSubmissions(json.data || []);
-      setTotal(json.total || 0);
-    } catch (error) {
-      toast.error("Gagal memuat data pengajuan");
-    }
-  }, [currentPage, searchTerm, filterStatus, filterType]);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || "Gagal menghapus pengajuan");
 
-  const fetchSubmissionType = async () => {
-    try {
-      const res = await fetch("/api/submission-types");
-      if (!res.ok) throw new Error("Gagal mengambil data jenis pengajuan");
-      const json = await res.json();
-      setSubmissionType(json.data || []);
+      toast.success("Pengajuan berhasil dihapus!");
+      fetchData();
     } catch (error) {
-      toast.error("Gagal memuat data jenis pengajuan");
+      toast.error(`Gagal menghapus pengajuan: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setDeleteId(null);
     }
   };
 
-  const handleOpenModal = (data?: SubmissionDto) => {
-    if (data) setFormData(data);
-    setShowModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setFormData({
-      userId: "",
-      submissionTypeId: "",
-      startDate: "",
-      endDate: "",
-      reason: "",
-      status: "PENDING",
-      approvedBy: null,
-      approvedAt: null,
-    });
-  };
-
-  const handleApprove = async (id: string) => {
+  const onApprove = async (id: string) => {
     try {
       const res = await fetch(`/api/submissions/${id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          approvalAction: "APPROVE",
-        }),
+        body: JSON.stringify({ approvalAction: "APPROVE" }),
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Gagal menyetujui pengajuan");
-      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || "Gagal menyetujui pengajuan");
+
       toast.success("Pengajuan berhasil disetujui!");
-      fetchSubmissions();
+      fetchData();
     } catch (error) {
-      console.log(error);
       toast.error(`Gagal menyetujui pengajuan: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
-  const handleReject = async (id: string, rejectionReason: string) => {
-    if (!rejectionReason.trim()) {
-      toast.error("Alasan penolakan wajib diisi");
-      return;
-    }
+  const onReasonReject = () => {
+    setShowRejectModal(true);
+    setRejectReason("");
+  }
+
+  const onReject = async (id: string) => {
     try {
-      const res = await fetch(`/api/submissions/${id}`, {
+      const response = await fetch(`/api/submissions/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           approvalAction: "REJECT",
-          rejectionReason: rejectionReason.trim(),
+          rejectionReason: rejectReason,
         }),
       });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Gagal menyetujui pengajuan");
-      }
+
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.message || "Gagal menolak pengajuan");
+
       toast.success("Pengajuan berhasil ditolak!");
-      fetchSubmissions();
+      setShowRejectModal(false);
+      setRejectId("");
+      fetchData();
     } catch (error) {
-      toast.error(`Gagal menyetujui pengajuan: ${error instanceof Error ? error.message : "Unknown error"}`);
+      toast.error(`Gagal menolak pengajuan: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
-  const openRejectDialog = (id: string) => {
-    setSelectedRejectId(id);
-    setRejectReason("");
-    setRejectDialogOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      const res = await fetch(`/api/submissions/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Gagal menghapus pengajuan");
-      toast.success("Pengajuan berhasil dihapus!");
-      fetchSubmissions();
-    } catch (error) {
-      toast.error("Gagal menghapus pengajuan");
-    }
-  };
-
-  const handleExport = async () => {
+  const onExport = useCallback(async () => {
     try {
       setIsExporting(true);
 
@@ -203,597 +132,208 @@ export default function SubmissionsPage() {
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterType !== "all") params.set("submissionTypeId", filterType);
 
-      const res = await fetch(`/api/submissions?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+      const response = await fetch(`/api/submissions?${params.toString()}`);
+      if (!response.ok) throw new Error("Gagal mengambil data untuk export");
 
-      const json = await res.json();
+      const json = await response.json();
       const allData: SubmissionDto[] = json.data || [];
-
       const XLSX = await import("xlsx");
 
-      const rows = allData.map((emp) => ({
-        "Nama Karyawan": emp.user?.name ?? "-",
-        "Jenis Pengajuan": emp.submissionType?.name ?? "-",
-        "Tanggal Mulai": emp.startDate
-          ? new Date(emp.startDate).toLocaleDateString("id-ID", {
+      const rows = allData.map((submission) => ({
+        "Nama Karyawan": submission.user?.name ?? "-",
+        "Jenis Pengajuan": submission.submissionType?.name ?? "-",
+        "Tanggal Mulai": submission.startDate
+          ? new Date(submission.startDate).toLocaleDateString("id-ID", {
             weekday: "short",
             year: "numeric",
             month: "short",
             day: "numeric",
           })
           : "-",
-        "Tanggal Selesai": emp.endDate
-          ? new Date(emp.endDate).toLocaleDateString("id-ID", {
+        "Tanggal Selesai": submission.endDate
+          ? new Date(submission.endDate).toLocaleDateString("id-ID", {
             weekday: "short",
             year: "numeric",
             month: "short",
             day: "numeric",
           })
           : "-",
-        Alasan: emp.reason || "-",
-        Status:
-          emp.status === "APPROVED"
-            ? "Disetujui"
-            : emp.status === "REJECTED"
-              ? "Ditolak"
-              : "Menunggu",
+        Alasan: submission.reason || "-",
+        Status: STATUS_LABEL[submission.status] ?? submission.status,
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data Pengajuan");
 
-      // Auto column width
-      const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
-        wch:
-          Math.max(
-            key.length,
-            ...rows.map((r) => String((r as any)[key] ?? "").length),
-          ) + 2,
+      type Row = (typeof rows)[number];
+      worksheet["!cols"] = Object.keys(rows[0] ?? {}).map((key) => ({
+        wch: Math.max(key.length, ...rows.map((row) => String(row[key as keyof Row] ?? "").length)) + 2,
       }));
-      worksheet["!cols"] = colWidths;
 
-      const fileName = `data-pengajuan-${new Date().toISOString().split("T")[0]}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
-
+      XLSX.writeFile(workbook, `data-pengajuan-${new Date().toISOString().split("T")[0]}.xlsx`);
       toast.success(`Berhasil mengexport ${allData.length} data pengajuan`);
-    } catch (err) {
+    } catch {
       toast.error("Gagal mengexport data");
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [filterStatus, filterType, searchTerm]);
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterType, filterStatus]);
-
-  // Fetch data when page or filters change
-  useEffect(() => {
-    fetchSubmissions();
-  }, [fetchSubmissions]);
-
-  useEffect(() => {
-    fetchSubmissionType();
-    const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
-    setUserData(data);
+  const fetchSubmissionTypes = useCallback(async () => {
+    try {
+      const response = await fetch("/api/submission-types");
+      if (!response.ok) throw new Error("Gagal mengambil data jenis pengajuan");
+      const json = await response.json();
+      setSubmissionTypes(json.data || []);
+    } catch {
+      toast.error("Gagal memuat data jenis pengajuan");
+    }
   }, []);
 
-  const approverHeaders = Array.from(
-    new Set(
-      submissions.flatMap((s) =>
-        (s.submissionType?.approverConfigs || []).map((c) => c.approverUser.name),
-      ),
-    ),
+  const toolbar = useMemo(
+    () =>
+      headerToolbar({
+        actions: {
+          checkRole,
+          isExporting,
+          onAdd,
+          onExport,
+          onOpenLeaveConfig: () => setShowLeaveConfigModal(true),
+          onOpenTypeModal: () => setShowTypeModal(true),
+        },
+        filters: {
+          activeCount: activeFilterCount,
+          clear: clearFilters,
+          searchTerm,
+          setSearchTerm,
+          show: showFilterPanel,
+          setShow: setShowFilterPanel,
+          status: filterStatus,
+          setStatus: setFilterStatus,
+          type: filterType,
+          setType: setFilterType,
+          submissionTypes,
+        },
+      }),
+    [
+      activeFilterCount,
+      checkRole,
+      clearFilters,
+      filterStatus,
+      filterType,
+      isExporting,
+      onExport,
+      searchTerm,
+      showFilterPanel,
+      submissionTypes,
+    ],
   );
-  const canApproveSubmission = submissions.some((submission) => {
-    const isCurrentUserApprover = (submission.submissionType?.approverConfigs || []).some(
-      (config) => config.approverUserId === userData.id,
-    );
 
-    const canApproveSubmission = submission.status === "PENDING" && isCurrentUserApprover && checkRole("submissions", "update");
-    return canApproveSubmission;
-  });
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(ITEMS_PER_PAGE));
+      if (searchTerm) params.set("search", searchTerm);
+      if (filterStatus !== "all") params.set("status", filterStatus);
+      if (filterType !== "all") params.set("submissionTypeId", filterType);
+
+      const response = await fetch(`/api/submissions?${params.toString()}`);
+      const json: ApiResponse = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error((json as { message?: string }).message || "Gagal mengambil data pengajuan");
+      }
+
+      setData((json.data as SubmissionDto[]) ?? []);
+      setTotal(json.total ?? 0);
+    } catch {
+      toast.error("Gagal memuat data pengajuan");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, filterStatus, filterType, searchTerm]);
+
+  const fetchDetail = useCallback(async (id: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/submissions/${id}`);
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      setDetailItem(json.data || undefined);
+    } catch {
+      toast.error("Gagal memuat detail data pengajuan");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    fetchSubmissionTypes();
+  }, [fetchSubmissionTypes]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, filterType, searchTerm]);
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-          {checkRole("submission_types", "create") && (
-            <>
-              <Button
-                onClick={() => setShowTypeModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                <Settings className="w-4 h-4" /> Kelola Jenis
-              </Button>
-              <Button
-                onClick={() => setShowLeaveConfigModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-              >
-                <Settings className="w-4 h-4" /> Batas Cuti
-              </Button>
-            </>
-          )}
+    <>
+      <DynamicPage
+        toolbar={toolbar}
+        columns={columnFormats}
+        items={data}
+        total={total}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        loading={loading}
+        emptyMessage="Tidak ada data pengajuan yang ditemukan"
+        onPageChange={setCurrentPage}
+        renderActions={(row) =>
+          renderActions({
+            row,
+            checkRole,
+            onApprove,
+            onDelete,
+            onView,
+            onReasonReject,
+            setRejectId,
+            deleteId,
+            setDeleteId,
+          })
+        }
+      />
 
-          {checkRole("submissions", "create") && (
-            <>
-              <Button
-                onClick={() => handleOpenModal()}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Tambah
-              </Button>
+      <FormData
+        isOpen={showFormModal}
+        initialData={detailItem}
+        onClose={() => setShowFormModal(false)}
+        onSuccess={fetchData}
+      />
 
-              <div className="flex-1" />
-            </>
-          )}
+      <TypeModal
+        isOpen={showTypeModal}
+        onClose={() => setShowTypeModal(false)}
+      />
 
-          {/* Search */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Cari nama karyawan..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-            {searchTerm && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSearchTerm("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
+      <LeaveConfigModal
+        isOpen={showLeaveConfigModal}
+        onClose={() => setShowLeaveConfigModal(false)}
+      />
 
-          <Button
-            variant="outline"
-            onClick={() => setShowFilterPanel(!showFilterPanel)}
-            className={`relative flex items-center gap-2 px-4 py-2 ${showFilterPanel
-              ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30"
-              : "border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300"
-              }`}
-          >
-            <Filter className="w-4 h-4" />
-            Filter
-            {activeFilterCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {activeFilterCount}
-              </span>
-            )}
-          </Button>
-
-          {/* Export Button */}
-          {checkRole("submissions", "export") && (
-            <Button
-              onClick={handleExport}
-              disabled={isExporting}
-              variant="outline"
-              className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
-            >
-              <Download className="w-4 h-4" />
-              {isExporting ? "Mengexport..." : "Export Excel"}
-            </Button>
-          )}
-        </div>
-
-        {showFilterPanel && (
-          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900 dark:text-white">
-                Filter Data Pengajuan
-              </h3>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearAllFilters}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                >
-                  <X className="w-4 h-4" />
-                  Hapus Semua Filter
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Type Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  Jenis Pengajuan
-                </label>
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Semua Jenis</option>
-                  {submissionType.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  Status
-                </label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Semua Status</option>
-                  <option value="PENDING">Menunggu</option>
-                  <option value="APPROVED">Disetujui</option>
-                  <option value="REJECTED">Ditolak</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Active Filters Display */}
-            {activeFilterCount > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {searchTerm && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                    Pencarian: {searchTerm}
-                    <button
-                      onClick={() => setSearchTerm("")}
-                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
-                {filterType !== "all" && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                    Jenis:{" "}
-                    {submissionType.find((t) => t.id === filterType)?.name ||
-                      filterType}
-                    <button
-                      onClick={() => setFilterType("all")}
-                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
-                {filterStatus !== "all" && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm">
-                    Status:{" "}
-                    {filterStatus === "PENDING"
-                      ? "Menunggu"
-                      : filterStatus === "APPROVED"
-                        ? "Disetujui"
-                        : "Ditolak"}
-                    <button
-                      onClick={() => setFilterStatus("all")}
-                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b dark:border-gray-700">
-                <th className="text-left p-3 font-semibold dark:text-gray-300">
-                  Nama Karyawan
-                </th>
-                <th className="text-left p-3 font-semibold dark:text-gray-300">
-                  Jenis
-                </th>
-                <th className="text-left p-3 font-semibold dark:text-gray-300">
-                  Tanggal Mulai
-                </th>
-                <th className="text-left p-3 font-semibold dark:text-gray-300">
-                  Tanggal Selesai
-                </th>
-                <th className="text-left p-3 font-semibold dark:text-gray-300">
-                  Alasan
-                </th>
-                <th className="text-left p-3 font-semibold dark:text-gray-300">
-                  Status
-                </th>
-                {approverHeaders.map((name) => (
-                  <th key={name} className="text-left p-3 font-semibold dark:text-gray-300">
-                    Approval {name}
-                  </th>
-                ))}
-                <th className="text-right p-3 font-semibold dark:text-gray-300">
-                  Aksi
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {submissions.length > 0 ? (
-                submissions.map((emp) => (
-                  (() => {
-                    return (
-                      <tr
-                        key={emp.id}
-                        className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                      >
-                        <td className="p-3 font-medium dark:text-white">
-                          {emp.user?.name}
-                        </td>
-                        <td className="p-3 dark:text-gray-300">
-                          {emp.submissionType?.name}
-                        </td>
-                        <td className="p-3 dark:text-gray-300">
-                          {new Date(emp.startDate).toLocaleDateString("id-ID", {
-                            weekday: "short",
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </td>
-                        <td className="p-3 dark:text-gray-300">
-                          {new Date(emp.endDate).toLocaleDateString("id-ID", {
-                            weekday: "short",
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </td>
-                        <td className="p-3 dark:text-gray-300">
-                          {emp.reason || "-"}
-                        </td>
-                        <td className="p-3">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === "APPROVED"
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                              : emp.status === "REJECTED"
-                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                              }`}
-                          >
-                            {emp.status === "APPROVED"
-                              ? "Disetujui"
-                              : emp.status === "REJECTED"
-                                ? "Ditolak"
-                                : "Menunggu"}
-                          </span>
-                        </td>
-                        {approverHeaders.map((name) => {
-                          const cfg = (emp.submissionType?.approverConfigs || []).find(
-                            (c) => c.approverUser.name === name,
-                          );
-                          const decision = (emp.approvalDecisions || []).find(
-                            (d) => d.approverUserId === cfg?.approverUserId,
-                          );
-                          const text =
-                            decision?.status === "APPROVED"
-                              ? "Disetujui"
-                              : decision?.status === "REJECTED"
-                                ? `Ditolak${decision.reason ? `: ${decision.reason}` : ""}`
-                                : emp.status === "REJECTED"
-                                  ? "Tidak diproses"
-                                  : cfg
-                                    ? "Menunggu"
-                                    : "-";
-                          return (
-                            <td key={`${emp.id}-${name}`} className="p-3 text-sm dark:text-gray-300">
-                              {text}
-                            </td>
-                          );
-                        })}
-
-
-                        <td className="p-3 text-right">
-                          <div className="flex justify-end gap-2">
-                            {canApproveSubmission && (
-                              <>
-                                <button
-                                  onClick={() => handleApprove(emp.id!)}
-                                  className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg"
-                                  title="Setujui"
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => openRejectDialog(emp.id!)}
-                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                                  title="Tolak"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
-                            {checkRole("submissions", "update") && (
-                              <button
-                                onClick={() => handleOpenModal(emp)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
-                                title="Edit"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                            )}
-                            {checkRole("submissions", "delete") && (
-                              <Popover
-                                open={openPopoverId === emp.id}
-                                onOpenChange={(isOpen) =>
-                                  setOpenPopoverId(isOpen ? emp.id! : null)
-                                }
-                              >
-                                <PopoverTrigger asChild>
-                                  <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </PopoverTrigger>
-
-                                <PopoverContent className="w-56 space-y-3">
-                                  <p className="text-sm">
-                                    Yakin ingin menghapus pengajuan ini?
-                                  </p>
-
-                                  <div className="flex justify-end gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => setOpenPopoverId(null)}
-                                    >
-                                      Batal
-                                    </Button>
-
-                                    <Button
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={() => handleDelete(emp.id!)}
-                                    >
-                                      Hapus
-                                    </Button>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })()
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="p-8 text-center text-gray-500 dark:text-gray-400"
-                  >
-                    Tidak ada data pengajuan yang ditemukan
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Controls */}
-        <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 dark:border-gray-700 gap-4">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Menampilkan{" "}
-            <span className="font-semibold text-gray-900 dark:text-white">
-              {submissions.length}
-            </span>{" "}
-            dari{" "}
-            <span className="font-semibold text-gray-900 dark:text-white">
-              {total}
-            </span>{" "}
-            data
-            {totalPages > 0 && (
-              <span>
-                {" "}
-                — Halaman {currentPage} dari {totalPages}
-              </span>
-            )}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <div className="flex items-center gap-1">
-                {(() => {
-                  const pages: (number | "...")[] = [];
-                  if (totalPages <= 5) {
-                    for (let i = 1; i <= totalPages; i++) pages.push(i);
-                  } else if (currentPage <= 3) {
-                    pages.push(1, 2, 3, "...", totalPages - 1, totalPages);
-                  } else if (currentPage >= totalPages - 2) {
-                    pages.push(1, 2, "...", totalPages - 2, totalPages - 1, totalPages);
-                  } else {
-                    pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
-                  }
-                  return pages.map((page, idx) =>
-                    page === "..." ? (
-                      <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm select-none">...</span>
-                    ) : (
-                      <button key={page} onClick={() => setCurrentPage(page as number)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"}`}>
-                        {page}
-                      </button>
-                    )
-                  );
-                })()}
-              </div>
-              <button
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Modal Form */}
-      {showModal && (
-        <FormData
-          initialData={formData}
-          onClose={handleCloseModal}
-          onSuccess={fetchSubmissions}
-        />
-      )}
-
-      {/* Type Management Modal */}
-      {showTypeModal && <ModalType onClose={() => setShowTypeModal(false)} />}
-
-      {/* Leave Config Modal */}
-      {showLeaveConfigModal && (
-        <ModalLeaveConfig onClose={() => setShowLeaveConfigModal(false)} />
-      )}
-
-      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Alasan Penolakan</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Tulis alasan penolakan..."
-              rows={4}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={async () => {
-                  if (!selectedRejectId) return;
-                  await handleReject(selectedRejectId, rejectReason);
-                  setRejectDialogOpen(false);
-                }}
-              >
-                Tolak Pengajuan
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+      <RejectModal
+        isOpen={showRejectModal}
+        rejectReason={rejectReason}
+        onClose={() => setShowRejectModal(false)}
+        onConfirm={() => rejectId && onReject(rejectId)}
+        onOpenChange={setShowRejectModal}
+        onRejectReasonChange={setRejectReason}
+      />
+    </>
   );
 }
