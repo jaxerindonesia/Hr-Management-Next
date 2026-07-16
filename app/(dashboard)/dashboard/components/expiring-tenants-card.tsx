@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarClock } from "lucide-react";
+import { cn, DARK_GLASS_PANEL_CLASS } from "@/lib/utils";
 import type { ExpiringTenantItem } from "./types";
 
 type Props = {
@@ -16,7 +17,7 @@ function getBadgeClassName(daysRemaining: number | null) {
 
 export default function ExpiringTenantsCard({ tenants }: Props) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+    <div className={cn("rounded-2xl border border-gray-200 bg-white p-6", DARK_GLASS_PANEL_CLASS)}>
       <div className="mb-4 flex items-center gap-2">
         <CalendarClock className="h-5 w-5 text-orange-500" />
         <div>

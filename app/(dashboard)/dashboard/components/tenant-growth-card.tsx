@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { BarChart3 } from "lucide-react";
+import { cn, DARK_GLASS_PANEL_CLASS } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CartesianGrid,
@@ -25,7 +26,7 @@ export default function TenantGrowthCard({ monthlyData, yearlyData }: Props) {
   const data = mode === "monthly" ? monthlyData : yearlyData;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+    <div className={cn("rounded-2xl border border-gray-200 bg-white p-6", DARK_GLASS_PANEL_CLASS)}>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-violet-500" />
