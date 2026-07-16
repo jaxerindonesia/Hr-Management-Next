@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import Link from "next/link";
+import { cn, DARK_GLASS_PANEL_CLASS } from "@/lib/utils";
 import {
   Sun,
   Moon,
@@ -272,24 +273,24 @@ export default function DesktopNavbar() {
 
   return (
     <>
-      <nav className="hidden h-[69px] lg:block sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between px-6 py-2 h-full">
+      <nav className="z-40 hidden lg:block">
+        <div className="flex min-h-[104px] items-end justify-between pb-4 pl-4 pr-8 pt-5">
           {/* Left Section */}
-          <div className="flex flex-col">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <div className="flex flex-col justify-end">
+            <h1 className="text-md font-bold leading-none text-gray-900 dark:text-white lg:text-[1.4rem]">
               {getPageTitle()}
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               {getCurrentDateTime()}
             </p>
           </div>
 
           {/* Right Section */}
-          <div className="flex items-center gap-3">
+          <div className={cn("flex items-center gap-3 rounded-2xl border border-gray-200/80 bg-white/70 px-3 py-2 shadow-sm backdrop-blur-sm", DARK_GLASS_PANEL_CLASS)}>
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="rounded-lg p-2.5 text-gray-700 transition-colors hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-white/[0.08]"
               title={theme === "light" ? "Mode Gelap" : "Mode Terang"}
             >
               {theme === "light" ? (
@@ -299,13 +300,13 @@ export default function DesktopNavbar() {
               )}
             </button>
 
-            <div className="h-8 w-px bg-gray-300 dark:bg-gray-600" />
+            <div className="h-8 w-px bg-gray-300 dark:bg-white/10" />
 
             {/* User Profile with Dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen((prev) => !prev)}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.08]"
               >
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs text-white font-bold ring-2 ring-blue-100 dark:ring-blue-900">
                   {getInitials(user.name)}
@@ -325,8 +326,8 @@ export default function DesktopNavbar() {
 
               {/* Dropdown Menu */}
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                <div className="absolute right-0 z-50 mt-2 w-52 animate-in rounded-xl border border-gray-200 bg-white py-1 shadow-lg fade-in slide-in-from-top-2 duration-150 dark:border-white/10 dark:bg-slate-900/90 dark:backdrop-blur-xl">
+                  <div className="border-b border-gray-100 px-4 py-3 dark:border-white/10">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                       {user.name}
                     </p>

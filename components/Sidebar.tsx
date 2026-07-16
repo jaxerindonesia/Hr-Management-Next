@@ -5,6 +5,27 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Sidebar as SidebarShell,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
   Users,
@@ -273,16 +294,20 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside
-        className={`flex flex-col bg-white dark:bg-gray-800 border-r md:border-r border-t md:border-t-0 border-gray-200 dark:border-gray-700
-        transition-all duration-300 ease-in-out
-        ${sidebarOpen ? "md:w-72" : "md:w-20"} w-full h-full lg:h-screen md:sticky md:top-0 md:overflow-y-auto`}
+      <SidebarShell
+        className={`flex flex-col p-4 transition-all duration-300 ease-in-out
+        ${sidebarOpen ? "md:w-[22rem]" : "md:w-[6.5rem]"} w-full h-full lg:h-screen md:sticky md:top-0`}
       >
+        <SidebarInset
+          className={`flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(241,247,255,0.98)_52%,rgba(232,242,255,0.96)_100%)] text-slate-900 shadow-[0_24px_60px_rgba(148,163,184,0.18)] ring-1 ring-sky-100/80 backdrop-blur-2xl transition-all duration-300 dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(22,30,48,0.98)_0%,rgba(21,31,51,0.98)_100%)] dark:text-white dark:shadow-[0_24px_60px_rgba(2,6,23,0.42)] dark:ring-white/5 ${
+            sidebarOpen ? "px-4 py-5" : "px-3 py-5"
+          }`}
+        >
         {/* ===== HEADER ===== */}
-        <div className="h-[69px] flex items-center justify-center border-b dark:border-gray-700 px-4">
+        <SidebarHeader className={`flex h-[72px] items-center ${sidebarOpen ? "justify-between px-2" : "justify-center"}`}>
           {sidebarOpen ? (
             <>
-              <div className="flex-1 flex justify-start items-center relative w-full h-full overflow-hidden">
+              <div className="flex h-full flex-1 items-center justify-start overflow-hidden">
                 {(() => {
                   const hasLight = !!tenantConfig?.logoUrl;
                   const hasDark = !!tenantConfig?.logoDarkUrl;
@@ -304,7 +329,7 @@ export default function Sidebar() {
                           width={140}
                           height={45}
                           priority
-                          className="object-contain max-h-[45px] w-auto rounded relative z-10"
+                          className="max-h-[45px] w-auto rounded object-contain dark:brightness-0 dark:invert"
                           unoptimized
                         />
 
@@ -332,31 +357,38 @@ export default function Sidebar() {
                         width={155}
                         height={20}
                         priority
-                        className="object-contain hidden dark:block ml-[-1.5rem]"
+                        className="ml-[-1.5rem] hidden object-contain dark:block"
                       />
                     </>
                   );
                 })()}
               </div>
-              <button
+              <Button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="flex items-center justify-center rounded-lg p-2 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:scale-110 active:scale-95"
+                variant="ghost"
+                size="icon"
+                className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 text-slate-600 backdrop-blur-md hover:bg-sky-50 hover:text-slate-900 active:scale-95 shadow-[0_10px_30px_rgba(148,163,184,0.18)] dark:border-white/15 dark:bg-white/[0.10] dark:text-white dark:hover:bg-white/[0.16] dark:hover:text-white dark:shadow-[0_10px_30px_rgba(15,23,42,0.22)]"
               >
-                <ChevronLeft className="w-8 h-8 p-[6px] transition-transform duration-300" />
-              </button>
+                <ChevronLeft className="size-5 transition-transform duration-300" />
+              </Button>
             </>
           ) : (
-            <button
+            <Button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="flex items-center justify-center rounded-lg p-2 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:scale-110 active:scale-95"
+              variant="ghost"
+              size="icon"
+              className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 text-slate-600 backdrop-blur-md hover:bg-sky-50 hover:text-slate-900 active:scale-95 shadow-[0_10px_30px_rgba(148,163,184,0.18)] dark:border-white/15 dark:bg-white/[0.10] dark:text-white dark:hover:bg-white/[0.16] dark:hover:text-white dark:shadow-[0_10px_30px_rgba(15,23,42,0.22)]"
             >
-              <ChevronRight className="w-8 h-8 p-[6px] transition-transform duration-300" />
-            </button>
+              <ChevronRight className="size-5 transition-transform duration-300" />
+            </Button>
           )}
-        </div>
+        </SidebarHeader>
 
         {/* ===== MENU ===== */}
-        <nav className="flex-1 p-2 space-y-1">
+        <SidebarContent className={`space-y-1 ${sidebarOpen ? "px-2 pt-4" : "px-0 pt-5"}`}>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -368,18 +400,18 @@ export default function Sidebar() {
 
             if (item.subItems) {
               return (
-                <div key={item.id} className="relative">
-                  <button
+                <SidebarMenuItem key={item.id}>
+                  <SidebarMenuButton
                     onClick={() => {
                       if (!sidebarOpen) setSidebarOpen(true);
                       toggleMenu(item.id);
                     }}
-                    className={`flex w-full items-center rounded-lg transition-all duration-300 relative group
+                    className={`flex w-full items-center rounded-2xl transition-all duration-300 relative group
                     ${isActive
-                        ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 shadow-sm"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        ? "border border-slate-200/80 bg-slate-800/10 text-slate-900 shadow-[0_14px_34px_rgba(148,163,184,0.18)] dark:border-white/10 dark:bg-white/[0.14] dark:text-white dark:shadow-[0_14px_34px_rgba(15,23,42,0.28)]"
+                        : "text-slate-600 hover:bg-sky-50/80 hover:text-slate-900 dark:text-slate-200/80 dark:hover:bg-white/[0.07] dark:hover:text-white"
                       }
-                    ${sidebarOpen ? "gap-3 px-4 py-3" : "justify-center py-3"}
+                    ${sidebarOpen ? "gap-3 px-4 py-3.5" : "justify-center px-0 py-3.5"}
                     hover:scale-[1.02] active:scale-[0.98]`}
                   >
                     {/* Animated Icon */}
@@ -392,17 +424,17 @@ export default function Sidebar() {
 
                     {sidebarOpen && (
                       <>
-                        <span className="font-medium truncate flex-1 text-left">
+                        <span className="flex-1 truncate text-sm font-medium text-left">
                           {item.name}
                         </span>
 
                         <ChevronDown
-                          className={`w-4 h-4 transition-all duration-300 ${isExpanded ? "rotate-180" : ""
+                      className={`w-4 h-4 transition-all duration-300 ${isExpanded ? "rotate-180" : ""
                             }`}
                         />
                       </>
                     )}
-                  </button>
+                  </SidebarMenuButton>
 
                   {/* Submenu with smooth animation */}
                   {sidebarOpen && (
@@ -412,7 +444,7 @@ export default function Sidebar() {
                         : "max-h-0 opacity-0"
                         }`}
                     >
-                      <div className="ml-6 mr-3 border-l border-blue-100 py-1 pl-3 dark:border-blue-900/40">
+                      <div className="ml-6 mr-3 border-l border-slate-200 py-2 pl-3 dark:border-white/15">
                         {item.subItems.map((sub, index) => {
                           const isSubActive =
                             pathname === sub.path ||
@@ -441,10 +473,10 @@ export default function Sidebar() {
                               className={`block rounded-lg px-3 py-2 text-sm transition-all duration-300
                                 ${isExpanded ? "animate-in slide-in-from-left-2 fade-in" : ""}
                                 ${isFormPengajuan
-                                  ? "font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-l-4 border-green-500 hover:scale-[1.02] hover:shadow-md"
+                                  ? "border-l-4 border-cyan-500 bg-cyan-50 font-bold text-cyan-700 hover:scale-[1.02] hover:bg-cyan-100 dark:border-cyan-300 dark:bg-cyan-400/10 dark:text-cyan-100 dark:hover:bg-cyan-400/15"
                                   : isSubActive
-                                    ? "bg-blue-50 font-medium text-blue-700 shadow-sm dark:bg-blue-900/30 dark:text-blue-300"
-                                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 hover:text-blue-600 dark:hover:bg-gray-700/50 dark:hover:text-blue-400"
+                                    ? "bg-slate-900/8 font-medium text-slate-900 shadow-sm dark:bg-white/[0.11] dark:text-white"
+                                    : "text-slate-500 hover:bg-sky-50 hover:text-slate-900 dark:text-slate-300/65 dark:hover:bg-white/[0.06] dark:hover:text-white"
                                 }`}
                             >
                               {sub.name}
@@ -454,22 +486,24 @@ export default function Sidebar() {
                       </div>
                     </div>
                   )}
-                </div>
+                </SidebarMenuItem>
               );
             }
 
             return (
-              <Link
+              <SidebarMenuItem key={item.id}>
+              <SidebarMenuButton
                 key={item.id}
-                href={item.path}
-                className={`flex w-full items-center rounded-lg transition-all duration-300 relative group
+                asChild
+                className={`flex w-full items-center rounded-2xl transition-all duration-300 relative group
                 ${isActive
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 shadow-sm"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    ? "border border-slate-200/80 bg-sky-300/40 text-slate-900 shadow-[0_14px_34px_rgba(148,163,184,0.18)] dark:border-white/10 dark:bg-white/[0.14] dark:text-white dark:shadow-[0_14px_34px_rgba(15,23,42,0.28)]"
+                    : "text-slate-600 hover:bg-sky-100/80 hover:text-slate-900 dark:text-slate-200/80 dark:hover:bg-white/[0.07] dark:hover:text-white"
                   }
-                ${sidebarOpen ? "gap-3 px-4 py-3" : "justify-center py-3"}
+                ${sidebarOpen ? "gap-3 px-4 py-3.5" : "justify-center px-0 py-3.5"}
                 hover:scale-[1.02] active:scale-[0.98]`}
               >
+                <Link href={item.path}>
                 {/* Animated Icon */}
                 <Icon
                   className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive
@@ -479,30 +513,34 @@ export default function Sidebar() {
                 />
 
                 {sidebarOpen && (
-                  <span className="font-medium truncate flex-1">
+                  <span className="flex-1 truncate text-sm font-medium">
                     {item.name}
                   </span>
                 )}
-              </Link>
+                </Link>
+              </SidebarMenuButton>
+              </SidebarMenuItem>
             );
           })}
-        </nav>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
 
         {/* ===== WATERMARK BOTTOM ===== */}
-        <div className={`px-6 pb-3 transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "opacity-0 hidden"}`}>
+        <div className={`pb-3 pt-4 transition-opacity duration-300 ${sidebarOpen ? "px-4 opacity-100" : "hidden opacity-0"}`}>
           <div
             onClick={handleLogoClick}
-            className="flex items-center justify-end gap-1.5 opacity-60 hover:opacity-100 transition-opacity text-gray-500 dark:text-gray-400 select-none cursor-pointer"
+            className="flex cursor-pointer items-center justify-end gap-1.5 text-slate-500 opacity-70 transition-opacity hover:opacity-100 select-none dark:text-white/55"
 
           >
-            <span className="text-xs font-semibold">by</span>
             {/* Saat Terang -> Logo Berwarna */}
             <Image
               src="/logo21.png"
               alt="Jaxer Watermark"
               width={65}
               height={14}
-              className="object-contain dark:hidden mt-0.5"
+              className="mt-0.5 object-contain dark:hidden"
               unoptimized
             />
             {/* Saat Gelap -> Logo Putih */}
@@ -511,22 +549,22 @@ export default function Sidebar() {
               alt="Jaxer Watermark"
               width={95}
               height={14}
-              className="object-contain hidden dark:block mt-0.5"
+              className="mt-0.5 hidden object-contain dark:block"
               unoptimized
             />
           </div>
         </div>
 
         {/* ===== FOOTER ===== */}
-        <div className="border-t dark:border-gray-700 p-2 space-y-2">
+        <SidebarFooter className="space-y-2 border-t border-slate-200 pt-3 dark:border-white/10">
           {/* Theme Toggle */}
-          <button
+          <Button
             onClick={toggleTheme}
-            className={`flex w-full items-center rounded-lg px-4 py-3
-              transition-all duration-300 relative group
-              hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300
+            variant="ghost"
+            className={`flex h-auto w-full items-center rounded-2xl px-4 py-3
+              text-slate-600 hover:bg-sky-200 hover:text-slate-900 dark:text-slate-200/80 dark:hover:bg-white/[0.07] dark:hover:text-white
               hover:scale-[1.02] active:scale-[0.98]
-              ${sidebarOpen ? "gap-3" : "justify-center"}`}
+              ${sidebarOpen ? "justify-start gap-3 text-left" : "justify-center"}`}
           >
             {theme === "light" ? (
               <Moon className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
@@ -539,80 +577,60 @@ export default function Sidebar() {
                 {theme === "light" ? "Mode Gelap" : "Mode Terang"}
               </span>
             )}
-          </button>
+          </Button>
 
           {/* Logout Button */}
-          <button
+          <Button
             onClick={() => setShowLogoutModal(true)}
-            className={`flex w-full items-center rounded-lg px-4 py-3
-              transition-all duration-300 relative group
-              hover:bg-red-50 dark:hover:bg-red-900/20
-              text-red-600 dark:text-red-400
+            variant="ghost"
+            className={`flex h-auto w-full items-center rounded-2xl px-4 py-3
+              border border-transparent text-rose-500
+              hover:border-rose-300/15 hover:bg-rose-400 hover:text-rose-50
               hover:scale-[1.02] active:scale-[0.98]
-              ${sidebarOpen ? "gap-3" : "justify-center"}`}
+              ${sidebarOpen ? "justify-start gap-3 text-left" : "justify-center"}`}
           >
             <LogOut className="w-5 h-5 transition-all duration-300 group-hover:translate-x-1" />
 
             {sidebarOpen && <span className="font-medium">Logout</span>}
-          </button>
-        </div>
-      </aside>
+          </Button>
+        </SidebarFooter>
+        </SidebarInset>
+      </SidebarShell>
 
       {/* ===== LOGOUT CONFIRMATION MODAL ===== */}
-      {showLogoutModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
-            onClick={() => setShowLogoutModal(false)}
-          />
-
-          {/* Modal */}
-          <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-            {/* Close Button */}
-            <button
-              onClick={() => setShowLogoutModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-300 hover:rotate-90 hover:scale-110"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center animate-in zoom-in duration-500">
-                <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400 animate-pulse" />
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="text-center mb-6 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-100">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                Konfirmasi Logout
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Apakah Anda yakin ingin keluar dari sistem? Anda perlu login
-                kembali untuk mengakses dashboard.
-              </p>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
-              <button
-                onClick={() => setShowLogoutModal(false)}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-105 active:scale-95"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all duration-300 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 hover:scale-105 active:scale-95"
-              >
-                Ya, Logout
-              </button>
+      <Dialog open={showLogoutModal} onOpenChange={setShowLogoutModal}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <div className="mb-4 flex justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+              <AlertTriangle className="h-8 w-8 animate-pulse text-red-600 dark:text-red-400" />
             </div>
           </div>
-        </div>
-      )}
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-center text-xl">Konfirmasi Logout</DialogTitle>
+            <DialogDescription className="text-center">
+              Apakah Anda yakin ingin keluar dari sistem? Anda perlu login kembali untuk mengakses dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-2 flex-col sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowLogoutModal(false)}
+              className="flex-1"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleLogout}
+              className="flex-1"
+            >
+              Ya, Logout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ===== CREDITS MODAL (EASTER EGG) ===== */}
       {showCredits && (

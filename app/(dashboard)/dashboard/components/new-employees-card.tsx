@@ -1,6 +1,7 @@
 "use client";
 
 import { UserPlus } from "lucide-react";
+import { cn, DARK_GLASS_PANEL_CLASS } from "@/lib/utils";
 import { NewEmployee } from "./types";
 
 type Props = {
@@ -9,7 +10,7 @@ type Props = {
 
 export default function NewEmployeesCard({ newEmployees }: Props) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+    <div className={cn("rounded-2xl border border-gray-200 bg-white p-6", DARK_GLASS_PANEL_CLASS)}>
       <div className="mb-4 flex items-center gap-2">
         <UserPlus className="h-5 w-5 text-emerald-500" />
         <h3 className="font-semibold dark:text-white">Karyawan Terbaru</h3>

@@ -162,17 +162,17 @@ export function getColumnFormats({
       key: "date",
       title: "Tanggal",
       textClassName: "font-medium text-slate-900 dark:text-slate-100",
-      formatter: (value) => formatDateWithWeekdayId(value),
+      formatter: (_value, row) => formatDateWithWeekdayId(row.date),
     },
     {
       key: "checkIn",
       title: "Check In",
-      formatter: (value) => formatTimeId(value),
+      formatter: (_value, row) => formatTimeId(row.checkIn),
     },
     {
       key: "checkOut",
       title: "Check Out",
-      formatter: (value) => formatTimeId(value),
+      formatter: (_value, row) => formatTimeId(row.checkOut),
     },
   );
 
