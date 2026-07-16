@@ -18,11 +18,15 @@ export async function POST(req: NextRequest) {
     if (auth.error) return auth.error;
 
     const body = await req.json();
+    const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
+    const isAdmin = ["superadmin", "admin"].includes(normalizedRole);
     const overtimeDate = String(body.overtimeDate || "");
     const start = String(body.startTime || "");
     const end = String(body.endTime || "");
+    const requestedUserId = String(body.userId || "").trim();
 
     const scopedTenantId = ensureTenantScope(auth.user);
+    const finalUserId = isAdmin && requestedUserId ? requestedUserId : auth.user.id;
 
     if (!overtimeDate || !start || !end) {
       return NextResponse.json({ message: "Tanggal, jam mulai, dan jam selesai wajib diisi" }, { status: 400 });
@@ -66,7 +70,7 @@ export async function POST(req: NextRequest) {
     const overtime = await prisma.overtime.create({
       data: {
         tenantId: finalTenantId,
-        userId: auth.user.id,
+        userId: finalUserId,
         attendanceId: null,
         overtimeDate: startTime,
         startTime,

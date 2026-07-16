@@ -62,7 +62,6 @@ export async function PUT(req: Request, { params }: Params) {
       const date = formData.get("date");
       const description = formData.get("description");
       const status = formData.get("status");
-      const approvedBy = formData.get("approvedBy");
       const approvedAt = formData.get("approvedAt");
       removeReceipt = formData.get("removeReceipt") === "true";
       newFile = formData.get("file") as File | null;
@@ -73,11 +72,11 @@ export async function PUT(req: Request, { params }: Params) {
       if (date !== null) updateData.date = new Date(date as string);
       if (description !== null) updateData.description = description;
       if (status !== null) updateData.status = status;
-      if (approvedBy !== null) updateData.approvedBy = approvedBy;
       if (approvedAt !== null)
         updateData.approvedAt = approvedAt
           ? new Date(approvedAt as string)
           : null;
+      updateData.approvedBy = auth.user.id;
     } else {
       const body = await req.json();
 
@@ -88,25 +87,15 @@ export async function PUT(req: Request, { params }: Params) {
       if (body.description !== undefined)
         updateData.description = body.description;
       if (body.status !== undefined) updateData.status = body.status;
-      if (body.approvedBy !== undefined)
-        updateData.approvedBy = body.approvedBy;
       if (body.approvedAt !== undefined)
         updateData.approvedAt = body.approvedAt
           ? new Date(body.approvedAt)
           : null;
 
+      updateData.approvedBy = auth.user.id;
       removeReceipt = body.removeReceipt === true;
     }
 
-    console.log(
-      "Update Data:",
-      p.id,
-      updateData,
-      "Remove Receipt:",
-      removeReceipt,
-      "New File:",
-      newFile,
-    );
     const existing = await prisma.reimbursement.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
     });

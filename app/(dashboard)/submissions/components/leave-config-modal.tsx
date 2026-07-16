@@ -6,6 +6,7 @@ import { Plus, Trash2, Edit, X, Save, ShieldCheck, Calendar, Info } from "lucide
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -46,7 +47,7 @@ const defaultForm: FormState = {
   submissionTypeIds: [],
 };
 
-export default function ModalLeaveConfig({ onClose }: { onClose: () => void }) {
+export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [configs, setConfigs] = useState<LeaveConfig[]>([]);
   const [submissionTypes, setSubmissionTypes] = useState<SubmissionType[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -156,13 +157,16 @@ export default function ModalLeaveConfig({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-blue-500" />
             Konfigurasi Batas Cuti
           </DialogTitle>
+          <DialogDescription>
+            Atur batas maksimal hari cuti dan hubungkan dengan jenis pengajuan yang sesuai.
+          </DialogDescription>
         </DialogHeader>
 
         {/* Info banner */}

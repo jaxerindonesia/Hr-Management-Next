@@ -2,7 +2,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -20,10 +19,12 @@ import { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
 
 export default function FormData({
+  isOpen,
   initialData,
   onClose,
   onSuccess,
 } : {
+  isOpen: boolean;
   initialData?: PayrollDto;
   onClose: () => void;
   onSuccess?: () => void;
@@ -39,7 +40,7 @@ export default function FormData({
      allowances: 0,
      deductions: 0,
      totalSalary: 0,
-     status: "pending",
+     status: "PENDING",
    },
  );
 
@@ -85,7 +86,7 @@ export default function FormData({
  }, []);
 
  return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -236,8 +237,8 @@ export default function FormData({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="PAID">Paid</SelectItem>
                 </SelectContent>
               </Select>
             </div>

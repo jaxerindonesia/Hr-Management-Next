@@ -1,11 +1,11 @@
 "use client";
 
 type Props = {
-  tenantName: string;
   userName: string | null;
+  subtitle: string;
 };
 
-export default function DashboardHeader({ tenantName, userName }: Props) {
+export default function DashboardHeader({ userName, subtitle }: Props) {
   return (
     <div className="flex flex-col gap-1">
       <h1 className="text-2xl font-bold dark:text-white">
@@ -16,7 +16,7 @@ export default function DashboardHeader({ tenantName, userName }: Props) {
         👋
       </h1>
       <p className="text-sm text-gray-500 dark:text-gray-400">
-        Kelola {tenantName} dengan ringkasan data karyawan, absensi, pengajuan, dan performa dalam satu dashboard.
+        {subtitle}
       </p>
     </div>
   );

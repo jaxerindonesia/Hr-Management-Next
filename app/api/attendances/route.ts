@@ -23,8 +23,9 @@ export async function GET(req: NextRequest) {
     const scopedTenantId = ensureTenantScope(auth.user);
     if (scopedTenantId) where.tenantId = scopedTenantId;
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
-    if (!["superadmin", "admin"].includes(normalizedRole)) where.userId = auth.user.id;
-
+    const isAdminRole = normalizedRole !== "karyawan";
+    if (!isAdminRole) where.userId = auth.user.id;
+    
     if (search) {
       where.user = {
         name: { contains: search, mode: "insensitive" },

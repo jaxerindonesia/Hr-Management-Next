@@ -10,18 +10,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CategoryFormState } from "../types";
+import type { CategoryFormDto } from "@/lib/dto/finance-form";
 
 type Props = {
   open: boolean;
   loading: boolean;
-  form: CategoryFormState;
+  form: CategoryFormDto;
   onOpenChange: (open: boolean) => void;
-  onChange: (form: CategoryFormState) => void;
+  onChange: (form: CategoryFormDto) => void;
   onSubmit: () => void;
 };
 
-export default function CategoryDialog({
+export default function FormData({
   open,
   loading,
   form,

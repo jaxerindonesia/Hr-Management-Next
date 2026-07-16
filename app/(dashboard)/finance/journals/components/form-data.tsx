@@ -12,27 +12,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Account, JournalDetail, JournalFormState, Partner } from "../types";
+import type { AccountDto } from "@/lib/dto/finance-account";
+import { formatCurrency } from "@/lib/helper/format-currency";
+import type { JournalDetailDto, JournalFormDto } from "@/lib/dto/finance-journal";
+import type { PartnerDto } from "@/lib/dto/finance-partner";
 import { ListPlus } from "lucide-react";
 
 type Props = {
   open: boolean;
   loading: boolean;
   readOnly?: boolean;
-  accountOptions: Account[];
-  customerOptions: Partner[];
-  vendorOptions: Partner[];
-  form: JournalFormState;
+  accountOptions: AccountDto[];
+  customerOptions: PartnerDto[];
+  vendorOptions: PartnerDto[];
+  form: JournalFormDto;
   onOpenChange: (open: boolean) => void;
-  onChange: (form: JournalFormState) => void;
+  onChange: (form: JournalFormDto) => void;
   onSubmit: () => void;
   onGenerateJournalNo: () => void;
   onAddDetail: () => void;
   onRemoveDetail: (index: number) => void;
-  onChangeDetail: (index: number, detail: JournalDetail) => void;
+  onChangeDetail: (index: number, detail: JournalDetailDto) => void;
 };
 
-export default function JournalDialog({
+export default function FormData({
   open,
   loading,
   readOnly = false,
@@ -61,7 +64,7 @@ export default function JournalDialog({
 
   const updateDetailRelation = (index: number, value: "none" | "customer" | "vendor") => {
     const current = form.details[index];
-    const next: JournalDetail = {
+    const next: JournalDetailDto = {
       ...current,
       relationType: value,
       customerId: value === "customer" ? current.customerId : undefined,
@@ -338,8 +341,8 @@ export default function JournalDialog({
             </div>
             <div className="grid gap-3 border-t pt-3 pr-3 text-sm font-medium text-slate-700 md:grid-cols-4">
               <div className="md:col-span-2">Total</div>
-              <div className="whitespace-nowrap">Debit: <b>Rp {totalDebit.toLocaleString("id-ID")}</b></div>
-              <div className="whitespace-nowrap">Credit: <b>Rp {totalCredit.toLocaleString("id-ID")}</b></div>
+              <div className="whitespace-nowrap">Debit: <b>{formatCurrency(totalDebit)}</b></div>
+              <div className="whitespace-nowrap">Credit: <b>{formatCurrency(totalCredit)}</b></div>
             </div>
           </div>
         </div>

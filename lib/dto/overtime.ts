@@ -31,13 +31,10 @@ export interface OvertimeDto {
   } | null;
   approvalDecisions?: {
     approverUserId: string;
+    approverUser: { name: string };
     status: "PENDING" | "APPROVED" | "REJECTED";
     reason?: string | null;
     decidedAt?: string | null;
-    approverUser?: {
-      id: string;
-      name: string;
-    } | null;
   }[];
 }
 

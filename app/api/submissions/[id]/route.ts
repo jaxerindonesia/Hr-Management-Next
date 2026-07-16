@@ -23,7 +23,7 @@ export async function GET(_: Request, { params }: Params) {
     });
 
     if (!submission) return NextResponse.json({ message: "Submission not found" }, { status: 404 });
-    return NextResponse.json(submission);
+    return NextResponse.json({ message: "Success", data: submission });
   } catch {
     return NextResponse.json({ message: "Failed to retrieve submission" }, { status: 500 });
   }

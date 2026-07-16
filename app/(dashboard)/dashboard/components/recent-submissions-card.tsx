@@ -21,7 +21,7 @@ type Props = {
 
 export default function RecentSubmissionsCard({ recentSubmissions }: Props) {
   return (
-    <div className="col-span-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 lg:col-span-2">
+    <div className="col-span-1 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800 lg:col-span-2">
       <div className="mb-4 flex items-center gap-2">
         <ClipboardList className="h-5 w-5 text-orange-500" />
         <h3 className="font-semibold dark:text-white">Pengajuan Terbaru</h3>
@@ -40,7 +40,10 @@ export default function RecentSubmissionsCard({ recentSubmissions }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {recentSubmissions.map((submission) => (
+              {recentSubmissions.map((submission) => {
+                const normalizedStatus = submission.status.toLowerCase();
+
+                return (
                 <tr key={submission.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="py-3 font-medium dark:text-white">{submission.user?.name ?? "-"}</td>
                   <td className="py-3 text-gray-600 dark:text-gray-300">{submission.submissionType?.name ?? "-"}</td>
@@ -57,12 +60,13 @@ export default function RecentSubmissionsCard({ recentSubmissions }: Props) {
                     })}
                   </td>
                   <td className="py-3">
-                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColor[submission.status] ?? "bg-gray-500/20 text-gray-400"}`}>
-                      {statusLabel[submission.status] ?? submission.status}
+                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColor[normalizedStatus] ?? "bg-gray-500/20 text-gray-400"}`}>
+                      {statusLabel[normalizedStatus] ?? submission.status}
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

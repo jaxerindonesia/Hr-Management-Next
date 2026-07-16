@@ -18,18 +18,23 @@ export async function GET(_: Request, { params }: Params) {
     if (auth.error) return auth.error;
     const scopedTenantId = ensureTenantScope(auth.user);
 
-    const payroll = await prisma.payroll.findFirst({
+    const item = await prisma.payroll.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      include: {
+        user: {
+          select: { id: true, name: true, position: true, department: true },
+        },
+      },
     });
 
-    if (!payroll) {
+    if (!item) {
       return NextResponse.json(
         { message: "Payroll not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(payroll);
+    return NextResponse.json({ message: "Success", data: item });
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to retrieve payroll" },

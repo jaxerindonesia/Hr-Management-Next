@@ -5,6 +5,7 @@ import { SubmissionTypeDto } from "@/lib/dto/submission-type";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -24,10 +25,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function FormData({
+  isOpen,
   initialData,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   initialData?: SubmissionDto;
   onClose: () => void;
   onSuccess: () => void;
@@ -55,7 +58,7 @@ export default function FormData({
       if (!res.ok) throw new Error("Gagal mengambil data tipe pengajuan");
       const json = await res.json();
       setSubmissionType(json.data || []);
-    } catch (err) {
+    } catch {
       toast.error("Gagal memuat tipe pengajuan");
     }
   };
@@ -66,7 +69,7 @@ export default function FormData({
       if (!res.ok) throw new Error("Gagal mengambil data karyawan");
       const json = await res.json();
       setEmployees(json.data || []);
-    } catch (error) {
+    } catch {
       toast.error("Gagal memuat data karyawan");
     }
   };
@@ -95,7 +98,7 @@ export default function FormData({
         `Data cuti berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
 
-      onSuccess && onSuccess();
+      onSuccess();
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
@@ -112,7 +115,7 @@ export default function FormData({
   }, []);
 
   useEffect(() => {
-    if (userData.role && userData.role !== "Super Admin") {
+    if (userData.role && userData.role === "Karyawan") {
       setFormData((prev) => ({
         ...prev,
         userId: userData.id,
@@ -120,13 +123,36 @@ export default function FormData({
     }
   }, [userData]);
 
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+      return;
+    }
+
+    setFormData({
+      userId: "",
+      submissionTypeId: "",
+      startDate: "",
+      endDate: "",
+      reason: "",
+      status: "PENDING",
+      approvedBy: null,
+      approvedAt: null,
+    });
+  }, [initialData]);
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Pengajuan Cuti" : "Tambah Pengajuan Cuti"}
           </DialogTitle>
+          <DialogDescription>
+            {formData.id
+              ? "Perbarui detail pengajuan cuti yang sudah dibuat."
+              : "Lengkapi form untuk membuat pengajuan cuti baru."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -135,17 +161,15 @@ export default function FormData({
             <Select
               value={
                 formData.userId ||
-                (userData.role !== "Super Admin" ? userData.id : "")
+                (userData.role === "Karyawan" ? userData.id : "")
               }
               onValueChange={(val) => {
-                if (userData.role === "Super Admin") {
-                  setFormData({
-                    ...formData,
-                    userId: val,
-                  });
-                }
+                setFormData({
+                  ...formData,
+                  userId: val,
+                });
               }}
-              disabled={userData.role !== "Super Admin"}
+              disabled={userData.role === "Karyawan"}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={"Pilih Karyawan"} />

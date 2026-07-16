@@ -1,383 +1,178 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Search,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { toast } from "sonner";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import DynamicPage from "@/components/dynamic-page";
 import { RoleDto } from "@/lib/dto/role";
-import FormData from "./components/form-data";
 import { usePermission } from "@/lib/helper/check-role";
-import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import FormData from "./components/form-data";
+import {
+  columnFormats,
+  headerToolbar,
+  ITEMS_PER_PAGE,
+  renderActions,
+} from "./page.config";
 
-export default function RolesPage() {
-  const { checkRole, checkRoleMulti } = usePermission();
-  const [roles, setRoles] = useState<any[]>([]);
+const DEFAULT_FORM_DATA: RoleDto = {
+  name: "",
+  permission: {},
+};
+
+export default function Page() {
+  const { checkRole } = usePermission();
+  const [data, setData] = useState<RoleDto[]>([]);
   const [total, setTotal] = useState(0);
-  const [showModal, setShowModal] = useState(false);
-  const [userData, setUserData] = useState({ role: "" });
-  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [formData, setFormData] = useState<RoleDto>({
-    name: "",
-    permission: {},
-  });
-
-  const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.ceil(total / itemsPerPage);
+  const [loading, setLoading] = useState(false);
 
-  const handleOpenModal = (data?: RoleDto) => {
-    if (data) setFormData(data);
+  const [showModal, setShowModal] = useState(false);
+  const [detailItem, setDetailItem] = useState<RoleDto | undefined>(undefined);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)),
+    [total],
+  );
+
+  const activeFilterCount = useMemo(
+    () => (searchTerm ? 1 : 0),
+    [searchTerm],
+  );
+
+  const clearFilters = useCallback(() => {
+    setSearchTerm("");
+  }, []);
+
+  const onAdd = useCallback(() => {
+    setDetailItem(undefined);
     setShowModal(true);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setFormData({
-      name: "",
-      permission: {},
-    });
-  };
+  const onView = useCallback((role: RoleDto) => {
+    setDetailItem(role);
+    setShowModal(true);
+  }, []);
 
-  const handleDelete = async (id: any) => {
+  const fetchRoles = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(ITEMS_PER_PAGE));
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
+
+      const response = await fetch(`/api/roles?${params.toString()}`);
+      if (!response.ok) throw new Error("Gagal mengambil data role");
+
+      const json = await response.json();
+      setData(json.data || []);
+      setTotal(json.total || 0);
+    } catch {
+      toast.error("Gagal mengambil data role");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, debouncedSearchTerm]);
+
+  const onDelete = useCallback(async (id: string) => {
     try {
       const res = await fetch(`/api/roles/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Gagal menghapus role");
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || "Gagal menghapus role");
+
       toast.success("Role berhasil dihapus!");
       fetchRoles();
     } catch (error) {
-      toast.error("Gagal menghapus role");
+      toast.error(`Gagal menghapus role: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setDeleteId(null);
     }
-  };
+  }, [fetchRoles]);
 
-  const fetchRoles = useCallback(async () => {
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(currentPage));
-      params.set("limit", String(itemsPerPage));
-      if (searchTerm) params.set("search", searchTerm);
+  const toolbar = useMemo(
+    () =>
+      headerToolbar({
+        actions: {
+          onAdd,
+          checkRole,
+        },
+        filters: {
+          show: showFilterPanel,
+          setShow: setShowFilterPanel,
+          activeCount: activeFilterCount,
+          clear: clearFilters,
+          searchTerm,
+          setSearchTerm,
+        },
+      }),
+    [
+      activeFilterCount,
+      checkRole,
+      clearFilters,
+      onAdd,
+      searchTerm,
+      showFilterPanel,
+    ],
+  );
 
-      const res = await fetch(`/api/roles?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data role");
-      const json = await res.json();
-      setRoles(json.data || []);
-      setTotal(json.total || 0);
-    } catch (err) {
-      toast.error("Gagal mengambil data role");
-    }
-  }, [currentPage, searchTerm]);
-
-  const renderPermissions = (permission: any) => {
-    if (Array.isArray(permission)) {
-      const grouped: Record<string, string[]> = {};
-      for (const item of permission) {
-        const model = String(item.model ?? "");
-        const action = String(item.action ?? "");
-        if (!grouped[model]) grouped[model] = [];
-        grouped[model].push(action);
-      }
-      const entries = Object.entries(grouped);
-      return (
-        <div className="space-y-2">
-          {entries.map(([model, actions]) => (
-            <div key={model} className="flex items-center flex-wrap gap-2">
-              <span className="px-2 py-1 text-xs rounded-md bg-gray-100 text-gray-700 dark:bg-gray-700/40 dark:text-gray-200 font-semibold">
-                {model}
-              </span>
-              {actions.map((a) => (
-                <span
-                  key={`${model}-${a}`}
-                  className="px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                >
-                  {a}
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (permission && typeof permission === "object") {
-      return (
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(permission).map(([k, v]: [string, any]) => {
-            if (v && typeof v === "object" && "read" in v) {
-              return (
-                <span
-                  key={k}
-                  className="px-2 py-1 text-xs rounded-md bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                >
-                  {k}: {v.read ? "read" : ""}
-                  {v.write ? "/write" : ""}
-                </span>
-              );
-            }
-            return (
-              <span
-                key={k}
-                className="px-2 py-1 text-xs rounded-md bg-gray-100 text-gray-700 dark:bg-gray-700/40 dark:text-gray-300"
-              >
-                {k}
-              </span>
-            );
-          })}
-        </div>
-      );
-    }
-
-    return (
-      <span className="text-sm text-gray-600 dark:text-gray-400">
-        {JSON.stringify(permission)}
-      </span>
-    );
-  };
-
-  // Reset to page 1 when search changes
   useEffect(() => {
-    setCurrentPage(1);
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => window.clearTimeout(timeout);
   }, [searchTerm]);
 
-  // Fetch data when page or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm]);
+
   useEffect(() => {
     fetchRoles();
   }, [fetchRoles]);
 
-  useEffect(() => {
-    const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
-    setUserData(data);
-  }, []);
-
   return (
     <>
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-            {checkRole("roles", "create") && (
-              <>
-                <Button
-                  onClick={() => handleOpenModal()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Tambah
-                </Button>
+      <DynamicPage<RoleDto>
+        toolbar={toolbar}
+        columns={columnFormats}
+        items={data}
+        total={total}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        loading={loading}
+        emptyMessage="Tidak ada data role"
+        bodyRowClassName="align-top"
+        onPageChange={setCurrentPage}
+        renderActions={(row) =>
+          renderActions({
+            row,
+            checkRole,
+            onView,
+            onDelete,
+            deleteId,
+            setDeleteId,
+          })
+        }
+      />
 
-                <div className="flex-1" />
-              </>
-            )}
-
-            {/* Search */}
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Cari nama role..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
-              {searchTerm && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b dark:border-gray-700">
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Nama Role
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Permissions
-                  </th>
-                  {checkRoleMulti("roles", ["update", "delete"]) && (
-                    <th className="text-right p-3 font-semibold dark:text-gray-300">
-                      Aksi
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {roles.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={userData.role === "Super Admin" ? 4 : 2}
-                      className="p-8 text-center text-gray-500 dark:text-gray-400"
-                    >
-                      Tidak ada data
-                    </td>
-                  </tr>
-                ) : (
-                  roles.map((role) => (
-                    <tr
-                      key={role.id}
-                      className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <td className="p-3 font-medium dark:text-white">
-                        {role.name}
-                      </td>
-                      <td className="p-3 dark:text-gray-300">
-                        {renderPermissions(role.permission)}
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          {checkRole("roles", "update") && (
-                            <button
-                              onClick={() => handleOpenModal(role)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                          )}
-                          {checkRole("roles", "delete") && (
-                            <Popover
-                              open={openPopoverId === role.id}
-                              onOpenChange={(isOpen) =>
-                                setOpenPopoverId(isOpen ? role.id! : null)
-                              }
-                            >
-                              <PopoverTrigger asChild>
-                                <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-56 space-y-3">
-                                <p className="text-sm">
-                                  Yakin ingin menghapus role ini?
-                                </p>
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setOpenPopoverId(null)}
-                                  >
-                                    Batal
-                                  </Button>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => handleDelete(role.id!)}
-                                  >
-                                    Hapus
-                                  </Button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Controls */}
-          <div className="flex items-center justify-between mt-4 pt-4 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Menampilkan{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {roles.length}
-              </span>{" "}
-              dari{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {total}
-              </span>{" "}
-              data
-              {totalPages > 0 && (
-                <span>
-                  {" "}
-                  — Halaman {currentPage} dari {totalPages}
-                </span>
-              )}
-            </p>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <div className="flex items-center gap-1">
-                  {(() => {
-                    const pages: (number | "...")[] = [];
-                    if (totalPages <= 5) {
-                      for (let i = 1; i <= totalPages; i++) pages.push(i);
-                    } else if (currentPage <= 3) {
-                      pages.push(1, 2, 3, "...", totalPages - 1, totalPages);
-                    } else if (currentPage >= totalPages - 2) {
-                      pages.push(1, 2, "...", totalPages - 2, totalPages - 1, totalPages);
-                    } else {
-                      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
-                    }
-                    return pages.map((page, idx) =>
-                      page === "..." ? (
-                        <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm select-none">...</span>
-                      ) : (
-                        <button key={page} onClick={() => setCurrentPage(page as number)}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === page ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"}`}>
-                          {page}
-                        </button>
-                      )
-                    );
-                  })()}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {showModal && (
-        <FormData
-          initialData={formData}
-          onClose={handleCloseModal}
-          onSuccess={fetchRoles}
-        />
-      )}
+      <FormData
+        isOpen={showModal}
+        initialData={detailItem ?? DEFAULT_FORM_DATA}
+        onClose={() => {
+          setShowModal(false);
+          setDetailItem(undefined);
+        }}
+        onSuccess={fetchRoles}
+      />
     </>
   );
 }

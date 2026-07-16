@@ -37,7 +37,7 @@ export const MASTER_PERMISSIONS = [
   },
   {
     model: "reimbursements",
-    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
+    actions: ["get-all", "get-by-id", "create", "update", "approve", "delete", "export"],
   },
   {
     model: "overtimes",

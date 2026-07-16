@@ -7,35 +7,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FormDataProps, FormState } from "../page.config";
 
-type Tenant = {
-  id: string;
-  companyName: string;
-  adminEmail: string;
-  isActive: boolean;
-  logoUrl: string | null;
-  logoDarkUrl: string | null;
-  subscriptionStart: string | null;
-  subscriptionEnd: string | null;
-};
-
-type FormDataProps = {
-  initialData?: Tenant;
-  onClose: () => void;
-  onSuccess: () => void;
-};
-
-type FormState = {
-  companyName: string;
-  adminEmail: string;
-  isActive: boolean;
-  logoUrl: string | null;
-  logoDarkUrl: string | null;
-  subscriptionStart: string;
-  subscriptionEnd: string;
-};
-
-export default function FormData({ initialData, onClose, onSuccess }: FormDataProps) {
+export default function FormData({
+  isOpen,
+  initialData,
+  onClose,
+  onSuccess,
+}: FormDataProps) {
   const [loading, setLoading] = useState(false);
   const [imageLightBase64, setImageLightBase64] = useState<string | null>(null);
   const [imageDarkBase64, setImageDarkBase64] = useState<string | null>(null);
@@ -134,7 +120,7 @@ export default function FormData({ initialData, onClose, onSuccess }: FormDataPr
       if (!res.ok) throw new Error(json.message || "Gagal menyimpan tenant");
 
       toast.success(initialData?.id ? "Tenant berhasil diupdate" : "Tenant berhasil ditambahkan");
-      onSuccess();
+      await onSuccess();
       onClose();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Gagal menyimpan tenant";
@@ -145,7 +131,7 @@ export default function FormData({ initialData, onClose, onSuccess }: FormDataPr
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initialData?.id ? "Edit Tenant" : "Tambah Tenant"}</DialogTitle>
@@ -173,14 +159,20 @@ export default function FormData({ initialData, onClose, onSuccess }: FormDataPr
 
           <div className="space-y-2">
             <Label>Status</Label>
-            <select
+            <Select
               value={form.isActive ? "active" : "inactive"}
-              onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.value === "active" }))}
-              className="h-10 rounded-md border border-gray-300 dark:border-gray-600 px-3 text-sm w-full bg-white dark:bg-gray-700"
+              onValueChange={(value) =>
+                setForm((prev) => ({ ...prev, isActive: value === "active" }))
+              }
             >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Pilih Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

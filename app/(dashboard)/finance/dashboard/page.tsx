@@ -1,14 +1,12 @@
-import FinanceDashboardPage from "../components/finance-dashboard-page";
+import FinanceDashboardPage from "./components/finance-dashboard-page";
+import type { AccountCategoryDto } from "@/lib/dto/finance-account-category";
 import prisma from "@/lib/prisma";
 
 type DashboardAccount = {
   id: string;
   code: string;
   name: string;
-  accountCategory: {
-    code: string;
-    name: string;
-  } | null;
+  accountCategory: Pick<AccountCategoryDto, "code" | "name"> | null;
 };
 
 function getMonthKey(date: Date) {
