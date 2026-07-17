@@ -8,6 +8,7 @@ import { usePermission } from "@/lib/helper/check-role";
 import { DepartmentDto } from "@/lib/dto/department";
 import DynamicPage from "@/components/dynamic-page";
 import { formatDateId } from "@/lib/helper/date";
+import { parseApiError } from "@/lib/helper/response-api";
 import {
   buildBulkRecapHtml,
   columnFormats,
@@ -135,7 +136,11 @@ export default function EmployeesPage() {
       }
 
       const res = await fetch(`/api/users?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data untuk export"),
+        );
+      }
 
       const json = await res.json();
       const allData: UserDto[] = json.data || [];
@@ -212,8 +217,10 @@ export default function EmployeesPage() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data karyawan`);
-    } catch {
-      toast.error("Gagal mengexport data");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal mengexport data",
+      );
     } finally {
       setIsExporting(false);
     }
@@ -234,7 +241,11 @@ export default function EmployeesPage() {
       }
 
       const usersRes = await fetch(`/api/users?${params.toString()}`);
-      if (!usersRes.ok) throw new Error("Gagal mengambil data karyawan");
+      if (!usersRes.ok) {
+        throw new Error(
+          await parseApiError(usersRes, "Gagal mengambil data karyawan"),
+        );
+      }
 
       const usersJson = await usersRes.json();
       const allData: UserDto[] = usersJson.data || [];
@@ -316,8 +327,12 @@ export default function EmployeesPage() {
           ? `Menyiapkan ${printableRows.length} rekap. ${failedCount} gagal dimuat.`
           : `Menyiapkan ${printableRows.length} rekap karyawan`,
       );
-    } catch {
-      toast.error("Gagal menyiapkan download bulk");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal menyiapkan download bulk",
+      );
     } finally {
       setIsBulkDownloading(false);
     }
@@ -393,12 +408,18 @@ export default function EmployeesPage() {
       }
 
       const res = await fetch(`/api/users?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data karyawan");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data karyawan"),
+        );
+      }
       const json = await res.json();
       setData(json.data || []);
       setTotal(json.total || 0);
-    } catch {
-      toast.error("Gagal memuat data karyawan");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data karyawan",
+      );
     } finally {
       setLoading(false);
     }
@@ -407,22 +428,34 @@ export default function EmployeesPage() {
   const fetchDepartments = useCallback(async () => {
     try {
       const res = await fetch("/api/departments");
-      if (!res.ok) throw new Error("Gagal mengambil data departemen");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data departemen"),
+        );
+      }
       const json = await res.json();
       setDepartments(json.data || []);
-    } catch {
-      toast.error("Gagal memuat departemen");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat departemen",
+      );
     }
   }, []);
 
   const fetchTenants = useCallback(async () => {
     try {
       const res = await fetch("/api/tenants?page=1&limit=100");
-      if (!res.ok) throw new Error("Gagal mengambil data tenant");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data tenant"),
+        );
+      }
       const json = await res.json();
       setTenants(json.data || []);
-    } catch {
-      toast.error("Gagal memuat data tenant");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data tenant",
+      );
     }
   }, []);
 

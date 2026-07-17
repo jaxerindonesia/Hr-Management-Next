@@ -6,6 +6,7 @@ import type { AccountDto } from "@/lib/dto/finance-account";
 import type { JournalDetailDto, JournalDto, JournalFormDto } from "@/lib/dto/finance-journal";
 import type { PartnerDto } from "@/lib/dto/finance-partner";
 import { usePermission } from "@/lib/helper/check-role";
+import { parseApiError } from "@/lib/helper/response-api";
 import { toast } from "sonner";
 import JournalFormData from "./components/form-data";
 import {
@@ -116,6 +117,7 @@ export default function FinanceJournalsPage() {
       if (status !== "all") params.set("status", status);
 
       const response = await fetch(`${ENDPOINT}?${params.toString()}`);
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data jurnal"));
       const json: PaginatedResponse<JournalDto> = await response.json();
       setData(json.data || []);
       setTotal(json.total || 0);
@@ -220,7 +222,7 @@ export default function FinanceJournalsPage() {
       if (status !== "all") params.set("status", status);
 
       const response = await fetch(`${ENDPOINT}?${params.toString()}`);
-      if (!response.ok) throw new Error("Gagal mengambil data jurnal untuk export");
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data jurnal untuk export"));
 
       const json: PaginatedResponse<JournalDto> = await response.json();
       const rows = (json.data || []).map((journal) => {

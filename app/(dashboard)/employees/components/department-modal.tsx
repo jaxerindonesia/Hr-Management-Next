@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import { parseApiError } from "@/lib/helper/response-api";
 
 export default function DepartmentModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
@@ -36,7 +37,11 @@ export default function DepartmentModal({ isOpen, onClose }: { isOpen: boolean; 
         body: JSON.stringify({ name: newType.trim() }),
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal menambahkan departemen"),
+        );
+      }
 
       toast.success("Departemen berhasil ditambahkan");
       setNewType("");
@@ -54,24 +59,36 @@ export default function DepartmentModal({ isOpen, onClose }: { isOpen: boolean; 
         method: "DELETE",
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal menghapus departemen"),
+        );
+      }
 
       toast.success("Departemen berhasil dihapus");
 
       fetchDepartments();
-    } catch {
-      toast.error("Gagal menghapus departemen");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menghapus departemen",
+      );
     }
   };
 
   const fetchDepartments = async () => {
     try {
       const res = await fetch("/api/departments");
-      if (!res.ok) throw new Error("Gagal mengambil data departemen");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data departemen"),
+        );
+      }
       const json = await res.json();
       setDepartments(json.data || []);
-    } catch (err) {
-      toast.error("Gagal memuat departemen");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat departemen",
+      );
     }
   };
 

@@ -130,11 +130,11 @@ export const columnFormats: DefaultColumnFormat<PettyCashDto>[] = [
 
 export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
   <div>
-    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
       {actions.checkRole(modelName, "create") && (
         <Button
           onClick={actions.onAdd}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 sm:w-auto"
         >
           <Plus className="w-4 h-4" /> Tambah
         </Button>
@@ -145,7 +145,7 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
       <Button
         variant="outline"
         onClick={() => filters.setShow(!filters.show)}
-        className={`relative flex items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${filters.show
+        className={`relative flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2 transition-colors sm:w-auto ${filters.show
           ? "border-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30"
           : "border-gray-300 text-slate-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
           }`}
@@ -164,7 +164,7 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
           onClick={actions.onExport}
           disabled={actions.isExporting}
           variant="outline"
-          className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+          className="flex w-full items-center justify-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20 sm:w-auto"
         >
           <Download className="w-4 h-4" />
           {actions.isExporting ? "Mengexport..." : "Export Excel"}

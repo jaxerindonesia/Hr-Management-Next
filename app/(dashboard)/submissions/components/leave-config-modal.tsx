@@ -19,6 +19,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { parseApiError } from "@/lib/helper/response-api";
 
 interface SubmissionType {
   id: string;
@@ -59,20 +60,34 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
   const fetchConfigs = async () => {
     try {
       const res = await fetch("/api/leave-configs");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal memuat konfigurasi cuti"),
+        );
+      }
       const json = await res.json();
       setConfigs(json.data || []);
-    } catch {
-      toast.error("Gagal memuat konfigurasi cuti");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal memuat konfigurasi cuti",
+      );
     }
   };
 
   const fetchSubmissionTypes = async () => {
     try {
       const res = await fetch("/api/submission-types");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal memuat jenis cuti"));
+      }
       const json = await res.json();
       setSubmissionTypes(json.data || []);
-    } catch {
-      toast.error("Gagal memuat jenis cuti");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat jenis cuti",
+      );
     }
   };
 
@@ -119,8 +134,7 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Gagal menyimpan");
+        throw new Error(await parseApiError(res, "Gagal menyimpan"));
       }
 
       toast.success(editingId ? "Konfigurasi berhasil diupdate!" : "Konfigurasi berhasil dibuat!");
@@ -138,12 +152,18 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
   const handleDelete = async (id: string) => {
     try {
       const res = await fetch(`/api/leave-configs/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Gagal menghapus");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal menghapus"));
+      }
       toast.success("Konfigurasi berhasil dihapus!");
       setOpenPopoverId(null);
       fetchConfigs();
-    } catch {
-      toast.error("Gagal menghapus konfigurasi");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal menghapus konfigurasi",
+      );
     }
   };
 

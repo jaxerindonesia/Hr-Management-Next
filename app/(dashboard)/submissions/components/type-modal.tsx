@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Trash2, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { parseApiError } from "@/lib/helper/response-api";
 
 export default function TypeModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [submissionTypes, setSubmissionTypes] = useState<SubmissionTypeDto[]>(
@@ -37,7 +38,9 @@ export default function TypeModal({ isOpen, onClose }: { isOpen: boolean, onClos
         body: JSON.stringify({ name: newType.trim(), approverUserIds }),
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal menambahkan jenis"));
+      }
 
       toast.success("Jenis berhasil ditambahkan");
       setNewType("");
@@ -56,24 +59,36 @@ export default function TypeModal({ isOpen, onClose }: { isOpen: boolean, onClos
         method: "DELETE",
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal menghapus jenis"));
+      }
 
       toast.success("Jenis berhasil dihapus");
 
       fetchSubmissionTypes();
-    } catch {
-      toast.error("Gagal menghapus jenis");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menghapus jenis",
+      );
     }
   };
 
   const fetchSubmissionTypes = async () => {
     try {
       const res = await fetch("/api/submission-types");
-      if (!res.ok) throw new Error("Gagal mengambil data tipe pengajuan");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data tipe pengajuan"),
+        );
+      }
       const json = await res.json();
       setSubmissionTypes(json.data || []);
-    } catch {
-      toast.error("Gagal memuat tipe pengajuan");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal memuat tipe pengajuan",
+      );
     }
   };
 

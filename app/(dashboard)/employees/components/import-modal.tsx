@@ -21,6 +21,7 @@ import {
   normalizeEmployeeImportRow,
   validateEmployeeImportRow,
 } from "@/lib/helper/employee-import";
+import { parseApiError } from "@/lib/helper/response-api";
 
 type ImportErrorItem = {
   row: number;
@@ -136,8 +137,12 @@ export default function ImportModal({
       );
 
       toast.success("Template import berhasil didownload");
-    } catch {
-      toast.error("Gagal mendownload template import");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal mendownload template import",
+      );
     } finally {
       setIsDownloading(false);
     }
@@ -220,10 +225,12 @@ export default function ImportModal({
           }),
         });
 
-        const json = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(json.message || "Gagal mengimport batch data");
+          throw new Error(
+            await parseApiError(response, "Gagal mengimport batch data"),
+          );
         }
+        const json = await response.json().catch(() => ({}));
 
         const data = json.data as {
           created?: number;

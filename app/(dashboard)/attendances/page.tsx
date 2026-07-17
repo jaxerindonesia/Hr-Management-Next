@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { AttendanceDto } from "@/lib/dto/attendance";
 import DetailData from "./components/detail-data";
 import { usePermission } from "@/lib/helper/check-role";
-import { haversineKm, parseApiError } from "@/lib/helper/attendance";
+import { haversineKm } from "@/lib/helper/attendance";
+import { parseApiError } from "@/lib/helper/response-api";
 import { getJakartaDayKey } from "@/lib/helper/date";
 import { ensureFaceModelLoaded } from "@/lib/helper/face-models";
 import FaceRecognitionModal from "./components/face-recognition-modal";
@@ -249,7 +250,7 @@ export default function Page() {
   const fetchAttendanceConfig = useCallback(async () => {
     try {
       const res = await fetch("/api/attendance-config");
-      if (!res.ok) throw new Error("Gagal mengambil konfigurasi kehadiran");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil konfigurasi kehadiran"));
       const json = await res.json();
       const config = json?.data || DEFAULT_ATTENDANCE_CONFIG;
       setAttendanceConfig({
@@ -264,8 +265,9 @@ export default function Page() {
             : DEFAULT_ATTENDANCE_CONFIG.workingDays,
         isDefault: Boolean(json?.isDefault),
       });
-    } catch {
+    } catch (error) {
       setAttendanceConfig(DEFAULT_ATTENDANCE_CONFIG);
+      toast.error(error instanceof Error ? error.message : "Gagal mengambil konfigurasi kehadiran");
     }
   }, []);
 
@@ -284,7 +286,7 @@ export default function Page() {
           if (filterStatus !== "all") params.set("status", filterStatus);
 
           const res = await fetch(`/api/attendances?${params.toString()}`);
-          if (!res.ok) throw new Error("Gagal mengambil data attendance");
+          if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data attendance"));
 
           const json = await res.json();
           setData(json.data || []);
@@ -297,15 +299,15 @@ export default function Page() {
           if (filterStatus !== "all") params.set("status", filterStatus);
 
           const res = await fetch(`/api/attendances/user/${user.id}?${params.toString()}`);
-          if (!res.ok) throw new Error("Gagal mengambil data attendance");
+          if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data attendance"));
 
           const json = await res.json();
           const data = json.data || [];
           setData(data);
           setTotal(json.total || 0);
         }
-      } catch {
-        toast.error("Gagal memuat data attendance");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Gagal memuat data attendance");
       } finally {
         setLoading(false);
       }
@@ -322,12 +324,13 @@ export default function Page() {
       params.set("limit", "1");
 
       const res = await fetch(`/api/attendances/user/${userId}?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data attendance hari ini");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data attendance hari ini"));
 
       const json = await res.json();
       setTodayAttendance(json.data?.[0] || null);
-    } catch {
+    } catch (error) {
       setTodayAttendance(null);
+      toast.error(error instanceof Error ? error.message : "Gagal mengambil data attendance hari ini");
     }
   }, []);
 
@@ -344,7 +347,7 @@ export default function Page() {
         if (filterStatus !== "all") params.set("status", filterStatus);
 
         const res = await fetch(`/api/attendances?${params.toString()}`);
-        if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+        if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data untuk export"));
 
         const json = await res.json();
         allData = json.data || [];
@@ -355,7 +358,7 @@ export default function Page() {
         if (filterStatus !== "all") params.set("status", filterStatus);
 
         const res = await fetch(`/api/attendances/user/${userData.id}?${params.toString()}`);
-        if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+        if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data untuk export"));
 
         const json = await res.json();
         allData = json.data || [];
@@ -430,8 +433,8 @@ export default function Page() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data kehadiran`);
-    } catch {
-      toast.error("Gagal mengexport data");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengexport data");
     } finally {
       setIsExporting(false);
     }
@@ -749,12 +752,12 @@ export default function Page() {
         method: "DELETE",
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal menghapus data"));
 
       toast.success("Data berhasil dihapus");
       fetchAttendance(userData);
-    } catch {
-      toast.error("Gagal menghapus data");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus data");
     } finally {
       setDeleteId(null);
     }

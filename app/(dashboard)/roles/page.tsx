@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DynamicPage from "@/components/dynamic-page";
 import { RoleDto } from "@/lib/dto/role";
 import { usePermission } from "@/lib/helper/check-role";
+import { parseApiError } from "@/lib/helper/response-api";
 import { toast } from "sonner";
 import FormData from "./components/form-data";
 import {
@@ -67,13 +68,13 @@ export default function Page() {
       if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
 
       const response = await fetch(`/api/roles?${params.toString()}`);
-      if (!response.ok) throw new Error("Gagal mengambil data role");
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data role"));
 
       const json = await response.json();
       setData(json.data || []);
       setTotal(json.total || 0);
-    } catch {
-      toast.error("Gagal mengambil data role");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengambil data role");
     } finally {
       setLoading(false);
     }
