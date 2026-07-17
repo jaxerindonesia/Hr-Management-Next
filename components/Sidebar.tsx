@@ -329,7 +329,7 @@ export default function Sidebar() {
                           width={140}
                           height={45}
                           priority
-                          className="max-h-[45px] w-auto rounded object-contain dark:brightness-0 dark:invert"
+                          className="max-h-[45px] w-auto rounded object-contain"
                           unoptimized
                         />
 
