@@ -49,7 +49,7 @@ export const MASTER_PERMISSIONS = [
   },
   {
     model: "finance",
-    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
+    actions: ["get-all", "get-by-id", "create", "update", "delete", "export", "import"],
   },
   {
     model: "tenants",

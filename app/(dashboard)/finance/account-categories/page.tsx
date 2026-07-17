@@ -31,6 +31,7 @@ export default function FinanceAccountCategoriesPage() {
   const { checkRole } = usePermission();
   const [data, setData] = useState<AccountCategoryDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -140,12 +141,56 @@ export default function FinanceAccountCategoriesPage() {
     }
   }, [fetchData]);
 
+  const onExport = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", "1");
+      params.set("limit", "999999");
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
+
+      const response = await fetch(`${ENDPOINT}?${params.toString()}`);
+      if (!response.ok) throw new Error("Gagal mengambil data kategori akun untuk export");
+
+      const json: PaginatedResponse<AccountCategoryDto> = await response.json();
+      const rows = (json.data || []).map((item) => ({
+        Kode: item.code || "-",
+        Nama: item.name || "-",
+      }));
+
+      if (!rows.length) {
+        toast.error("Tidak ada data kategori akun untuk didownload");
+        return;
+      }
+
+      const XLSX = await import("xlsx");
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Kategori Akun");
+
+      type ExportRow = (typeof rows)[number];
+      const headers = Object.keys(rows[0] ?? {}) as Array<keyof ExportRow>;
+      worksheet["!cols"] = headers.map((header) => ({
+        wch: Math.max(String(header).length, ...rows.map((row) => String(row[header] ?? "").length)) + 2,
+      }));
+
+      XLSX.writeFile(workbook, `kategori-akun-${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success(`Berhasil mengexport ${rows.length} data kategori akun`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengexport kategori akun");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [debouncedSearchTerm]);
+
   const toolbar = useMemo(
     () =>
       headerToolbar({
         actions: {
           onAdd,
+          onExport,
           checkRole,
+          isExporting,
         },
         filters: {
           show: showFilterPanel,
@@ -156,7 +201,7 @@ export default function FinanceAccountCategoriesPage() {
           setSearchTerm,
         },
       }),
-    [activeFilterCount, checkRole, clearFilters, onAdd, searchTerm, showFilterPanel],
+    [activeFilterCount, checkRole, clearFilters, isExporting, onAdd, onExport, searchTerm, showFilterPanel],
   );
 
   return (

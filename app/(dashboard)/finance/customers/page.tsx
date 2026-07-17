@@ -5,6 +5,7 @@ import DynamicPage from "@/components/dynamic-page";
 import type { PartnerDto, PartnerFormDto } from "@/lib/dto/finance-partner";
 import { toast } from "sonner";
 import { usePermission } from "@/lib/helper/check-role";
+import PartnerImportModal from "../components/partner-import-modal";
 import PartnerDialog from "../components/partner-form-data";
 import {
   columnFormats,
@@ -35,11 +36,13 @@ export default function FinanceCustomersPage() {
   const { checkRole } = usePermission();
   const [data, setData] = useState<PartnerDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showFormModal, setShowFormModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [detailItem, setDetailItem] = useState<PartnerFormDto>(DEFAULT_FORM);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -153,6 +156,51 @@ export default function FinanceCustomersPage() {
     }
   }, [fetchData]);
 
+  const onExport = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", "1");
+      params.set("limit", "999999");
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
+
+      const res = await fetch(`${ENDPOINT}?${params.toString()}`);
+      if (!res.ok) throw new Error("Gagal mengambil data customer untuk export");
+
+      const json: PaginatedResponse<PartnerDto> = await res.json();
+      const rows = (json.data || []).map((item) => ({
+        Kode: item.code || "-",
+        Nama: item.name || "-",
+        Telepon: item.phone || "-",
+        Email: item.email || "-",
+        Alamat: item.address || "-",
+      }));
+
+      if (!rows.length) {
+        toast.error("Tidak ada data customer untuk didownload");
+        return;
+      }
+
+      const XLSX = await import("xlsx");
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Customer");
+
+      type ExportRow = (typeof rows)[number];
+      const headers = Object.keys(rows[0] ?? {}) as Array<keyof ExportRow>;
+      worksheet["!cols"] = headers.map((header) => ({
+        wch: Math.max(String(header).length, ...rows.map((row) => String(row[header] ?? "").length)) + 2,
+      }));
+
+      XLSX.writeFile(workbook, `data-customer-${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success(`Berhasil mengexport ${rows.length} data customer`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengexport data customer");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [debouncedSearchTerm]);
+
   const toolbar = useMemo(
     () =>
       headerToolbar({
@@ -160,6 +208,10 @@ export default function FinanceCustomersPage() {
         actions: {
           onAdd,
           addLabel: "Tambah Customer",
+          onExport,
+          onImport: () => setShowImportModal(true),
+          isExporting,
+          checkRole,
         },
         filters: {
           show: showFilterPanel,
@@ -171,7 +223,7 @@ export default function FinanceCustomersPage() {
           searchPlaceholder: "Cari customer...",
         },
       }),
-    [activeFilterCount, clearFilters, onAdd, searchTerm, showFilterPanel],
+    [activeFilterCount, checkRole, clearFilters, isExporting, onAdd, onExport, searchTerm, showFilterPanel],
   );
 
   return (
@@ -212,6 +264,16 @@ export default function FinanceCustomersPage() {
         }}
         onChange={setDetailItem}
         onSubmit={save}
+      />
+
+      <PartnerImportModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        endpoint="/api/finance/customers/import"
+        entityLabel="Customer"
+        onSuccess={() => {
+          void fetchData();
+        }}
       />
     </>
   );
