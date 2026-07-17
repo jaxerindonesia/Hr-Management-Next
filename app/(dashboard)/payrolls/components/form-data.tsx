@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { months } from "@/lib/helper/date";
 import { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
+import { parseApiError } from "@/lib/helper/response-api";
 
 export default function FormData({
   isOpen,
@@ -47,11 +48,17 @@ export default function FormData({
  const fetchEmployees = async () => {
    try {
      const res = await fetch("/api/users");
-        if (!res.ok) throw new Error("Gagal mengambil data karyawan");
+        if (!res.ok) {
+          throw new Error(
+            await parseApiError(res, "Gagal mengambil data karyawan"),
+          );
+        }
         const json = await res.json();
         setEmployees(json.data || []);
     } catch (error) {
-        toast.error("Gagal memuat data karyawan");
+        toast.error(
+          error instanceof Error ? error.message : "Gagal memuat data karyawan",
+        );
     }
  };
 
@@ -67,7 +74,7 @@ export default function FormData({
        body: JSON.stringify(formData),
      });
 
-     if (!res.ok) throw new Error("Gagal menyimpan data");   
+     if (!res.ok) throw new Error(await parseApiError(res, "Gagal menyimpan data"));   
      toast.success(
        `Data gaji berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
      );

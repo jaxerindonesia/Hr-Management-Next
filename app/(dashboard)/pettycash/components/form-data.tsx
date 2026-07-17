@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserDto } from "@/lib/dto/user";
+import { parseApiError } from "@/lib/helper/response-api";
 
 const CATEGORIES = [
   "Operasional",
@@ -65,11 +66,17 @@ export default function PettyCashFormData({
   const fetchEmployees = async () => {
     try {
       const res = await fetch("/api/users");
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data karyawan"),
+        );
+      }
       const json = await res.json();
       setEmployees(json.data || []);
-    } catch {
-      toast.error("Gagal memuat data karyawan");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data karyawan",
+      );
     }
   };
 
@@ -92,7 +99,9 @@ export default function PettyCashFormData({
         body: JSON.stringify(formData),
       });
 
-      if (!res.ok) throw new Error("Gagal menyimpan data");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal menyimpan data"));
+      }
 
       toast.success(
         `Petty Cash berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
@@ -100,8 +109,12 @@ export default function PettyCashFormData({
 
       onSuccess();
       onClose();
-    } catch (err) {
-      toast.error("Terjadi kesalahan saat menyimpan petty cash");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat menyimpan petty cash",
+      );
     } finally {
       setLoading(false);
     }

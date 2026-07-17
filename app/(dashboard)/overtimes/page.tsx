@@ -7,6 +7,7 @@ import { usePermission } from "@/lib/helper/check-role";
 import type { OvertimeConfigDto, OvertimeDto } from "@/lib/dto/overtime";
 import type { UserDto } from "@/lib/dto/user";
 import type { ApiResponse } from "@/lib/utils";
+import { parseApiError } from "@/lib/helper/response-api";
 import ConfigModal from "./components/config-modal";
 import FormData from "./components/form-data";
 import { DEFAULT_CONFIG, ITEMS_PER_PAGE, columnFormats, headerToolbar, renderActions } from "./page.config";
@@ -70,7 +71,7 @@ export default function Page() {
       if (filterStatus !== "all") params.set("status", filterStatus);
 
       const response = await fetch(`/api/overtimes?${params.toString()}`);
-      if (!response.ok) throw new Error("Gagal mengambil data untuk export");
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data untuk export"));
 
       const json: ApiResponse = await response.json();
       const allData: OvertimeDto[] = json.data || [];
@@ -90,8 +91,8 @@ export default function Page() {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data Overtime");
       XLSX.writeFile(workbook, `data-overtime-${new Date().toISOString().split("T")[0]}.xlsx`);
       toast.success(`Berhasil mengexport ${rows.length} data overtime`);
-    } catch {
-      toast.error("Gagal mengexport data");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengexport data");
     } finally {
       setIsExporting(false);
     }
@@ -263,7 +264,11 @@ export default function Page() {
   const fetchConfig = useCallback(async () => {
     try {
       const response = await fetch("/api/overtime-config");
-      if (!response.ok) throw new Error("Gagal memuat konfigurasi overtime");
+      if (!response.ok) {
+        throw new Error(
+          await parseApiError(response, "Gagal memuat konfigurasi overtime"),
+        );
+      }
       const json = await response.json();
       const nextConfig = json.data || DEFAULT_CONFIG;
       const nextApproverUserIds = (nextConfig.approverConfigs || []).map(
@@ -273,28 +278,38 @@ export default function Page() {
       setDraftConfig(nextConfig);
       setSavedApproverUserIds(nextApproverUserIds);
       setDraftApproverUserIds(nextApproverUserIds);
-    } catch {
+    } catch (error) {
       setSavedConfig(DEFAULT_CONFIG);
       setDraftConfig(DEFAULT_CONFIG);
       setSavedApproverUserIds([]);
       setDraftApproverUserIds([]);
-      toast.error("Gagal memuat konfigurasi lembur");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal memuat konfigurasi lembur",
+      );
     }
   }, []);
 
   const fetchApproverUsers = useCallback(async () => {
     try {
       const response = await fetch("/api/users?limit=9999");
-      if (!response.ok) throw new Error("Gagal memuat data approver");
+      if (!response.ok) {
+        throw new Error(
+          await parseApiError(response, "Gagal memuat data approver"),
+        );
+      }
       const json = await response.json();
       const userItems: UserDto[] = json.data || [];
       setUsers(userItems.filter((user) => {
         const roleName = user.role?.name?.trim().toLowerCase();
         return Boolean(roleName) && roleName !== "karyawan";
       }));
-    } catch {
+    } catch (error) {
       setUsers([]);
-      toast.error("Gagal memuat data approver");
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data approver",
+      );
     }
   }, []);
 
@@ -317,8 +332,10 @@ export default function Page() {
 
       setData(json.data ?? []);
       setTotal(json.total ?? 0);
-    } catch {
-      toast.error("Gagal memuat data lembur");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data lembur",
+      );
     } finally {
       setLoading(false);
     }
@@ -328,11 +345,15 @@ export default function Page() {
     setLoading(true);
     try {
       const response = await fetch(`/api/overtimes/${id}`);
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Gagal memuat detail lembur"));
+      }
       const json = await response.json();
       setDetailItem(json.data || undefined);
-    } catch {
-      toast.error("Gagal memuat detail lembur");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat detail lembur",
+      );
     } finally {
       setLoading(false);
     }

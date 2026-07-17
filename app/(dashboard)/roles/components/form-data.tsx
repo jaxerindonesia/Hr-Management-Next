@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RoleDto } from "@/lib/dto/role";
+import { parseApiError } from "@/lib/helper/response-api";
 
 type MasterPermission = {
   model: string;
@@ -103,7 +104,9 @@ export default function FormData({
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Gagal menyimpan role");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal menyimpan role"));
+      }
 
       toast.success(
         `Role berhasil ${initialData?.id ? "diupdate" : "ditambahkan"}`,
@@ -123,7 +126,11 @@ export default function FormData({
   const fetchMasterPermissions = useCallback(async () => {
     try {
       const res = await fetch("/api/roles/master-permissions");
-      if (!res.ok) throw new Error("Gagal mengambil master permission");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil master permission"),
+        );
+      }
 
       const json = await res.json();
       const data = json.data || [];
@@ -148,7 +155,11 @@ export default function FormData({
       setPermissions(initialPermissionState);
     } catch (error) {
       console.log(error);
-      toast.error("Gagal memuat daftar permission");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal memuat daftar permission",
+      );
     }
   }, [initialData]);
 

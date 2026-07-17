@@ -5,6 +5,7 @@ import DynamicPage from "@/components/dynamic-page";
 import type { AccountCategoryDto } from "@/lib/dto/finance-account-category";
 import type { CategoryFormDto } from "@/lib/dto/finance-form";
 import { usePermission } from "@/lib/helper/check-role";
+import { parseApiError } from "@/lib/helper/response-api";
 import { toast } from "sonner";
 import FormData from "./components/form-data";
 import {
@@ -57,6 +58,7 @@ export default function FinanceAccountCategoriesPage() {
       if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
 
       const response = await fetch(`${ENDPOINT}?${params.toString()}`);
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data kategori akun"));
       const json: PaginatedResponse<AccountCategoryDto> = await response.json();
       setData(json.data || []);
       setTotal(json.total || 0);
@@ -150,7 +152,7 @@ export default function FinanceAccountCategoriesPage() {
       if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
 
       const response = await fetch(`${ENDPOINT}?${params.toString()}`);
-      if (!response.ok) throw new Error("Gagal mengambil data kategori akun untuk export");
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data kategori akun untuk export"));
 
       const json: PaginatedResponse<AccountCategoryDto> = await response.json();
       const rows = (json.data || []).map((item) => ({

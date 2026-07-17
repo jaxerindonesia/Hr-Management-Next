@@ -31,6 +31,7 @@ import {
   toDate,
 } from "@/lib/helper/date";
 import { normalizeAttachmentType } from "@/lib/helper/attachment";
+import { parseApiError } from "@/lib/helper/response-api";
 import { TaskManagementDialogs, type TaskDetail } from "./components/task-management-dialogs";
 import { TaskManagementWorkspace } from "./components/task-management-workspace";
 
@@ -350,11 +351,15 @@ export default function TaskManagementPage() {
     try {
       setLoadingDepartments(true);
       const res = await fetch("/api/task-managements/departments");
-      if (!res.ok) throw new Error("Gagal memuat department");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal memuat department"));
+      }
       const json = await res.json();
       setDepartments(json.data || []);
-    } catch {
-      toast.error("Gagal memuat department");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat department",
+      );
     } finally {
       setLoadingDepartments(false);
     }
@@ -365,11 +370,15 @@ export default function TaskManagementPage() {
       setLoadingBoard(true);
       const params = new URLSearchParams({ departmentId });
       const res = await fetch(`/api/task-managements/lists?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal memuat board");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal memuat board"));
+      }
       const json = await res.json();
       setBoard(json.data || null);
-    } catch {
-      toast.error("Gagal memuat board tugas");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat board tugas",
+      );
     } finally {
       setLoadingBoard(false);
     }
@@ -379,11 +388,15 @@ export default function TaskManagementPage() {
     try {
       const params = new URLSearchParams({ departmentId });
       const res = await fetch(`/api/task-managements/categories?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal memuat kategori");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal memuat kategori"));
+      }
       const json = await res.json();
       setCategories(json.data || []);
-    } catch {
-      toast.error("Gagal memuat kategori");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat kategori",
+      );
     }
   }, []);
 
@@ -391,11 +404,19 @@ export default function TaskManagementPage() {
     try {
       const params = new URLSearchParams({ departmentId });
       const res = await fetch(`/api/task-managements/done-move-permissions?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal memuat hak pindah ke done");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal memuat hak pindah ke done"),
+        );
+      }
       const json = await res.json();
       setDonePermissionUserIds(Array.isArray(json.data?.userIds) ? json.data.userIds : []);
-    } catch {
-      toast.error("Gagal memuat hak pindah ke done");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal memuat hak pindah ke done",
+      );
     }
   }, []);
 
@@ -483,12 +504,20 @@ export default function TaskManagementPage() {
           userIds: donePermissionUserIds,
         }),
       });
-      if (!res.ok) throw new Error("Gagal menyimpan hak pindah ke done");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal menyimpan hak pindah ke done"),
+        );
+      }
       toast.success("Hak pindah ke Done berhasil disimpan");
       setDonePermissionDialogOpen(false);
       fetchDonePermissions(selectedDepartmentId);
-    } catch {
-      toast.error("Gagal menyimpan hak pindah ke done");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal menyimpan hak pindah ke done",
+      );
     } finally {
       setSavingDonePermissions(false);
     }
@@ -523,13 +552,17 @@ export default function TaskManagementPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, departmentId: selectedDepartmentId }),
       });
-      if (!res.ok) throw new Error("Gagal membuat list");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal membuat list"));
+      }
       setNewListName("");
       setListDialogOpen(false);
       toast.success("List berhasil ditambahkan");
       fetchBoard(selectedDepartmentId);
-    } catch {
-      toast.error("Gagal menambahkan list");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menambahkan list",
+      );
     }
   };
 
@@ -543,13 +576,17 @@ export default function TaskManagementPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, departmentId: selectedDepartmentId }),
       });
-      if (!res.ok) throw new Error("Gagal membuat kategori");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal membuat kategori"));
+      }
       setNewCategoryName("");
       setCategoryDialogOpen(false);
       toast.success("Kategori berhasil ditambahkan");
       fetchCategories(selectedDepartmentId);
-    } catch {
-      toast.error("Gagal menambahkan kategori");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menambahkan kategori",
+      );
     }
   };
 
@@ -560,12 +597,16 @@ export default function TaskManagementPage() {
       const res = await fetch(`/api/task-managements/categories/${categoryId}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Gagal menghapus kategori");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal menghapus kategori"));
+      }
       toast.success("Kategori berhasil dihapus");
       fetchCategories(selectedDepartmentId);
       fetchBoard(selectedDepartmentId);
-    } catch {
-      toast.error("Gagal menghapus kategori");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menghapus kategori",
+      );
     }
   };
 
@@ -579,13 +620,17 @@ export default function TaskManagementPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      if (!res.ok) throw new Error("Gagal mengubah list");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal mengubah list"));
+      }
       setEditingListId("");
       setEditingListName("");
       toast.success("List berhasil diubah");
       fetchBoard(selectedDepartmentId);
-    } catch {
-      toast.error("Gagal mengubah list");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal mengubah list",
+      );
     }
   };
 
@@ -729,14 +774,18 @@ export default function TaskManagementPage() {
           ? `/api/task-managements/lists/${deleteTarget.list.id}`
           : `/api/task-managements/tasks/${deleteTarget.taskId}`;
       const res = await fetch(url, { method: "DELETE" });
-      if (!res.ok) throw new Error("Gagal menghapus data");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal menghapus data"));
+      }
       toast.success(
         deleteTarget.type === "list" ? "List berhasil dihapus" : "Task berhasil dihapus",
       );
       fetchBoard(selectedDepartmentId);
       fetchDepartments();
-    } catch {
-      toast.error("Gagal menghapus data");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menghapus data",
+      );
     } finally {
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
@@ -788,7 +837,11 @@ export default function TaskManagementPage() {
             objectKey: attachment.objectKey,
           }),
         });
-        if (!res.ok) throw new Error("Gagal menghapus attachment");
+        if (!res.ok) {
+          throw new Error(
+            await parseApiError(res, "Gagal menghapus attachment"),
+          );
+        }
       }
 
       setTaskForm((prev) => ({
@@ -796,8 +849,10 @@ export default function TaskManagementPage() {
         attachments: prev.attachments.filter((_, itemIndex) => itemIndex !== index),
       }));
       toast.success(attachment.objectKey ? "File berhasil dihapus" : "Link berhasil dihapus");
-    } catch {
-      toast.error("Gagal menghapus attachment");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menghapus attachment",
+      );
     }
   };
 
@@ -820,7 +875,7 @@ export default function TaskManagementPage() {
     });
 
     if (!res.ok) {
-      throw new Error("Gagal upload attachment");
+      throw new Error(await parseApiError(res, "Gagal upload attachment"));
     }
 
     const json = await res.json();

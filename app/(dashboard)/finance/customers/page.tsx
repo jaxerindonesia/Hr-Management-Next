@@ -5,6 +5,7 @@ import DynamicPage from "@/components/dynamic-page";
 import type { PartnerDto, PartnerFormDto } from "@/lib/dto/finance-partner";
 import { toast } from "sonner";
 import { usePermission } from "@/lib/helper/check-role";
+import { parseApiError } from "@/lib/helper/response-api";
 import PartnerImportModal from "../components/partner-import-modal";
 import PartnerDialog from "../components/partner-form-data";
 import {
@@ -63,6 +64,7 @@ export default function FinanceCustomersPage() {
       if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
 
       const res = await fetch(`${ENDPOINT}?${params.toString()}`);
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data customer"));
       const json: PaginatedResponse<PartnerDto> = await res.json();
       setData(json.data || []);
       setTotal(json.total || 0);
@@ -165,7 +167,7 @@ export default function FinanceCustomersPage() {
       if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
 
       const res = await fetch(`${ENDPOINT}?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data customer untuk export");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data customer untuk export"));
 
       const json: PaginatedResponse<PartnerDto> = await res.json();
       const rows = (json.data || []).map((item) => ({

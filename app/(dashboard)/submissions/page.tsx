@@ -7,6 +7,7 @@ import { usePermission } from "@/lib/helper/check-role";
 import type { SubmissionDto } from "@/lib/dto/submission";
 import type { SubmissionTypeDto } from "@/lib/dto/submission-type";
 import type { ApiResponse } from "@/lib/utils";
+import { parseApiError } from "@/lib/helper/response-api";
 import FormData from "./components/form-data";
 import { columnFormats, headerToolbar, ITEMS_PER_PAGE, renderActions, STATUS_LABEL } from "./page.config";
 import TypeModal from "./components/type-modal";
@@ -133,7 +134,7 @@ export default function Page() {
       if (filterType !== "all") params.set("submissionTypeId", filterType);
 
       const response = await fetch(`/api/submissions?${params.toString()}`);
-      if (!response.ok) throw new Error("Gagal mengambil data untuk export");
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data untuk export"));
 
       const json = await response.json();
       const allData: SubmissionDto[] = json.data || [];
@@ -173,8 +174,8 @@ export default function Page() {
 
       XLSX.writeFile(workbook, `data-pengajuan-${new Date().toISOString().split("T")[0]}.xlsx`);
       toast.success(`Berhasil mengexport ${allData.length} data pengajuan`);
-    } catch {
-      toast.error("Gagal mengexport data");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengexport data");
     } finally {
       setIsExporting(false);
     }
@@ -183,11 +184,11 @@ export default function Page() {
   const fetchSubmissionTypes = useCallback(async () => {
     try {
       const response = await fetch("/api/submission-types");
-      if (!response.ok) throw new Error("Gagal mengambil data jenis pengajuan");
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data jenis pengajuan"));
       const json = await response.json();
       setSubmissionTypes(json.data || []);
-    } catch {
-      toast.error("Gagal memuat data jenis pengajuan");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat data jenis pengajuan");
     }
   }, []);
 
@@ -249,8 +250,8 @@ export default function Page() {
 
       setData((json.data as SubmissionDto[]) ?? []);
       setTotal(json.total ?? 0);
-    } catch {
-      toast.error("Gagal memuat data pengajuan");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat data pengajuan");
     } finally {
       setLoading(false);
     }
@@ -263,8 +264,8 @@ export default function Page() {
       if (!res.ok) throw new Error();
       const json = await res.json();
       setDetailItem(json.data || undefined);
-    } catch {
-      toast.error("Gagal memuat detail data pengajuan");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat detail data pengajuan");
     } finally {
       setLoading(false);
     }

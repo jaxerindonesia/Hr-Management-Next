@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { UserDto } from "@/lib/dto/user";
 import { Label } from "@/components/ui/label";
+import { parseApiError } from "@/lib/helper/response-api";
 import {
   Select,
   SelectContent,
@@ -66,22 +67,34 @@ export default function FormData({
   const fetchSubmissionTypes = async () => {
     try {
       const res = await fetch("/api/submission-types");
-      if (!res.ok) throw new Error("Gagal mengambil data tipe pengajuan");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data tipe pengajuan"),
+        );
+      }
       const json = await res.json();
       setSubmissionType(json.data || []);
-    } catch {
-      toast.error("Gagal memuat tipe pengajuan");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat tipe pengajuan",
+      );
     }
   };
 
   const fetchEmployees = async () => {
     try {
       const res = await fetch("/api/users");
-      if (!res.ok) throw new Error("Gagal mengambil data karyawan");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data karyawan"),
+        );
+      }
       const json = await res.json();
       setEmployees(json.data || []);
-    } catch {
-      toast.error("Gagal memuat data karyawan");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data karyawan",
+      );
     }
   };
 
@@ -107,8 +120,7 @@ export default function FormData({
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || "Gagal menyimpan data");
+        throw new Error(await parseApiError(res, "Gagal menyimpan data"));
       }
 
       toast.success(

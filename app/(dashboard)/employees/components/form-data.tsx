@@ -23,6 +23,7 @@ import {
 import type { UserDto } from "@/lib/dto/user";
 import type { RoleDto } from "@/lib/dto/role";
 import type { DepartmentDto } from "@/lib/dto/department";
+import { parseApiError } from "@/lib/helper/response-api";
 import FaceCapture from "./face-capture";
 
 type TenantDto = {
@@ -81,22 +82,30 @@ export default function FormData({
   const fetchRoles = async () => {
     try {
       const res = await fetch("/api/roles");
-      if (!res.ok) throw new Error("Gagal mengambil data role");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal mengambil data role"));
+      }
       const json = await res.json();
       setRoles(json.data || []);
-    } catch {
-      toast.error("Gagal memuat role");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat role");
     }
   };
 
   const fetchDepartments = async () => {
     try {
       const res = await fetch("/api/departments");
-      if (!res.ok) throw new Error("Gagal mengambil data departemen");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data departemen"),
+        );
+      }
       const json = await res.json();
       setDepartments(json.data || []);
-    } catch {
-      toast.error("Gagal memuat departemen");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat departemen",
+      );
     } finally {
       setDepartmentsLoaded(true);
     }
@@ -105,11 +114,17 @@ export default function FormData({
   const fetchTenants = async () => {
     try {
       const res = await fetch("/api/tenants?page=1&limit=100");
-      if (!res.ok) throw new Error("Gagal mengambil data tenant");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data tenant"),
+        );
+      }
       const json = await res.json();
       setTenants(json.data || []);
-    } catch {
-      toast.error("Gagal memuat tenant");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat tenant",
+      );
     }
   };
 
@@ -156,7 +171,9 @@ export default function FormData({
         });
 
         if (!uploadRes.ok) {
-          toast.error("Gagal mengupload foto wajah");
+          toast.error(
+            await parseApiError(uploadRes, "Gagal mengupload foto wajah"),
+          );
           setLoading(false);
           return;
         }
@@ -188,7 +205,7 @@ export default function FormData({
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Gagal menyimpan data");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal menyimpan data"));
 
       toast.success(
         `Data karyawan berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
@@ -294,7 +311,7 @@ export default function FormData({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] w-[46vw] max-w-[46vw] overflow-y-auto sm:!max-w-[1400px]">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] overflow-y-auto p-4 sm:w-[92vw] sm:max-w-[960px] sm:p-6 lg:w-[72vw] lg:max-w-[1080px]">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Karyawan" : "Tambah Karyawan"}

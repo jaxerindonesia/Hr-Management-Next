@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { parseApiError } from "@/lib/helper/response-api";
 
 interface AttendanceConfig {
   officeStartTime: string;
@@ -52,6 +53,11 @@ export default function ModalAttendanceConfig({
   const fetchConfig = async () => {
     try {
       const res = await fetch("/api/attendance-config");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal memuat konfigurasi attendance"),
+        );
+      }
       const json = await res.json();
       const data = json.data || defaultConfig;
       setForm({
@@ -69,8 +75,12 @@ export default function ModalAttendanceConfig({
             ? data.workingDays
             : defaultConfig.workingDays,
       });
-    } catch {
-      toast.error("Gagal memuat konfigurasi attendance");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal memuat konfigurasi attendance",
+      );
     }
   };
 
@@ -104,12 +114,20 @@ export default function ModalAttendanceConfig({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal menyimpan konfigurasi attendance"),
+        );
+      }
       toast.success("Konfigurasi attendance berhasil disimpan");
       if (onSaved) onSaved();
       onClose();
-    } catch {
-      toast.error("Gagal menyimpan konfigurasi attendance");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal menyimpan konfigurasi attendance",
+      );
     } finally {
       setLoading(false);
     }

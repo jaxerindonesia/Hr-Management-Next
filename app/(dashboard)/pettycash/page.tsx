@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { columnFormats, headerToolbar, ITEMS_PER_PAGE, renderActions, STATUS_LABEL } from "./page.config";
 import { ApiResponse } from "@/lib/utils";
 import { usePermission } from "@/lib/helper/check-role";
+import { parseApiError } from "@/lib/helper/response-api";
 import { PettyCashDto } from "@/lib/dto/petty-cash";
 import PettyCashFormData from "./components/form-data";
 import PettyCashUsageModal from "./components/usage-modal";
@@ -95,7 +96,7 @@ export default function Page() {
       if (filterStatus !== "all") params.set("status", filterStatus);
 
       const res = await fetch(`/api/pettycash?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data untuk export"));
 
       const json = await res.json();
       const allData: PettyCashDto[] = json.data || [];
@@ -143,8 +144,8 @@ export default function Page() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data petty cash`);
-    } catch {
-      toast.error("Gagal mengexport data");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengexport data");
     } finally {
       setIsExporting(false);
     }
@@ -192,8 +193,8 @@ export default function Page() {
 
       setData(json.data ?? []);
       setTotal(json.total ?? 0);
-    } catch {
-      toast.error("Gagal memuat data petty cash");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat data petty cash");
     } finally {
       setLoading(false);
     }
@@ -203,11 +204,11 @@ export default function Page() {
     try {
       setLoading(true);
       const res = await fetch(`/api/pettycash/${id}`);
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal memuat detail petty cash"));
       const json = await res.json();
       setDetailItem(json.data || undefined);
-    } catch {
-      toast.error("Gagal memuat detail petty cash");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat detail petty cash");
     } finally {
       setLoading(false);
     }

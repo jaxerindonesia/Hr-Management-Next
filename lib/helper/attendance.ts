@@ -22,12 +22,3 @@ export function haversineKm(
     Math.cos(p1) * Math.cos(p2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-
-export async function parseApiError(res: Response, fallback: string) {
-  try {
-    const json = await res.json();
-    return json?.message || json?.detail || fallback;
-  } catch {
-    return fallback;
-  }
-}

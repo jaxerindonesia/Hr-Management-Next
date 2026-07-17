@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildAccountImportInfoRows, buildAccountImportTemplateRows, FINANCE_IMPORT_BATCH_SIZE, isAccountRowEmpty, normalizeAccountImportRow, type FinanceImportError, validateAccountImportRow } from "@/lib/helper/finance-import";
+import { parseApiError } from "@/lib/helper/response-api";
 
 export default function AccountImportModal({
   open,
@@ -50,8 +51,12 @@ export default function AccountImportModal({
       XLSX.utils.book_append_sheet(workbook, infoSheet, "Petunjuk");
       XLSX.writeFile(workbook, `template-import-akun-${new Date().toISOString().split("T")[0]}.xlsx`);
       toast.success("Template import akun berhasil didownload");
-    } catch {
-      toast.error("Gagal mendownload template import akun");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal mendownload template import akun",
+      );
     } finally {
       setIsDownloading(false);
     }
@@ -108,8 +113,12 @@ export default function AccountImportModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ rows: batches[batchIndex] }),
         });
+        if (!response.ok) {
+          throw new Error(
+            await parseApiError(response, "Gagal mengimport data akun"),
+          );
+        }
         const json = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(json.message || "Gagal mengimport data akun");
         createdTotal += json.data?.created || 0;
         if (Array.isArray(json.data?.errors)) collectedErrors.push(...json.data.errors);
       }

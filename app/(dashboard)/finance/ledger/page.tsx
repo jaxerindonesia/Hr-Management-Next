@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DynamicPage from "@/components/dynamic-page";
 import type { FinanceLedgerRowDto } from "@/lib/dto/finance";
 import { usePermission } from "@/lib/helper/check-role";
+import { parseApiError } from "@/lib/helper/response-api";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { toast } from "sonner";
 import { columnFormats, headerToolbar } from "./page.config";
@@ -55,6 +56,7 @@ export default function FinanceLedgerRoute() {
       const response = await fetch(`/api/finance/ledgers?${params.toString()}`, {
         cache: "no-store",
       });
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data buku besar"));
       const json = await response.json();
       setRows(json.data || []);
     } catch (error) {
@@ -94,7 +96,7 @@ export default function FinanceLedgerRoute() {
       const response = await fetch(`/api/finance/ledgers?${params.toString()}`, {
         cache: "no-store",
       });
-      if (!response.ok) throw new Error("Gagal mengambil data buku besar untuk export");
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data buku besar untuk export"));
 
       const json = await response.json();
       const allRows: FinanceLedgerRowDto[] = json.data || [];

@@ -15,6 +15,7 @@ import { ApiResponse } from "@/lib/utils";
 import { columnFormats, headerToolbar, ITEMS_PER_PAGE, renderActions, STATUS_LABEL } from "./page.config";
 import DynamicPage from "@/components/dynamic-page";
 import SummaryCard from "./components/summary-card";
+import { parseApiError } from "@/lib/helper/response-api";
 
 export default function Page() {
   const { checkRole } = usePermission();
@@ -177,7 +178,11 @@ export default function Page() {
       if (filterStatus !== "all") params.set("status", filterStatus);
 
       const res = await fetch(`/api/reimbursements?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data untuk export"),
+        );
+      }
 
       const json = await res.json();
       const allData: ReimbursementDto[] = json.data || [];
@@ -230,8 +235,10 @@ export default function Page() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data reimbursement`);
-    } catch {
-      toast.error("Gagal mengexport data");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal mengexport data",
+      );
     } finally {
       setIsExporting(false);
     }
@@ -274,13 +281,20 @@ export default function Page() {
       const json: ApiResponse = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error((json as { message?: string })?.message || "Failed to load reimbursements");
+        throw new Error(
+          (json as { message?: string })?.message ||
+            "Gagal memuat data reimbursement",
+        );
       }
 
       setData(json.data ?? []);
       setTotal(json.total ?? 0);
-    } catch {
-      toast.error("Gagal memuat data reimbursement");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal memuat data reimbursement",
+      );
     } finally {
       setLoading(false);
     }
@@ -290,11 +304,19 @@ export default function Page() {
     setLoading(true);
     try {
       const res = await fetch(`/api/reimbursements/${id}`);
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal memuat detail reimbursement"),
+        );
+      }
       const json = await res.json();
       setDetailItem(json.data || undefined);
-    } catch {
-      toast.error("Gagal memuat detail reimbursement");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal memuat detail reimbursement",
+      );
     } finally {
       setLoading(false);
     }

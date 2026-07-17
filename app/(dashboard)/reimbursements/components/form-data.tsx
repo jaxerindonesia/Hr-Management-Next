@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { UserDto } from "@/lib/dto/user";
 import { Upload, FileText } from "lucide-react";
+import { parseApiError } from "@/lib/helper/response-api";
 
 const CATEGORIES = [
   "Transportasi",
@@ -71,11 +72,17 @@ export default function ReimbursementFormData({
   const fetchEmployees = async () => {
     try {
       const res = await fetch("/api/users");
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data karyawan"),
+        );
+      }
       const json = await res.json();
       setEmployees(json.data || []);
-    } catch {
-      toast.error("Gagal memuat data karyawan");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data karyawan",
+      );
     }
   };
 
@@ -165,7 +172,7 @@ export default function ReimbursementFormData({
         body: fd,
       });
 
-      if (!res.ok) throw new Error("Gagal menyimpan data");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal menyimpan data"));
 
       toast.success(
         `Reimbursement berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
@@ -173,8 +180,8 @@ export default function ReimbursementFormData({
 
       onSuccess();
       onClose();
-    } catch {
-      toast.error("Terjadi kesalahan");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
     } finally {
       setLoading(false);
     }

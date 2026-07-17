@@ -11,6 +11,7 @@ import {
   renderActions,
   type TenantDto,
 } from "./page.config";
+import { parseApiError } from "@/lib/helper/response-api";
 
 export default function Page() {
   const [data, setData] = useState<TenantDto[]>([]);
@@ -69,7 +70,11 @@ export default function Page() {
       if (status !== "all") params.set("status", status);
 
       const res = await fetch(`/api/tenants?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data tenant");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data tenant"),
+        );
+      }
 
       const json = await res.json();
       setData(json.data || []);

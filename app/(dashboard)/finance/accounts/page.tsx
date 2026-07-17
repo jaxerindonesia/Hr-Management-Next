@@ -5,6 +5,7 @@ import DynamicPage from "@/components/dynamic-page";
 import type { AccountDto, AccountFormDto } from "@/lib/dto/finance-account";
 import type { AccountCategoryDto } from "@/lib/dto/finance-account-category";
 import { usePermission } from "@/lib/helper/check-role";
+import { parseApiError } from "@/lib/helper/response-api";
 import { toast } from "sonner";
 import AccountImportModal from "../components/account-import-modal";
 import FormData from "./components/form-data";
@@ -89,7 +90,8 @@ export default function FinanceAccountsPage() {
       if (categoryFilter !== "all") params.set("accountCategoryId", categoryFilter);
 
       const response = await fetch(`${ENDPOINT}?${params.toString()}`);
-    const json: PaginatedResponse<AccountDto> = await response.json();
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data akun"));
+      const json: PaginatedResponse<AccountDto> = await response.json();
       setData(json.data || []);
       setTotal(json.total || 0);
     } catch (error) {
@@ -201,7 +203,7 @@ export default function FinanceAccountsPage() {
       if (categoryFilter !== "all") params.set("accountCategoryId", categoryFilter);
 
       const response = await fetch(`${ENDPOINT}?${params.toString()}`);
-      if (!response.ok) throw new Error("Gagal mengambil data akun untuk export");
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data akun untuk export"));
 
       const json: PaginatedResponse<AccountDto> = await response.json();
       const rows = (json.data || []).map((item) => ({

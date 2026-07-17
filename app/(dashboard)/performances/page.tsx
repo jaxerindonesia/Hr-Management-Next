@@ -6,6 +6,7 @@ import { PerformanceDto } from "@/lib/dto/performance";
 import { toast } from "sonner";
 import FormData from "./components/form-data";
 import { usePermission } from "@/lib/helper/check-role";
+import { parseApiError } from "@/lib/helper/response-api";
 import {
   columnFormats,
   headerToolbar,
@@ -90,13 +91,19 @@ export default function PerformancePage() {
       if (filterScore !== "all") params.set("score", filterScore);
 
       const res = await fetch(`/api/performances?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data kinerja");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data kinerja"),
+        );
+      }
 
       const json = await res.json();
       setData(json.data || []);
       setTotal(json.total || 0);
-    } catch {
-      toast.error("Gagal mengambil data kinerja");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal mengambil data kinerja",
+      );
     } finally {
       setLoading(false);
     }
@@ -109,12 +116,18 @@ export default function PerformancePage() {
           method: "DELETE",
         });
 
-        if (!res.ok) throw new Error("Gagal menghapus penilaian");
+        if (!res.ok) {
+          throw new Error(
+            await parseApiError(res, "Gagal menghapus penilaian"),
+          );
+        }
 
         toast.success("Penilaian berhasil dihapus!");
         fetchPerformances();
-      } catch {
-        toast.error("Gagal menghapus penilaian");
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Gagal menghapus penilaian",
+        );
       } finally {
         setDeleteId(null);
       }
@@ -133,7 +146,11 @@ export default function PerformancePage() {
       if (filterScore !== "all") params.set("score", filterScore);
 
       const res = await fetch(`/api/performances?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data untuk export"),
+        );
+      }
 
       const json = await res.json();
       const allData: PerformanceDto[] = json.data || [];
@@ -168,8 +185,10 @@ export default function PerformancePage() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data kinerja`);
-    } catch {
-      toast.error("Gagal mengexport data");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal mengexport data",
+      );
     } finally {
       setIsExporting(false);
     }
