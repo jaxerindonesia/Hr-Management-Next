@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Edit, FileText, Filter, Plus, Printer, Settings, Trash2, X } from "lucide-react";
+import { Download, Edit, FileText, Filter, Plus, Printer, Settings, Trash2, Upload, X } from "lucide-react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
@@ -87,6 +87,7 @@ interface HeaderToolbarProps {
   actions: {
     onAdd: () => void;
     onExport: () => void;
+    onImport: () => void;
     onBulkDownload: () => void;
     onOpenDepartment: () => void;
     checkRole: (module: string, action: string) => boolean;
@@ -296,6 +297,17 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
             {actions.isExporting ? "Mengexport..." : "Export Excel"}
           </Button>
         </>
+      )}
+
+      {actions.checkRole(modelName, "import") && (
+        <Button
+          variant="outline"
+          onClick={actions.onImport}
+          className="flex items-center gap-2 border-purple-600 text-purple-700 hover:bg-purple-50 dark:border-purple-500 dark:text-purple-400 dark:hover:bg-purple-900/20"
+        >
+          <Upload className="h-4 w-4" />
+          Import
+        </Button>
       )}
     </div>
 

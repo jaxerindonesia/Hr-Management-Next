@@ -207,8 +207,10 @@ export const renderActions = ({
     {checkRole(modelName, "update") && (
       <Button
         onClick={() => onView(row)}
+        variant="ghost"
+        size="icon"
         title="Edit"
-        className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20"
+        className="h-9 w-9 rounded-lg p-0 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-300"
       >
         <Edit className="h-4 w-4" />
       </Button>
@@ -220,7 +222,11 @@ export const renderActions = ({
         onOpenChange={(open) => setDeleteId?.(open ? row.id ?? null : null)}
       >
         <PopoverTrigger asChild>
-          <Button className="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-lg p-0 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20 dark:hover:text-red-300"
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         </PopoverTrigger>

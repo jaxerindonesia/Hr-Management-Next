@@ -30,9 +30,19 @@ export default function FormData({
 }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<OvertimeDto>(INITIAL_FORM_DATA);
+  const hasInvalidTimeRange =
+    !!formData.startTime &&
+    !!formData.endTime &&
+    formData.endTime <= formData.startTime;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    if (hasInvalidTimeRange) {
+      toast.error("Jam selesai harus setelah jam mulai");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -152,6 +162,11 @@ export default function FormData({
                   }
                   required
                 />
+                {hasInvalidTimeRange ? (
+                  <p className="text-sm text-red-500">
+                    Jam selesai harus setelah jam mulai.
+                  </p>
+                ) : null}
               </div>
             </div>
 

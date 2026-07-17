@@ -19,6 +19,7 @@ import {
   TenantOption,
 } from "./page.config";
 import DepartmentModal from "./components/department-modal";
+import ImportModal from "./components/import-modal";
 import RecapModal from "./components/recap-modal";
 
 export default function EmployeesPage() {
@@ -28,6 +29,7 @@ export default function EmployeesPage() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [recapEmployee, setRecapEmployee] = useState<UserDto | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [data, setData] = useState<UserDto[]>([]);
@@ -327,6 +329,7 @@ export default function EmployeesPage() {
         actions: {
           onAdd,
           onExport,
+          onImport: () => setShowImportModal(true),
           onBulkDownload,
           onOpenDepartment: () => setShowDepartmentModal(true),
           checkRole,
@@ -501,6 +504,13 @@ export default function EmployeesPage() {
       <DepartmentModal
         isOpen={showDepartmentModal}
         onClose={() => setShowDepartmentModal(false)}
+      />
+
+      <ImportModal
+        isOpen={showImportModal}
+        isSuperAdmin={isSuperAdmin}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={fetchData}
       />
 
       {/* Recap Modal */}

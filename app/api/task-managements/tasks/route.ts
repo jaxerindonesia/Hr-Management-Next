@@ -140,13 +140,29 @@ export async function POST(req: NextRequest) {
       body.position !== undefined
         ? Number(body.position)
         : await prisma.task.count({ where: { listId } });
+    const startDate = body.startDate ? new Date(body.startDate) : new Date();
+    const dueDate = body.dueDate ? new Date(body.dueDate) : null;
+
+    if (Number.isNaN(startDate.getTime()) || (dueDate && Number.isNaN(dueDate.getTime()))) {
+      return NextResponse.json(
+        { message: "Format tanggal task tidak valid" },
+        { status: 400 },
+      );
+    }
+
+    if (dueDate && dueDate < startDate) {
+      return NextResponse.json(
+        { message: "Tanggal jatuh tempo tidak boleh sebelum tanggal mulai task" },
+        { status: 400 },
+      );
+    }
 
     const task = await prisma.task.create({
       data: {
         title,
         description: body.description ? String(body.description) : null,
-        startDate: body.startDate ? new Date(body.startDate) : new Date(),
-        dueDate: body.dueDate ? new Date(body.dueDate) : null,
+        startDate,
+        dueDate,
         position,
         listId,
         departmentId,

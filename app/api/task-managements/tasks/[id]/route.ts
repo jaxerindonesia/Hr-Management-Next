@@ -226,6 +226,28 @@ export async function PUT(req: Request, { params }: Params) {
       updateData.listId = nextListId;
     }
 
+    const effectiveStartDate =
+      updateData.startDate ?? existing.startDate ?? existing.createdAt;
+    const effectiveDueDate =
+      updateData.dueDate !== undefined ? updateData.dueDate : existing.dueDate;
+
+    if (
+      (updateData.startDate && Number.isNaN(updateData.startDate.getTime())) ||
+      (updateData.dueDate && Number.isNaN(updateData.dueDate.getTime()))
+    ) {
+      return NextResponse.json(
+        { message: "Format tanggal task tidak valid" },
+        { status: 400 },
+      );
+    }
+
+    if (effectiveDueDate && effectiveStartDate && effectiveDueDate < effectiveStartDate) {
+      return NextResponse.json(
+        { message: "Tanggal jatuh tempo tidak boleh sebelum tanggal mulai task" },
+        { status: 400 },
+      );
+    }
+
     const memberIds = body.memberIds
       ? await validateMembers(
           Array.isArray(body.memberIds) ? body.memberIds.map(String) : [],

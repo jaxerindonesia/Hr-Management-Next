@@ -87,14 +87,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Anda hanya bisa mengajukan lembur untuk diri sendiri" }, { status: 403 });
     }
 
+    const startTime = new Date(body.startTime);
+    const endTime = new Date(body.endTime);
+    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
+      return NextResponse.json(
+        { message: "Format jam lembur tidak valid" },
+        { status: 400 },
+      );
+    }
+    if (endTime <= startTime) {
+      return NextResponse.json(
+        { message: "Jam selesai harus setelah jam mulai" },
+        { status: 400 },
+      );
+    }
+
     const overtime = await prisma.overtime.create({
       data: {
         tenantId: scopedTenantId,
         userId: body.userId,
         attendanceId: body.attendanceId || null,
         overtimeDate: new Date(body.overtimeDate),
-        startTime: new Date(body.startTime),
-        endTime: new Date(body.endTime),
+        startTime,
+        endTime,
         overtimeMinutes: Number(body.overtimeMinutes),
         requestedMinutes: Number(body.requestedMinutes),
         description: body.description || null,

@@ -53,12 +53,15 @@ export async function POST(req: NextRequest) {
     }
 
     const startTime = buildDateTime(overtimeDate, start);
-    let endTime = buildDateTime(overtimeDate, end);
+    const endTime = buildDateTime(overtimeDate, end);
     if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
       return NextResponse.json({ message: "Format tanggal atau jam tidak valid" }, { status: 400 });
     }
     if (endTime <= startTime) {
-      endTime = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+      return NextResponse.json(
+        { message: "Jam selesai harus setelah jam mulai" },
+        { status: 400 },
+      );
     }
 
     const overtimeMinutes = getDurationMinutes(startTime, endTime);

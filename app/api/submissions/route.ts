@@ -78,6 +78,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "All submission fields are required fields" }, { status: 400 });
     }
 
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return NextResponse.json({ message: "Format tanggal tidak valid" }, { status: 400 });
+    }
+    if (end < start) {
+      return NextResponse.json(
+        { message: "Tanggal selesai tidak boleh sebelum tanggal mulai" },
+        { status: 400 },
+      );
+    }
+
     const submissionType = await prisma.submissionType.findFirst({
       where: { id: submissionTypeId, ...(finalTenantId ? { tenantId: finalTenantId } : {}) },
       include: {
@@ -88,8 +100,6 @@ export async function POST(req: NextRequest) {
 
     if (submissionType?.leaveConfig) {
       const config = submissionType.leaveConfig;
-      const start = new Date(startDate);
-      const end = new Date(endDate);
       const requestedDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const linkedTypeIds = config.submissionTypes.map((t: { id: string }) => t.id);
       const yearStart = new Date(start.getFullYear(), 0, 1);

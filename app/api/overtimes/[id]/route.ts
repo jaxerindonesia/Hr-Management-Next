@@ -88,14 +88,17 @@ export async function PUT(req: Request, { params }: Params) {
         : existing.endTime.toTimeString().slice(0, 5);
 
       const startTime = buildDateTime(overtimeDateValue, startTimeValue);
-      let endTime = buildDateTime(overtimeDateValue, endTimeValue);
+      const endTime = buildDateTime(overtimeDateValue, endTimeValue);
 
       if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
         return NextResponse.json({ message: "Format tanggal atau jam lembur tidak valid" }, { status: 400 });
       }
 
       if (endTime <= startTime) {
-        endTime = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+        return NextResponse.json(
+          { message: "Jam selesai harus setelah jam mulai" },
+          { status: 400 },
+        );
       }
 
       const overtimeMinutes = Math.max(
