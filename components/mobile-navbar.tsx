@@ -191,18 +191,11 @@ export default function MobileNavbar() {
   return (
     <>
       {/* Mobile Top Navbar */}
-      <nav className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="flex items-center justify-between px-4 h-14">
+      <nav className="fixed left-0 right-0 top-0 z-50 lg:hidden">
+        <div className="px-4 pt-3">
+          <div className="flex h-14 items-center justify-between rounded-[0.9rem] border border-slate-200/70 bg-white/80 px-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75 dark:shadow-[0_18px_40px_rgba(2,6,23,0.35)]">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center">
-            {/* <Image
-              src="/logo21.png"
-              alt="HR System"
-              width={80}
-              height={16}
-              priority
-              className="object-contain"
-            /> */}
             {/* Logo Light */}
             <Image
               src="/logo21.png"
@@ -229,7 +222,7 @@ export default function MobileNavbar() {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/80 text-slate-700 transition-colors hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15"
               aria-label="Toggle theme"
             >
               {theme === "light" ? (
@@ -242,16 +235,17 @@ export default function MobileNavbar() {
             {/* Menu Toggle */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_8px_20px_rgba(37,99,235,0.35)] transition-all hover:bg-blue-700 active:scale-95 dark:bg-blue-500 dark:hover:bg-blue-400"
               aria-label="Toggle menu"
             >
               {isMenuOpen ? (
-                <X className="w-6 h-6" />
+                <X className="w-4 h-4" />
               ) : (
-                <Menu className="w-6 h-6" />
+                <Menu className="w-4 h-4" />
               )}
             </button>
           </div>
+        </div>
         </div>
       </nav>
 
@@ -259,18 +253,18 @@ export default function MobileNavbar() {
       <>
         {/* Backdrop */}
         <div
-          className={`lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40 top-14 transition-opacity duration-300 ${isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          className={`lg:hidden fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-md transition-opacity duration-300 ${isMenuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
             }`}
           onClick={closeMenu}
         />
 
         {/* Slide-in Menu */}
         <div
-          className={`lg:hidden fixed top-14 right-0 bottom-0 w-72 bg-white dark:bg-gray-800 shadow-2xl z-50 transition-transform duration-300 ease-in-out overflow-y-auto mobile-menu-scroll flex flex-col ${isMenuOpen ? "translate-x-0" : "translate-x-full"
+          className={`lg:hidden mobile-menu-scroll fixed bottom-24 left-4 right-4 top-[4.75rem] z-50 flex flex-col overflow-y-auto rounded-[0.9rem] border border-slate-200/70 bg-white/92 shadow-[0_24px_80px_rgba(15,23,42,0.18)] backdrop-blur-2xl transition-all duration-300 ease-in-out dark:border-white/10 dark:bg-slate-900/88 dark:shadow-[0_30px_90px_rgba(2,6,23,0.45)] ${isMenuOpen ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-6 opacity-0"
             }`}
         >
           {/* Menu Items */}
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 space-y-1 p-4">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive =
@@ -282,10 +276,10 @@ export default function MobileNavbar() {
                   <div key={item.id} className="space-y-1">
                     <button
                       onClick={() => toggleMenu(item.id)}
-                      className={`flex w-full items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200 ${
                         isActive
-                          ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          ? "bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-500/15 dark:text-blue-300"
+                          : "text-gray-700 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-white/8"
                       }`}
                     >
                       <Icon className="w-5 h-5 shrink-0" />
@@ -298,7 +292,7 @@ export default function MobileNavbar() {
                     </button>
 
                     {isExpanded && (
-                      <div className="ml-6 border-l border-blue-100 pl-3 pt-1 dark:border-blue-900/40">
+                      <div className="ml-6 border-l border-slate-200 pl-3 pt-1 dark:border-white/10">
                         {item.subItems.map((subItem) => {
                           const isSubActive = pathname === subItem.path;
 
@@ -312,10 +306,10 @@ export default function MobileNavbar() {
                                 );
                                 closeMenu();
                               }}
-                              className={`block rounded-lg px-3 py-2 text-sm transition-colors ${
+                              className={`block rounded-xl px-3 py-2 text-sm transition-colors ${
                                 isSubActive
-                                  ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-medium"
-                                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                  ? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                                  : "text-gray-600 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-white/8"
                               }`}
                             >
                               {subItem.name}
@@ -333,9 +327,9 @@ export default function MobileNavbar() {
                   key={item.id}
                   href={item.path}
                   onClick={closeMenu}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-semibold"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200 ${isActive
+                    ? "bg-blue-50 font-semibold text-blue-700 shadow-sm dark:bg-blue-500/15 dark:text-blue-300"
+                    : "text-gray-700 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-white/8"
                     }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -351,7 +345,6 @@ export default function MobileNavbar() {
               onClick={handleLogoClick}
               className="flex items-center justify-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity text-gray-500 dark:text-gray-400 select-none cursor-pointer"
             >
-              <span className="text-xs font-semibold">by</span>
               <Image
                 src="/logo21.png"
                 alt="Jaxer Watermark"
@@ -372,14 +365,14 @@ export default function MobileNavbar() {
           </div>
 
           {/* Footer Actions */}
-          <div className="border-t dark:border-gray-700 p-4 space-y-2">
+          <div className="space-y-2 border-t border-slate-200 p-4 dark:border-white/10">
             {/* Logout Button */}
             <button
               onClick={() => {
                 closeMenu();
                 handleLogout();
               }}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+              className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-red-600 transition-all duration-200 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
             >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">Logout</span>
@@ -390,10 +383,11 @@ export default function MobileNavbar() {
 
       {/* Mobile Bottom Navigation Bar */}
       <div
-        className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg transition-transform duration-300 ease-in-out ${isMenuOpen ? "translate-y-full" : "translate-y-0"
+        className={`fixed bottom-0 left-0 right-0 z-40 transition-transform duration-300 ease-in-out lg:hidden ${isMenuOpen ? "translate-y-full" : "translate-y-0"
           }`}
       >
-        <div className="flex items-center justify-around px-2 py-2 touch-manipulation">
+        <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] pt-2">
+          <div className="mx-auto flex max-w-md items-end justify-around rounded-[2rem] border border-slate-200/70 bg-white/88 px-2 py-2 shadow-[0_20px_40px_rgba(15,23,42,0.14)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/82 dark:shadow-[0_24px_60px_rgba(2,6,23,0.45)]">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -404,17 +398,17 @@ export default function MobileNavbar() {
                 key={item.path}
                 type="button"
                 onClick={() => handleBottomNavClick(item.path)}
-                className={`flex min-w-[60px] touch-manipulation flex-col items-center justify-center rounded-lg px-3 py-2 transition-all duration-200 ${isActive
-                  ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                className={`flex min-w-[60px] touch-manipulation flex-col items-center justify-center rounded-[1.4rem] px-3 py-2 transition-all duration-200 ${isActive
+                  ? "-translate-y-1 bg-blue-600 text-white shadow-[0_12px_26px_rgba(37,99,235,0.35)] dark:bg-blue-500"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/8 dark:hover:text-slate-100"
                   }`}
                 aria-current={isActive ? "page" : undefined}
               >
                 <Icon
-                  className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`}
+                  className={`h-5 w-5 ${isActive ? "scale-110" : ""} transition-transform`}
                 />
                 <span
-                  className={`text-[10px] mt-1 ${isActive ? "font-semibold" : "font-medium"}`}
+                  className={`mt-1 text-[10px] ${isActive ? "font-semibold" : "font-medium"}`}
                 >
                   {item.label}
                 </span>
@@ -422,10 +416,11 @@ export default function MobileNavbar() {
             );
           })}
         </div>
+        </div>
       </div>
 
       {/* Spacer for content (prevents content from being hidden under fixed navbar) */}
-      <div className="lg:hidden h-14" />
+      <div className="h-[4.75rem] lg:hidden" />
 
       {/* ===== CREDITS MODAL (EASTER EGG) ===== */}
       {showCredits && (
