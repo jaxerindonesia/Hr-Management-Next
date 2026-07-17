@@ -16,6 +16,36 @@ import {
   X,
   ShieldCheck,
 } from "lucide-react";
+import { parseApiError } from "@/lib/helper/response-api";
+
+function getPasswordValidationMessage(password: string) {
+  if (password.length < 8) {
+    return "Password baru minimal 8 karakter.";
+  }
+  if (!/[A-Z]/.test(password)) {
+    return "Password baru harus mengandung minimal 1 huruf besar.";
+  }
+  if (!/[a-z]/.test(password)) {
+    return "Password baru harus mengandung minimal 1 huruf kecil.";
+  }
+  if (!/\d/.test(password)) {
+    return "Password baru harus mengandung minimal 1 angka.";
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return "Password baru harus mengandung minimal 1 karakter khusus.";
+  }
+  return null;
+}
+
+function getPasswordChecks(password: string) {
+  return [
+    { label: "Minimal 8 karakter", passed: password.length >= 8 },
+    { label: "Minimal 1 huruf besar", passed: /[A-Z]/.test(password) },
+    { label: "Minimal 1 huruf kecil", passed: /[a-z]/.test(password) },
+    { label: "Minimal 1 angka", passed: /\d/.test(password) },
+    { label: "Minimal 1 karakter khusus", passed: /[^A-Za-z0-9]/.test(password) },
+  ];
+}
 
 const PasswordField = ({
   label,
@@ -110,6 +140,7 @@ export default function DesktopNavbar() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const passwordChecks = getPasswordChecks(passwordForm.newPassword);
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -203,8 +234,13 @@ export default function DesktopNavbar() {
       newErrors.currentPassword = "Password saat ini wajib diisi.";
     if (!passwordForm.newPassword) {
       newErrors.newPassword = "Password baru wajib diisi.";
-    } else if (passwordForm.newPassword.length < 8) {
-      newErrors.newPassword = "Password baru minimal 8 karakter.";
+    } else {
+      const passwordValidationMessage = getPasswordValidationMessage(
+        passwordForm.newPassword,
+      );
+      if (passwordValidationMessage) {
+        newErrors.newPassword = passwordValidationMessage;
+      }
     }
     if (!passwordForm.confirmPassword) {
       newErrors.confirmPassword = "Konfirmasi password wajib diisi.";
@@ -237,10 +273,10 @@ export default function DesktopNavbar() {
         }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        setErrors({ general: data.message || "Terjadi kesalahan." });
+        setErrors({
+          general: await parseApiError(res, "Terjadi kesalahan."),
+        });
         return;
       }
 
@@ -453,6 +489,25 @@ export default function DesktopNavbar() {
                     setPasswordForm={setPasswordForm}
                     setShowPass={setShowPass}
                   />
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+                    <p className="mb-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+                      Syarat password baru
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {passwordChecks.map((check) => (
+                        <p
+                          key={check.label}
+                          className={`text-sm ${
+                            check.passed
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-slate-500 dark:text-slate-400"
+                          }`}
+                        >
+                          {check.passed ? "✓" : "•"} {check.label}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
                   <PasswordField
                     label="Konfirmasi Password Baru"
                     field="confirmPassword"
