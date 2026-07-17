@@ -72,7 +72,7 @@ type SidebarItem = {
   subItems?: SidebarSubItem[];
 };
 
-export default function Sidebar() {
+export default function DesktopSidebar() {
   const { checkRoleMulti } = usePermission();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);

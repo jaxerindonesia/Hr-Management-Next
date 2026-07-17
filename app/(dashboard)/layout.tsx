@@ -1,9 +1,9 @@
 "use client";
 
 import React, { Suspense } from "react";
-import Sidebar from "@/components/sidebar";
 import MobileNavbar from "@/components/mobile-navbar";
 import DesktopNavbar from "@/components/desktop-navbar";
+import DesktopSidebar from "@/components/desktop-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function DashboardLayout({
@@ -24,7 +24,7 @@ export default function DashboardLayout({
               <div className="h-full w-64 border-r border-slate-200/80 bg-[linear-gradient(180deg,#f9fcff_0%,#eef6ff_100%)] dark:border-gray-700 dark:bg-gray-800" />
             }
           >
-            <Sidebar />
+            <DesktopSidebar />
           </Suspense>
         </div>
 
