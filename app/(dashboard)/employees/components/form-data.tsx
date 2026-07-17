@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -52,6 +53,50 @@ const INITIAL_FORM_DATA: UserDto = {
   birthPlace: "",
 };
 
+function getPasswordValidationMessage(password: string) {
+  if (password.length < 8) {
+    return "Password minimal 8 karakter";
+  }
+  if (!/[A-Z]/.test(password)) {
+    return "Password harus mengandung minimal 1 huruf besar";
+  }
+  if (!/[a-z]/.test(password)) {
+    return "Password harus mengandung minimal 1 huruf kecil";
+  }
+  if (!/\d/.test(password)) {
+    return "Password harus mengandung minimal 1 angka";
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return "Password harus mengandung minimal 1 karakter khusus";
+  }
+  return null;
+}
+
+function getPasswordChecks(password: string) {
+  return [
+    {
+      label: "Minimal 8 karakter",
+      passed: password.length >= 8,
+    },
+    {
+      label: "Minimal 1 huruf besar",
+      passed: /[A-Z]/.test(password),
+    },
+    {
+      label: "Minimal 1 huruf kecil",
+      passed: /[a-z]/.test(password),
+    },
+    {
+      label: "Minimal 1 angka",
+      passed: /\d/.test(password),
+    },
+    {
+      label: "Minimal 1 karakter khusus",
+      passed: /[^A-Za-z0-9]/.test(password),
+    },
+  ];
+}
+
 export default function FormData({
   isOpen,
   initialData,
@@ -72,6 +117,8 @@ export default function FormData({
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentTenantId, setCurrentTenantId] = useState("");
   const [changePassword, setChangePassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [faceDataUrl, setFaceDataUrl] = useState<string | null>(
     initialData?.avatarUrl || null,
   );
@@ -143,6 +190,17 @@ export default function FormData({
       return;
     }
 
+    if (!formData.id) {
+      const passwordValidationMessage = getPasswordValidationMessage(
+        formData.password || "",
+      );
+      if (passwordValidationMessage) {
+        toast.error(passwordValidationMessage);
+        setLoading(false);
+        return;
+      }
+    }
+
     if (formData.id && changePassword) {
       if (!formData.password) {
         toast.error("Password baru wajib diisi");
@@ -154,8 +212,11 @@ export default function FormData({
         setLoading(false);
         return;
       }
-      if (formData.password.length < 6) {
-        toast.error("Password minimal 6 karakter");
+      const passwordValidationMessage = getPasswordValidationMessage(
+        formData.password,
+      );
+      if (passwordValidationMessage) {
+        toast.error(passwordValidationMessage);
         setLoading(false);
         return;
       }
@@ -265,6 +326,8 @@ export default function FormData({
   useEffect(() => {
     if (!isOpen) {
       setChangePassword(false);
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       setRePassword("");
       setFaceDataUrl(initialData?.avatarUrl || null);
       setFormData(initialData || INITIAL_FORM_DATA);
@@ -272,6 +335,8 @@ export default function FormData({
     }
 
     setChangePassword(false);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setRePassword("");
     setFaceDataUrl(initialData?.avatarUrl || null);
     setFormData(initialData || INITIAL_FORM_DATA);
@@ -288,6 +353,7 @@ export default function FormData({
   const selectedTenantId = isSuperAdmin
     ? formData.tenantId || ""
     : currentTenantId || formData.tenantId || initialData?.tenantId || "";
+  const passwordChecks = getPasswordChecks(formData.password || "");
 
   const filteredDepartments = departments.filter((department) => {
     if (!selectedTenantId) return false;
@@ -590,30 +656,90 @@ export default function FormData({
           </div>
 
           {!formData.id ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>Password *</Label>
-                <Input
-                  type="password"
-                  value={formData.password || ""}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      password: event.target.value,
-                    }))
-                  }
-                  required
-                />
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label>Password *</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password || ""}
+                      onChange={(event) =>
+                        setFormData((current) => ({
+                          ...current,
+                          password: event.target.value,
+                        }))
+                      }
+                      className="pr-11"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                      aria-label={
+                        showPassword ? "Sembunyikan password" : "Lihat password"
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Konfirmasi Password *</Label>
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={rePassword}
+                      onChange={(event) => setRePassword(event.target.value)}
+                      className="pr-11"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword((current) => !current)
+                      }
+                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                      aria-label={
+                        showConfirmPassword
+                          ? "Sembunyikan konfirmasi password"
+                          : "Lihat konfirmasi password"
+                      }
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid gap-2">
-                <Label>Konfirmasi Password *</Label>
-                <Input
-                  type="password"
-                  value={rePassword}
-                  onChange={(event) => setRePassword(event.target.value)}
-                  required
-                />
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+                <p className="mb-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+                  Syarat password
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {passwordChecks.map((check) => (
+                    <p
+                      key={check.label}
+                      className={`text-sm ${
+                        check.passed
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-slate-500 dark:text-slate-400"
+                      }`}
+                    >
+                      {check.passed ? "✓" : "•"} {check.label}
+                    </p>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
@@ -636,6 +762,8 @@ export default function FormData({
                         ...current,
                         password: "",
                       }));
+                      setShowPassword(false);
+                      setShowConfirmPassword(false);
                       setRePassword("");
                     }
                   }}
@@ -645,30 +773,92 @@ export default function FormData({
               </div>
 
               {changePassword ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Password Baru *</Label>
-                    <Input
-                      type="password"
-                      value={formData.password || ""}
-                      onChange={(event) =>
-                        setFormData((current) => ({
-                          ...current,
-                          password: event.target.value,
-                        }))
-                      }
-                      placeholder="Min. 6 karakter"
-                    />
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label>Password Baru *</Label>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          value={formData.password || ""}
+                          onChange={(event) =>
+                            setFormData((current) => ({
+                              ...current,
+                              password: event.target.value,
+                            }))
+                          }
+                          placeholder="Password baru"
+                          className="pr-11"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((current) => !current)}
+                          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                          aria-label={
+                            showPassword
+                              ? "Sembunyikan password baru"
+                              : "Lihat password baru"
+                          }
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>Konfirmasi Password Baru *</Label>
+                      <div className="relative">
+                        <Input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={rePassword}
+                          onChange={(event) => setRePassword(event.target.value)}
+                          placeholder="Ulangi password baru"
+                          className="pr-11"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowConfirmPassword((current) => !current)
+                          }
+                          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                          aria-label={
+                            showConfirmPassword
+                              ? "Sembunyikan konfirmasi password baru"
+                              : "Lihat konfirmasi password baru"
+                          }
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label>Konfirmasi Password Baru *</Label>
-                    <Input
-                      type="password"
-                      value={rePassword}
-                      onChange={(event) => setRePassword(event.target.value)}
-                      placeholder="Ulangi password baru"
-                    />
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+                    <p className="mb-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+                      Syarat password
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {passwordChecks.map((check) => (
+                        <p
+                          key={check.label}
+                          className={`text-sm ${
+                            check.passed
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-slate-500 dark:text-slate-400"
+                          }`}
+                        >
+                          {check.passed ? "✓" : "•"} {check.label}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : null}
