@@ -1,6 +1,6 @@
 "use client";
 
-import { Filter, X } from "lucide-react";
+import { Download, Filter, X } from "lucide-react";
 import type React from "react";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,11 @@ type LedgerAccountOption = {
 };
 
 interface HeaderToolbarProps {
+  actions: {
+    onExport: () => void;
+    checkRole: (module: string, action: string) => boolean;
+    isExporting: boolean;
+  };
   filters: {
     show: boolean;
     setShow: React.Dispatch<React.SetStateAction<boolean>>;
@@ -87,18 +92,19 @@ export const columnFormats: DefaultColumnFormat<FinanceLedgerRowDto>[] = [
   },
 ];
 
-export function headerToolbar({ filters }: HeaderToolbarProps) {
+export function headerToolbar({ actions, filters }: HeaderToolbarProps) {
   return (
     <div>
-      <div className="mb-6 flex justify-end">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex-1" />
+
         <Button
           variant="outline"
           onClick={() => filters.setShow(!filters.show)}
-          className={`relative flex items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${
-            filters.show || filters.activeCount > 0
-              ? "border-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30"
-              : "border-gray-300 text-slate-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-          }`}
+          className={`relative flex items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${filters.show || filters.activeCount > 0
+            ? "border-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30"
+            : "border-gray-300 text-slate-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            }`}
         >
           <Filter className="h-4 w-4" />
           Filter
@@ -108,6 +114,18 @@ export function headerToolbar({ filters }: HeaderToolbarProps) {
             </span>
           )}
         </Button>
+
+        {actions.checkRole("finance", "export") && (
+          <Button
+            onClick={actions.onExport}
+            disabled={actions.isExporting}
+            variant="outline"
+            className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+          >
+            <Download className="h-4 w-4" />
+            {actions.isExporting ? "Mengexport..." : "Export Excel"}
+          </Button>
+        )}
       </div>
 
       {filters.show && (

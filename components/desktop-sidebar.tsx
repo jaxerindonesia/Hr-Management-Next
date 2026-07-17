@@ -408,7 +408,7 @@ export default function DesktopSidebar() {
                     }}
                     className={`flex w-full items-center rounded-2xl transition-all duration-300 relative group
                     ${isActive
-                        ? "border border-slate-200/80 bg-slate-800/10 text-slate-900 shadow-[0_14px_34px_rgba(148,163,184,0.18)] dark:border-white/10 dark:bg-white/[0.14] dark:text-white dark:shadow-[0_14px_34px_rgba(15,23,42,0.28)]"
+                        ? "border border-slate-200/80 bg-sky-300/40 text-slate-900 shadow-[0_14px_34px_rgba(148,163,184,0.18)] dark:border-white/10 dark:bg-white/[0.14] dark:text-white dark:shadow-[0_14px_34px_rgba(15,23,42,0.28)]"
                         : "text-slate-600 hover:bg-sky-50/80 hover:text-slate-900 dark:text-slate-200/80 dark:hover:bg-white/[0.07] dark:hover:text-white"
                       }
                     ${sidebarOpen ? "gap-3 px-4 py-3.5" : "justify-center px-0 py-3.5"}

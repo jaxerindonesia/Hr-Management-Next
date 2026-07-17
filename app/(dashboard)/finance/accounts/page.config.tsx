@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Filter, Plus, Trash2, X } from "lucide-react";
+import { Download, Edit, Filter, Plus, Trash2, Upload, X } from "lucide-react";
 import type React from "react";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
 import type { AccountDto } from "@/lib/dto/finance-account";
@@ -14,7 +14,10 @@ import type { AccountCategoryDto } from "@/lib/dto/finance-account-category";
 interface HeaderToolbarProps {
   actions: {
     onAdd: () => void;
+    onExport: () => void;
+    onImport: () => void;
     checkRole: (module: string, action: string) => boolean;
+    isExporting: boolean;
   };
   filters: {
     show: boolean;
@@ -72,11 +75,10 @@ export const columnFormats: DefaultColumnFormat<AccountDto>[] = [
     title: "Status",
     formatter: (value) => (
       <span
-        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-          value
+        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${value
             ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
             : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-        }`}
+          }`}
       >
         {value ? "Aktif" : "Nonaktif"}
       </span>
@@ -103,11 +105,10 @@ export function headerToolbar({ actions, filters }: HeaderToolbarProps) {
         <Button
           variant="outline"
           onClick={() => filters.setShow(!filters.show)}
-          className={`relative flex items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${
-            filters.show || filters.activeCount > 0
+          className={`relative flex items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${filters.show || filters.activeCount > 0
               ? "border-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30"
               : "border-gray-300 text-slate-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-          }`}
+            }`}
         >
           <Filter className="h-4 w-4" />
           Filter
@@ -117,6 +118,29 @@ export function headerToolbar({ actions, filters }: HeaderToolbarProps) {
             </span>
           )}
         </Button>
+
+        {actions.checkRole("finance", "export") && (
+          <Button
+            onClick={actions.onExport}
+            disabled={actions.isExporting}
+            variant="outline"
+            className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+          >
+            <Download className="h-4 w-4" />
+            {actions.isExporting ? "Mengexport..." : "Export Excel"}
+          </Button>
+        )}
+
+        {actions.checkRole("finance", "import") && (
+          <Button
+            variant="outline"
+            onClick={actions.onImport}
+            className="flex items-center gap-2 border-purple-600 text-purple-700 hover:bg-purple-50 dark:border-purple-500 dark:text-purple-400 dark:hover:bg-purple-900/20"
+          >
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+        )}
       </div>
 
       {filters.show && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Filter, Plus, Trash2, X } from "lucide-react";
+import { Download, Edit, Filter, Plus, Trash2, Upload, X } from "lucide-react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
@@ -18,6 +18,10 @@ interface HeaderToolbarProps {
   actions: {
     onAdd: () => void;
     addLabel: string;
+    onExport: () => void;
+    onImport: () => void;
+    isExporting: boolean;
+    checkRole: (module: string, action: string) => boolean;
   };
   filters: {
     show: boolean;
@@ -78,10 +82,12 @@ export function headerToolbar({ title, actions, filters }: HeaderToolbarProps) {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button onClick={actions.onAdd} className="flex w-full items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
-          <Plus className="h-4 w-4" />
-          {actions.addLabel}
-        </Button>
+        {actions.checkRole("finance", "create") && (
+          <Button onClick={actions.onAdd} className="flex w-full items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 sm:w-auto">
+            <Plus className="h-4 w-4" />
+            {actions.addLabel}
+          </Button>
+        )}
 
         <div className="flex-1" />
 
@@ -101,6 +107,29 @@ export function headerToolbar({ title, actions, filters }: HeaderToolbarProps) {
             </span>
           )}
         </Button>
+
+        {actions.checkRole("finance", "export") && (
+          <Button
+            onClick={actions.onExport}
+            disabled={actions.isExporting}
+            variant="outline"
+            className="flex items-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20"
+          >
+            <Download className="h-4 w-4" />
+            {actions.isExporting ? "Mengexport..." : "Export Excel"}
+          </Button>
+        )}
+
+        {actions.checkRole("finance", "import") && (
+          <Button
+            variant="outline"
+            onClick={actions.onImport}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-purple-600 text-purple-700 hover:bg-purple-50 dark:border-purple-500 dark:text-purple-400 dark:hover:bg-purple-900/20 sm:w-auto"
+          >
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+        )}
       </div>
 
       {filters.show && (

@@ -6,6 +6,7 @@ import type { AccountDto, AccountFormDto } from "@/lib/dto/finance-account";
 import type { AccountCategoryDto } from "@/lib/dto/finance-account-category";
 import { usePermission } from "@/lib/helper/check-role";
 import { toast } from "sonner";
+import AccountImportModal from "../components/account-import-modal";
 import FormData from "./components/form-data";
 import {
   columnFormats,
@@ -37,6 +38,7 @@ export default function FinanceAccountsPage() {
   const [accountOptions, setAccountOptions] = useState<AccountDto[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<AccountCategoryDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,6 +48,7 @@ export default function FinanceAccountsPage() {
   const [status, setStatus] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showDialog, setShowDialog] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [form, setForm] = useState<AccountFormDto>(DEFAULT_FORM);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const hasLoadedCategoryOptions = useRef(false);
@@ -187,12 +190,64 @@ export default function FinanceAccountsPage() {
     }
   }, [fetchAccountOptions, fetchData]);
 
+  const onExport = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", "1");
+      params.set("limit", "999999");
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
+      if (status !== "all") params.set("status", status);
+      if (categoryFilter !== "all") params.set("accountCategoryId", categoryFilter);
+
+      const response = await fetch(`${ENDPOINT}?${params.toString()}`);
+      if (!response.ok) throw new Error("Gagal mengambil data akun untuk export");
+
+      const json: PaginatedResponse<AccountDto> = await response.json();
+      const rows = (json.data || []).map((item) => ({
+        Kode: item.code || "-",
+        Nama: item.name || "-",
+        "Kategori Akun": item.accountCategory?.name || "-",
+        "Kode Kategori": item.accountCategory?.code || "-",
+        "Saldo Normal": item.normalBalance || "-",
+        Parent: item.parent ? `${item.parent.code} - ${item.parent.name}` : "-",
+        Status: item.isActive ? "Aktif" : "Nonaktif",
+      }));
+
+      if (!rows.length) {
+        toast.error("Tidak ada data akun untuk didownload");
+        return;
+      }
+
+      const XLSX = await import("xlsx");
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Akun");
+
+      type ExportRow = (typeof rows)[number];
+      const headers = Object.keys(rows[0] ?? {}) as Array<keyof ExportRow>;
+      worksheet["!cols"] = headers.map((header) => ({
+        wch: Math.max(String(header).length, ...rows.map((row) => String(row[header] ?? "").length)) + 2,
+      }));
+
+      XLSX.writeFile(workbook, `data-akun-${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success(`Berhasil mengexport ${rows.length} data akun`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengexport data akun");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [categoryFilter, debouncedSearchTerm, status]);
+
   const toolbar = useMemo(
     () =>
       headerToolbar({
         actions: {
           onAdd,
+          onExport,
+          onImport: () => setShowImportModal(true),
           checkRole,
+          isExporting,
         },
         filters: {
           show: showFilterPanel,
@@ -214,7 +269,9 @@ export default function FinanceAccountsPage() {
       categoryOptions,
       checkRole,
       clearFilters,
+      isExporting,
       onAdd,
+      onExport,
       searchTerm,
       showFilterPanel,
       status,
@@ -257,6 +314,15 @@ export default function FinanceAccountsPage() {
         }}
         onChange={setForm}
         onSubmit={onSubmit}
+      />
+
+      <AccountImportModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        onSuccess={() => {
+          void fetchData();
+          void fetchAccountOptions();
+        }}
       />
     </>
   );

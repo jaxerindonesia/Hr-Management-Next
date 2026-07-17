@@ -65,6 +65,7 @@ export default function FinanceJournalsPage() {
   const [customerOptions, setCustomerOptions] = useState<PartnerDto[]>([]);
   const [vendorOptions, setVendorOptions] = useState<PartnerDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -209,6 +210,84 @@ export default function FinanceJournalsPage() {
     }));
   }, [form.date]);
 
+  const onExport = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", "1");
+      params.set("limit", "999999");
+      if (debouncedSearchTerm) params.set("search", debouncedSearchTerm);
+      if (status !== "all") params.set("status", status);
+
+      const response = await fetch(`${ENDPOINT}?${params.toString()}`);
+      if (!response.ok) throw new Error("Gagal mengambil data jurnal untuk export");
+
+      const json: PaginatedResponse<JournalDto> = await response.json();
+      const rows = (json.data || []).map((journal) => {
+        const totalDebit = journal.details.reduce((sum, detail) => sum + Number(detail.debit || 0), 0);
+        const totalCredit = journal.details.reduce((sum, detail) => sum + Number(detail.credit || 0), 0);
+
+        return {
+          "No Jurnal": journal.journalNo || "-",
+          Tanggal: journal.date
+            ? new Date(journal.date).toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })
+            : "-",
+          Referensi: journal.referenceNo || "-",
+          Deskripsi: journal.description || "-",
+          Status: journal.status || "-",
+          "Total Debit": totalDebit,
+          "Total Kredit": totalCredit,
+          "Jumlah Baris": journal.details.length,
+        };
+      });
+
+      if (!rows.length) {
+        toast.error("Tidak ada data jurnal untuk didownload");
+        return;
+      }
+
+      const XLSX = await import("xlsx");
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Jurnal Umum");
+
+      type ExportRow = (typeof rows)[number];
+      const headers = Object.keys(rows[0] ?? {}) as Array<keyof ExportRow>;
+      worksheet["!cols"] = headers.map((header) => ({
+        wch: Math.max(
+          String(header).length,
+          ...rows.map((row) => String(row[header] ?? "").length),
+        ) + 2,
+      }));
+
+      const numericColumns = ["Total Debit", "Total Kredit"];
+      for (const columnName of numericColumns) {
+        const columnIndex = headers.indexOf(columnName as keyof ExportRow);
+        if (columnIndex < 0) continue;
+
+        const columnLetter = XLSX.utils.encode_col(columnIndex);
+        for (let rowIndex = 2; rowIndex <= rows.length + 1; rowIndex += 1) {
+          const cell = worksheet[`${columnLetter}${rowIndex}`];
+          if (cell) {
+            cell.t = "n";
+            cell.z = '"Rp"#,##0';
+          }
+        }
+      }
+
+      XLSX.writeFile(workbook, `jurnal-umum-${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success(`Berhasil mengexport ${rows.length} data jurnal`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengexport jurnal");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [debouncedSearchTerm, status]);
+
   const onSubmit = useCallback(async () => {
     setLoading(true);
     try {
@@ -321,7 +400,9 @@ export default function FinanceJournalsPage() {
       headerToolbar({
         actions: {
           onAdd,
+          onExport,
           checkRole,
+          isExporting,
         },
         filters: {
           show: showFilterPanel,
@@ -334,7 +415,7 @@ export default function FinanceJournalsPage() {
           setStatus,
         },
       }),
-    [activeFilterCount, checkRole, clearFilters, onAdd, searchTerm, showFilterPanel, status],
+    [activeFilterCount, checkRole, clearFilters, isExporting, onAdd, onExport, searchTerm, showFilterPanel, status],
   );
 
   return (
