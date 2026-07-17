@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -22,11 +22,7 @@ export default function FormData({
   onClose,
   onSuccess,
 }: FormDataProps) {
-  const [loading, setLoading] = useState(false);
-  const [imageLightBase64, setImageLightBase64] = useState<string | null>(null);
-  const [imageDarkBase64, setImageDarkBase64] = useState<string | null>(null);
-
-  const [form, setForm] = useState<FormState>({
+  const createInitialFormState = (): FormState => ({
     companyName: initialData?.companyName || "",
     adminEmail: initialData?.adminEmail || "",
     isActive: initialData?.isActive ?? true,
@@ -39,6 +35,19 @@ export default function FormData({
       ? new Date(initialData.subscriptionEnd).toISOString().slice(0, 10)
       : "",
   });
+
+  const [loading, setLoading] = useState(false);
+  const [imageLightBase64, setImageLightBase64] = useState<string | null>(null);
+  const [imageDarkBase64, setImageDarkBase64] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(createInitialFormState);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setForm(createInitialFormState());
+    setImageLightBase64(null);
+    setImageDarkBase64(null);
+  }, [initialData, isOpen]);
 
   const previewLightUrl = useMemo(
     () => imageLightBase64 || form.logoUrl || null,
