@@ -83,10 +83,29 @@ export async function PUT(req: Request, { params }: Params) {
     }
 
     const updateData: any = {};
+    const nextStartDate = body.startDate ? new Date(body.startDate) : null;
+    const nextEndDate = body.endDate ? new Date(body.endDate) : null;
+
+    if (nextStartDate && Number.isNaN(nextStartDate.getTime())) {
+      return NextResponse.json({ message: "Format tanggal mulai tidak valid" }, { status: 400 });
+    }
+    if (nextEndDate && Number.isNaN(nextEndDate.getTime())) {
+      return NextResponse.json({ message: "Format tanggal selesai tidak valid" }, { status: 400 });
+    }
+
+    const finalStartDate = nextStartDate ?? existing.startDate;
+    const finalEndDate = nextEndDate ?? existing.endDate;
+    if (finalEndDate < finalStartDate) {
+      return NextResponse.json(
+        { message: "Tanggal selesai tidak boleh sebelum tanggal mulai" },
+        { status: 400 },
+      );
+    }
+
     if (body.userId) updateData.userId = body.userId;
     if (body.submissionTypeId) updateData.submissionTypeId = body.submissionTypeId;
-    if (body.startDate) updateData.startDate = new Date(body.startDate);
-    if (body.endDate) updateData.endDate = new Date(body.endDate);
+    if (body.startDate) updateData.startDate = nextStartDate;
+    if (body.endDate) updateData.endDate = nextEndDate;
     if (body.reason) updateData.reason = body.reason;
 
     const submission = await prisma.submission.update({ where: { id: p.id }, data: updateData });

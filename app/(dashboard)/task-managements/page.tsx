@@ -610,6 +610,11 @@ export default function TaskManagementPage() {
       return;
     }
 
+    if (taskForm.dueDate < taskForm.startDate) {
+      toast.error("Tanggal jatuh tempo tidak boleh sebelum tanggal mulai task");
+      return;
+    }
+
     try {
       setSavingTask(true);
       const payload = {

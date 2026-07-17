@@ -24,6 +24,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+function toInputDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().split("T")[0] ?? "";
+}
+
 export default function FormData({
   isOpen,
   initialData,
@@ -51,6 +58,10 @@ export default function FormData({
       approvedAt: null,
     },
   );
+  const startDateValue = toInputDate(formData.startDate);
+  const endDateValue = toInputDate(formData.endDate);
+  const isEndDateBeforeStartDate =
+    !!startDateValue && !!endDateValue && endDateValue < startDateValue;
 
   const fetchSubmissionTypes = async () => {
     try {
@@ -76,6 +87,12 @@ export default function FormData({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isEndDateBeforeStartDate) {
+      toast.error("Tanggal selesai tidak boleh sebelum tanggal mulai");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -210,13 +227,21 @@ export default function FormData({
             <Label>Tanggal Mulai</Label>
             <Input
               type="date"
-              value={
-                formData.startDate
-                  ? new Date(formData.startDate).toISOString().split("T")[0]
-                  : ""
-              }
+              value={startDateValue}
               onChange={(e) =>
-                setFormData({ ...formData, startDate: e.target.value })
+                setFormData((prev) => {
+                  const nextStartDate = e.target.value;
+                  const nextEndDate =
+                    prev.endDate && toInputDate(prev.endDate) < nextStartDate
+                      ? nextStartDate
+                      : prev.endDate;
+
+                  return {
+                    ...prev,
+                    startDate: nextStartDate,
+                    endDate: nextEndDate,
+                  };
+                })
               }
             />
           </div>
@@ -225,15 +250,17 @@ export default function FormData({
             <Label>Tanggal Selesai</Label>
             <Input
               type="date"
-              value={
-                formData.endDate
-                  ? new Date(formData.endDate).toISOString().split("T")[0]
-                  : ""
-              }
+              value={endDateValue}
+              min={startDateValue || undefined}
               onChange={(e) =>
                 setFormData({ ...formData, endDate: e.target.value })
               }
             />
+            {isEndDateBeforeStartDate ? (
+              <p className="text-sm text-red-500">
+                Tanggal selesai tidak boleh sebelum tanggal mulai.
+              </p>
+            ) : null}
           </div>
 
           <div className="grid gap-2">

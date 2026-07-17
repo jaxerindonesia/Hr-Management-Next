@@ -133,6 +133,12 @@ export function TaskManagementDialogs({
   confirmDelete,
   canManageSelectedDepartment,
 }: Props) {
+  const hasInvalidDueDate = Boolean(
+    taskForm.startDate &&
+      taskForm.dueDate &&
+      taskForm.dueDate < taskForm.startDate,
+  );
+
   return (
     <>
       <Dialog open={listDialogOpen && canManageSelectedDepartment} onOpenChange={setListDialogOpen}>
@@ -281,11 +287,37 @@ export function TaskManagementDialogs({
                 <div className="flex gap-4 sm:col-span-2">
                   <div className="flex-1">
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Start Date</label>
-                    <Input type="date" value={taskForm.startDate} onChange={(e) => setTaskForm((prev) => ({ ...prev, startDate: e.target.value }))} className="h-11 rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950 dark:[color-scheme:dark]" />
+                    <Input
+                      type="date"
+                      value={taskForm.startDate}
+                      onChange={(e) =>
+                        setTaskForm((prev) => {
+                          const startDate = e.target.value;
+                          const dueDate =
+                            prev.dueDate && startDate && prev.dueDate < startDate
+                              ? startDate
+                              : prev.dueDate;
+
+                          return { ...prev, startDate, dueDate };
+                        })
+                      }
+                      className="h-11 rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950 dark:[color-scheme:dark]"
+                    />
                   </div>
                   <div className="flex-1">
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Due Date</label>
-                    <Input type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm((prev) => ({ ...prev, dueDate: e.target.value }))} className="h-11 rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950 dark:[color-scheme:dark]" />
+                    <Input
+                      type="date"
+                      min={taskForm.startDate || undefined}
+                      value={taskForm.dueDate}
+                      onChange={(e) => setTaskForm((prev) => ({ ...prev, dueDate: e.target.value }))}
+                      className="h-11 rounded-lg border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950 dark:[color-scheme:dark]"
+                    />
+                    {hasInvalidDueDate ? (
+                      <p className="mt-2 text-xs font-medium text-red-500">
+                        Tanggal jatuh tempo harus sama atau setelah tanggal mulai task.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -390,7 +422,7 @@ export function TaskManagementDialogs({
 
                 <div className="flex justify-end gap-3 border-t border-gray-100 pt-5 dark:border-gray-800 sm:col-span-2">
                   <Button variant="outline" onClick={closeTaskModal} disabled={savingTask} className="h-10 rounded-lg px-5">Batal</Button>
-                  <Button onClick={saveTask} disabled={savingTask} className="h-10 rounded-lg bg-blue-600 px-5 text-white shadow-sm hover:bg-blue-700">
+                  <Button onClick={saveTask} disabled={savingTask || hasInvalidDueDate} className="h-10 rounded-lg bg-blue-600 px-5 text-white shadow-sm hover:bg-blue-700">
                     <Save className="h-4 w-4" />
                     {savingTask ? "Menyimpan..." : "Simpan Task"}
                   </Button>
