@@ -9,30 +9,28 @@ const cspBase =
 
 const createNonce = () => crypto.randomUUID().replace(/-/g, "");
 
-const withCsp = (request: NextRequest, response: NextResponse) => {
+const applyCspHeaders = (response: NextResponse, nonce: string) => {
+  const csp = `${cspBase}; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`;
+  response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("x-nonce", nonce);
+};
+
+export async function proxy(request: NextRequest) {
   const nonce = createNonce();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
 
-  const csp = `${cspBase}; script-src 'self' 'nonce-${nonce}'`;
-
-  response.headers.set("Content-Security-Policy", csp);
-  response.headers.set("x-nonce", nonce);
-
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-    headers: response.headers,
-  });
-};
-
-export async function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/api/cron")) {
-    return withCsp(request, NextResponse.next());
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+    applyCspHeaders(response, nonce);
+    return response;
   }
 
   const publicRoutes = ["/login", "/register"];
@@ -49,21 +47,28 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isValidSession && publicRoutes.includes(pathname)) {
-    return withCsp(request, NextResponse.redirect(new URL("/dashboard", request.url)));
+    const response = NextResponse.redirect(new URL("/dashboard", request.url));
+    applyCspHeaders(response, nonce);
+    return response;
   }
 
   if (isPublicRoute || isAuthApiRoute) {
-    return withCsp(request, NextResponse.next());
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+    applyCspHeaders(response, nonce);
+    return response;
   }
 
   if (isApiRoute && isStateChangingRequest(request.method) && !isTrustedOrigin(request)) {
-    return withCsp(
-      request,
-      NextResponse.json(
-        { message: "Forbidden origin" },
-        { status: 403 },
-      ),
+    const response = NextResponse.json(
+      { message: "Forbidden origin" },
+      { status: 403 },
     );
+    applyCspHeaders(response, nonce);
+    return response;
   }
 
   if (!token || !isValidSession) {
@@ -71,16 +76,24 @@ export async function proxy(request: NextRequest) {
       const response = NextResponse.json({ message: "Unauthorized" }, { status: 401 });
       response.cookies.set("token", "", getExpiredAuthCookieOptions());
       response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
-      return withCsp(request, response);
+      applyCspHeaders(response, nonce);
+      return response;
     }
 
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.set("token", "", getExpiredAuthCookieOptions());
     response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
-    return withCsp(request, response);
+    applyCspHeaders(response, nonce);
+    return response;
   }
 
-  return withCsp(request, NextResponse.next());
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+  applyCspHeaders(response, nonce);
+  return response;
 }
 
 export const config = {
