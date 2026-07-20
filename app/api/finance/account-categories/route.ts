@@ -4,10 +4,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireSessionUser, ensureTenantScope } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 export async function GET(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "get-all");
+  if (forbid) return forbid;
 
   const { searchParams } = new URL(req.url);
   const scope = searchParams.get("scope") || "list";
@@ -50,6 +53,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "create");
+  if (forbid) return forbid;
   const body = await req.json();
   if (!body.code || !body.name) return NextResponse.json({ message: "Code and name are required" }, { status: 400 });
   const tenantId = ensureTenantScope(auth.user) ?? body.tenantId ?? null;

@@ -5,6 +5,8 @@ import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { canManageTaskDepartment } from "@/lib/auth/task-management";
 import { deleteFromMinio, BUCKET_AVATARS } from "@/lib/minio";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type Params = {
   params: {
@@ -144,6 +146,8 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "update");
+    if (forbid) return forbid;
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const existing = await findScopedTask(p.id, scopedTenantId);
@@ -355,6 +359,22 @@ export async function PUT(req: Request, { params }: Params) {
       });
     });
 
+    writeAuditLog({
+      action: "tasks.update",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "task",
+      targetId: task.id,
+      message: "Task updated",
+      metadata: {
+        movedList: body.listId !== undefined,
+        updatedMembers: body.memberIds !== undefined,
+        updatedCategories: body.categoryIds !== undefined,
+      },
+    });
+
     return NextResponse.json({
       message: "Task successfully updated",
       data: task,
@@ -374,6 +394,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "delete");
+    if (forbid) return forbid;
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const existing = await findScopedTask(p.id, scopedTenantId);
@@ -391,6 +413,17 @@ export async function DELETE(_: Request, { params }: Params) {
     await deleteTaskAttachments(attachments);
 
     await prisma.task.delete({ where: { id: p.id } });
+
+    writeAuditLog({
+      action: "tasks.delete",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "task",
+      targetId: p.id,
+      message: "Task deleted",
+    });
 
     return NextResponse.json({
       message: "Task successfully deleted",

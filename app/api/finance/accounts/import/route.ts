@@ -3,16 +3,54 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { getRequestIp } from "@/lib/security/request";
 
 export async function POST(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "import");
+  if (forbid) return forbid;
+  const rateLimit = await consumeRateLimit({
+    key: `import:finance-accounts:${auth.user.id}:${getRequestIp(req)}`,
+    limit: 10,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rateLimit.allowed) {
+    writeAuditLog({
+      action: "finance.import_accounts",
+      status: "denied",
+      request: req,
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      message: "Account import rate limit exceeded",
+    });
+    return NextResponse.json(
+      { message: "Terlalu banyak request import. Coba lagi beberapa menit lagi." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+      },
+    );
+  }
 
   const body = await req.json().catch(() => ({}));
   const rows = Array.isArray(body.rows) ? body.rows : [];
   const tenantId = ensureTenantScope(auth.user) ?? null;
 
   if (!rows.length) {
+    writeAuditLog({
+      action: "finance.import_accounts",
+      status: "failed",
+      request: req,
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      message: "Account import rows empty",
+    });
     return NextResponse.json({ message: "Data import tidak ditemukan" }, { status: 400 });
   }
 
@@ -78,6 +116,21 @@ export async function POST(req: NextRequest) {
     accountMap.set(code.toLowerCase(), createdAccount.id);
     created += 1;
   }
+
+  writeAuditLog({
+    action: "finance.import_accounts",
+    status: errors.length > 0 ? "failed" : "success",
+    request: req,
+    actorUserId: auth.user.id,
+    actorRole: auth.user.roleName,
+    tenantId: auth.user.tenantId,
+    message: "Account import completed",
+    metadata: {
+      created,
+      failed: errors.length,
+      total: rows.length,
+    },
+  });
 
   return NextResponse.json({ data: { created, errors } });
 }

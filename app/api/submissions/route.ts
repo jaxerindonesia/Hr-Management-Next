@@ -4,11 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { hasPermission, requirePermission } from "@/lib/auth/permission";
 
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "submissions", "get-all");
+    if (forbid) return forbid;
 
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
@@ -69,13 +72,32 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "submissions", "create");
+    if (forbid) return forbid;
     const body = await req.json();
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+    const canManageSubmissions = hasPermission(auth.user, "submissions", "update");
 
     const { userId, submissionTypeId, startDate, endDate, reason, status } = body;
     if (!userId || !status || !submissionTypeId || !startDate || !endDate || !reason) {
       return NextResponse.json({ message: "All submission fields are required fields" }, { status: 400 });
+    }
+    if (!canManageSubmissions && userId !== auth.user.id) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const targetUserId = canManageSubmissions ? userId : auth.user.id;
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        id: targetUserId,
+        deletedAt: null,
+        ...(finalTenantId ? { tenantId: finalTenantId } : {}),
+      },
+      select: { id: true },
+    });
+    if (!targetUser) {
+      return NextResponse.json({ message: "User target tidak ditemukan" }, { status: 404 });
     }
 
     const start = new Date(startDate);
@@ -107,7 +129,7 @@ export async function POST(req: NextRequest) {
       const approvedSubmissions = await prisma.submission.findMany({
         where: {
           ...(finalTenantId ? { tenantId: finalTenantId } : {}),
-          userId,
+          userId: targetUserId,
           submissionTypeId: { in: linkedTypeIds },
           status: "APPROVED",
           startDate: { gte: yearStart, lte: yearEnd },
@@ -122,7 +144,7 @@ export async function POST(req: NextRequest) {
     }
 
     const existing = await prisma.submission.findFirst({
-      where: { ...(finalTenantId ? { tenantId: finalTenantId } : {}), userId, submissionTypeId, startDate: new Date(startDate), endDate: new Date(endDate) },
+      where: { ...(finalTenantId ? { tenantId: finalTenantId } : {}), userId: targetUserId, submissionTypeId, startDate: new Date(startDate), endDate: new Date(endDate) },
     });
     if (existing) return NextResponse.json({ message: "Submission already exists for this user" }, { status: 409 });
 
@@ -131,7 +153,7 @@ export async function POST(req: NextRequest) {
     const submission = await prisma.submission.create({
       data: {
         tenantId: finalTenantId,
-        userId,
+        userId: targetUserId,
         submissionTypeId,
         startDate: new Date(startDate),
         endDate: new Date(endDate),

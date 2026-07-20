@@ -2,7 +2,9 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireSessionUser } from "@/lib/auth/tenant";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -21,15 +23,24 @@ function calcTotals(details: Array<{ debit?: number; credit?: number }>) {
 export async function GET(_req: NextRequest, context: Context) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "get-by-id");
+  if (forbid) return forbid;
+  const scopedTenantId = ensureTenantScope(auth.user);
 
   const { id } = await context.params;
-  const data = await prisma.journal.findUnique({
-    where: { id },
+  const data = await prisma.journal.findFirst({
+    where: {
+      id,
+      ...(scopedTenantId ? { creator: { tenantId: scopedTenantId } } : {}),
+    },
     include: {
       details: { include: { account: true, customer: true, vendor: true } },
       creator: true,
     },
   });
+  if (!data) {
+    return NextResponse.json({ message: "Jurnal tidak ditemukan" }, { status: 404 });
+  }
 
   return NextResponse.json({ data });
 }
@@ -37,6 +48,9 @@ export async function GET(_req: NextRequest, context: Context) {
 export async function PUT(req: NextRequest, context: Context) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "update");
+  if (forbid) return forbid;
+  const scopedTenantId = ensureTenantScope(auth.user);
 
   const { id } = await context.params;
   const body = await req.json();
@@ -57,6 +71,17 @@ export async function PUT(req: NextRequest, context: Context) {
 
   if (totals.debit !== totals.credit) {
     return NextResponse.json({ message: "Total debit dan credit harus sama." }, { status: 400 });
+  }
+
+  const existing = await prisma.journal.findFirst({
+    where: {
+      id,
+      ...(scopedTenantId ? { creator: { tenantId: scopedTenantId } } : {}),
+    },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ message: "Jurnal tidak ditemukan" }, { status: 404 });
   }
 
   await prisma.journalDetail.deleteMany({ where: { journalId: id } });
@@ -83,15 +108,55 @@ export async function PUT(req: NextRequest, context: Context) {
     include: { details: true },
   });
 
+  writeAuditLog({
+    action: "finance.journals.update",
+    status: "success",
+    actorUserId: auth.user.id,
+    actorRole: auth.user.roleName,
+    tenantId: auth.user.tenantId,
+    targetType: "journal",
+    targetId: data.id,
+    message: "Journal updated",
+    metadata: {
+      journalNo: data.journalNo,
+      status: body.status || "DRAFT",
+      detailCount: details.length,
+    },
+  });
+
   return NextResponse.json({ data });
 }
 
 export async function DELETE(_req: NextRequest, context: Context) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "delete");
+  if (forbid) return forbid;
+  const scopedTenantId = ensureTenantScope(auth.user);
 
   const { id } = await context.params;
+  const existing = await prisma.journal.findFirst({
+    where: {
+      id,
+      ...(scopedTenantId ? { creator: { tenantId: scopedTenantId } } : {}),
+    },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ message: "Jurnal tidak ditemukan" }, { status: 404 });
+  }
   await prisma.journal.delete({ where: { id } });
+
+  writeAuditLog({
+    action: "finance.journals.delete",
+    status: "success",
+    actorUserId: auth.user.id,
+    actorRole: auth.user.roleName,
+    tenantId: auth.user.tenantId,
+    targetType: "journal",
+    targetId: id,
+    message: "Journal deleted",
+  });
 
   return NextResponse.json({ success: true });
 }

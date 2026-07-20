@@ -13,6 +13,7 @@ import FormData from "./components/form-data";
 import { DEFAULT_CONFIG, ITEMS_PER_PAGE, columnFormats, headerToolbar, renderActions } from "./page.config";
 import LastApproveModal from "./components/last-approve-modal";
 import RejectModal from "./components/reject-modal";
+import { formatTimeId } from "@/lib/helper/date";
 
 export default function Page() {
   const { checkRole } = usePermission();
@@ -80,6 +81,8 @@ export default function Page() {
       const rows = allData.map((item) => ({
         Karyawan: item.user?.name ?? "-",
         Tanggal: item.overtimeDate ? new Date(item.overtimeDate).toLocaleDateString("id-ID") : "-",
+        "Jam Mulai": item.startTime ? formatTimeId(item.startTime) : "-",
+        "Jam Selesai": item.endTime ? formatTimeId(item.endTime) : "-",
         Durasi: `${Math.floor((item.overtimeMinutes || 0) / 60)} jam`,
         Nominal: item.payoutAmount || 0,
         Status: item.status || "-",
@@ -174,7 +177,6 @@ export default function Page() {
     setShowRejectModal(true);
     setRejectReason("");
   };
-
 
   const onReject = async (id: string) => {
     try {
@@ -364,7 +366,7 @@ export default function Page() {
   }, [fetchData]);
 
   useEffect(() => {
-    fetchConfig();
+    if (checkRole("overtimes", "set-config")) fetchConfig();
     fetchApproverUsers();
   }, [fetchApproverUsers, fetchConfig]);
 

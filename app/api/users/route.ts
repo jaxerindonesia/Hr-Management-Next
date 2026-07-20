@@ -6,11 +6,14 @@ import bcrypt from "bcryptjs";
 
 import prisma from "@/lib/prisma";
 import { requireSessionUser, ensureTenantScope } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "users", "get-all");
+    if (forbid) return forbid;
 
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
@@ -114,6 +117,8 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "users", "create");
+    if (forbid) return forbid;
 
     const body = await req.json();
 

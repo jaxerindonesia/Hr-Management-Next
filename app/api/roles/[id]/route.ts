@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type Params = {
   params: { id: string };
@@ -13,6 +15,8 @@ export async function GET(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "roles", "get-by-id");
+    if (forbid) return forbid;
 
     const role = await prisma.role.findFirst({
       where: { id: p.id },
@@ -46,6 +50,8 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "roles", "update");
+    if (forbid) return forbid;
 
     const existing = await prisma.role.findFirst({
       where: { id: p.id },
@@ -88,6 +94,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "roles", "delete");
+    if (forbid) return forbid;
 
     const existing = await prisma.role.findFirst({
       where: { id: p.id },
@@ -97,6 +105,17 @@ export async function DELETE(_: Request, { params }: Params) {
 
     await prisma.role.delete({
       where: { id: p.id },
+    });
+
+    writeAuditLog({
+      action: "roles.delete",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "role",
+      targetId: p.id,
+      message: "Role deleted",
     });
 
     return NextResponse.json({

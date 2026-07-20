@@ -100,19 +100,19 @@ function getPasswordChecks(password: string) {
 export default function FormData({
   isOpen,
   initialData,
+  departments,
   onClose,
   onSuccess,
 }: {
   isOpen: boolean;
   initialData?: UserDto;
+  departments: DepartmentDto[];
   onClose: () => void;
   onSuccess?: () => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<RoleDto[]>([]);
   const [tenants, setTenants] = useState<TenantDto[]>([]);
-  const [departments, setDepartments] = useState<DepartmentDto[]>([]);
-  const [departmentsLoaded, setDepartmentsLoaded] = useState(false);
   const [rePassword, setRePassword] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentTenantId, setCurrentTenantId] = useState("");
@@ -136,25 +136,6 @@ export default function FormData({
       setRoles(json.data || []);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal memuat role");
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await fetch("/api/departments");
-      if (!res.ok) {
-        throw new Error(
-          await parseApiError(res, "Gagal mengambil data departemen"),
-        );
-      }
-      const json = await res.json();
-      setDepartments(json.data || []);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Gagal memuat departemen",
-      );
-    } finally {
-      setDepartmentsLoaded(true);
     }
   };
 
@@ -314,7 +295,6 @@ export default function FormData({
     }
 
     fetchRoles();
-    fetchDepartments();
   }, [initialData?.id, initialData?.tenantId]);
 
   useEffect(() => {
@@ -361,7 +341,7 @@ export default function FormData({
   });
 
   useEffect(() => {
-    if (!formData.departmentId || !departmentsLoaded) return;
+    if (!formData.departmentId || departments.length === 0) return;
 
     const isDepartmentStillValid = filteredDepartments.some(
       (department) => department.id === formData.departmentId,
@@ -373,7 +353,7 @@ export default function FormData({
         departmentId: "",
       }));
     }
-  }, [departmentsLoaded, filteredDepartments, formData.departmentId]);
+  }, [departments, filteredDepartments, formData.departmentId]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

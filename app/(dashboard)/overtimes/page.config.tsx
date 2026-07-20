@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { OvertimeConfigDto, OvertimeDto } from "@/lib/dto/overtime";
 import type React from "react";
 import { formatCurrency } from "@/lib/helper/format-currency";
+import { formatTimeId } from "@/lib/helper/date";
 
 export const itemsPerPageOptions = [5, 10, 25, 50, 100];
 export const ITEMS_PER_PAGE = 10;
@@ -60,20 +61,20 @@ export const STATUS_COLOR: Record<string, string> = {
 };
 
 export const INITIAL_FORM_DATA: OvertimeDto = {
-  id: "",
-  userId: "",
-  overtimeDate: "",
-  startTime: "",
-  endTime: "",
-  overtimeMinutes: 0,
-  requestedMinutes: 0,
-  payMethod: "PER_HOUR",
-  status: "PENDING",
-  approvalDecisions: [],
-  hourlyRate: 0,
-  dailyRate: 0,
-  payoutAmount: 0,
-  description: "",
+    id: "",
+    userId: "",
+    overtimeDate: "",
+    startTime: "",
+    endTime: "",
+    overtimeMinutes: 0,
+    requestedMinutes: 0,
+    payMethod: "PER_HOUR",
+    status: "PENDING",
+    approvalDecisions: [],
+    hourlyRate: 0,
+    dailyRate: 0,
+    payoutAmount: 0,
+    description: "",
 };
 
 export const DEFAULT_CONFIG: OvertimeConfigDto = { payMethod: "PER_HOUR", hourlyRate: 0, dailyRate: 0 };
@@ -94,6 +95,18 @@ export const columnFormats: DefaultColumnFormat<OvertimeDto>[] = [
             month: "short",
             day: "numeric",
         }) : "-",
+    },
+    {
+        key: "startTime",
+        title: "Jam Mulai",
+        textClassName: "text-slate-700 dark:text-slate-200",
+        formatter: (_value, row) => formatTimeId(row.startTime),
+    },
+    {
+        key: "endTime",
+        title: "Jam Selesai",
+        textClassName: "text-slate-700 dark:text-slate-200",
+        formatter: (_value, row) => formatTimeId(row.endTime),
     },
     {
         key: "description",

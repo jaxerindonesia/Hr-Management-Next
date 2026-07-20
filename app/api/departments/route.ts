@@ -3,11 +3,14 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 export async function GET() {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "departments", "get-all");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const departments = await prisma.department.findMany({
@@ -47,12 +50,14 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "departments", "create");
+    if (forbid) return forbid;
 
     const body = await req.json();
 
-    const { name } = body;
+    const rawName = String(body.name || "").trim();
 
-    if (!name) {
+    if (!rawName) {
       return NextResponse.json(
         { message: "Department name is required" },
         { status: 400 },
@@ -61,9 +66,23 @@ export async function POST(req: NextRequest) {
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+    const existingDepartment = await prisma.department.findFirst({
+      where: {
+        ...(finalTenantId ? { tenantId: finalTenantId } : { tenantId: null }),
+        name: { equals: rawName, mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+
+    if (existingDepartment) {
+      return NextResponse.json(
+        { message: "Nama departemen sudah digunakan pada tenant ini" },
+        { status: 409 },
+      );
+    }
 
     const department = await prisma.department.create({
-      data: { name, tenantId: finalTenantId },
+      data: { name: rawName, tenantId: finalTenantId },
     });
 
     return NextResponse.json(

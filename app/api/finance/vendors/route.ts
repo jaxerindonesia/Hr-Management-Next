@@ -4,19 +4,23 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireSessionUser, tenantWhere } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 export async function GET(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "get-all");
+  if (forbid) return forbid;
+  const scope = tenantWhere(auth.user);
 
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
   const search = (searchParams.get("search") || "").trim();
 
-  const where: Prisma.VendorWhereInput = {};
+  const where: Prisma.VendorWhereInput = { ...scope };
   if (search) {
     where.OR = [
       { code: { contains: search, mode: "insensitive" } },
@@ -42,6 +46,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "create");
+  if (forbid) return forbid;
   const body = await req.json();
   const scope = tenantWhere(auth.user);
   const code = String(body.code || "").trim();

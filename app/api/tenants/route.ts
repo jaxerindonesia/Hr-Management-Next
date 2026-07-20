@@ -77,11 +77,22 @@ export async function POST(req: NextRequest) {
       subscriptionStart,
       subscriptionEnd,
     } = body;
+    const seedPassword = process.env.SEED_PASSWORD?.trim();
 
     if (!companyName || !adminEmail) {
       return NextResponse.json(
         { message: "Nama perusahaan dan email admin wajib diisi" },
         { status: 400 },
+      );
+    }
+
+    if (!seedPassword) {
+      return NextResponse.json(
+        {
+          message:
+            "SEED_PASSWORD belum dikonfigurasi di server. Tenant tidak dapat dibuat dengan password kosong.",
+        },
+        { status: 500 },
       );
     }
 
@@ -112,8 +123,7 @@ export async function POST(req: NextRequest) {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const password = process.env.SEED_PASSWORD ?? "";
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(seedPassword, salt);
 
     const { tenant, adminUser } = await prisma.$transaction(async (tx) => {
       const createdTenant = await tx.tenant.create({
@@ -158,7 +168,6 @@ export async function POST(req: NextRequest) {
         message: "Tenant dan user admin berhasil dibuat",
         data: tenant,
         adminUser,
-        password,
       },
       { status: 201 },
     );

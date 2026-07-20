@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { canManageTaskDepartment } from "@/lib/auth/task-management";
+import { requirePermission } from "@/lib/auth/permission";
 
 const DEFAULT_LISTS = ["To Do", "On Progress", "Review", "Done"];
 
@@ -115,6 +116,8 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "get-all");
+    if (forbid) return forbid;
 
     const departmentId = req.nextUrl.searchParams.get("departmentId") || "";
     if (!departmentId) {
@@ -162,6 +165,8 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "create");
+    if (forbid) return forbid;
 
     const body = await req.json();
     const name = String(body.name || "").trim();

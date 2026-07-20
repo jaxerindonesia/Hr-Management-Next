@@ -4,14 +4,39 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type Params = { params: { id: string } };
+
+async function hasOverlappingOvertime(params: {
+  userId: string;
+  tenantId: string | null;
+  startTime: Date;
+  endTime: Date;
+  excludeId?: string;
+}) {
+  const overlapping = await prisma.overtime.findFirst({
+    where: {
+      userId: params.userId,
+      ...(params.tenantId ? { tenantId: params.tenantId } : { tenantId: null }),
+      ...(params.excludeId ? { NOT: { id: params.excludeId } } : {}),
+      startTime: { lt: params.endTime },
+      endTime: { gt: params.startTime },
+    },
+    select: { id: true },
+  });
+
+  return Boolean(overlapping);
+}
 
 export async function GET(_: Request, { params }: Params) {
   const p = await params;
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "overtimes", "get-by-id");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const item = await prisma.overtime.findFirst({
@@ -38,6 +63,8 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "overtimes", "update");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
     const existing = await prisma.overtime.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
@@ -108,6 +135,24 @@ export async function PUT(req: Request, { params }: Params) {
 
       if (overtimeMinutes <= 0) {
         return NextResponse.json({ message: "Durasi lembur harus lebih dari 0 menit" }, { status: 400 });
+      }
+
+      const nextUserId =
+        typeof updateData.userId === "string" && updateData.userId.trim()
+          ? updateData.userId.trim()
+          : existing.userId;
+      const overlapping = await hasOverlappingOvertime({
+        userId: nextUserId,
+        tenantId: scopedTenantId ?? null,
+        startTime,
+        endTime,
+        excludeId: p.id,
+      });
+      if (overlapping) {
+        return NextResponse.json(
+          { message: "Sudah ada pengajuan lembur lain yang tumpang tindih pada rentang waktu tersebut" },
+          { status: 409 },
+        );
       }
 
       updateData.overtimeDate = startTime;
@@ -194,6 +239,21 @@ export async function PUT(req: Request, { params }: Params) {
           ...paymentData,
         },
       });
+      writeAuditLog({
+        action: nextStatus === "REJECTED" ? "overtimes.reject" : "overtimes.approve",
+        status: "success",
+        actorUserId: auth.user.id,
+        actorRole: auth.user.roleName,
+        tenantId: auth.user.tenantId,
+        targetType: "overtime",
+        targetId: updated.id,
+        message: `Overtime ${nextStatus.toLowerCase()}`,
+        metadata: {
+          finalStatus,
+          rejectReason,
+          payMethod: paymentData.payMethod ?? null,
+        },
+      });
       return NextResponse.json({ message: "Approval overtime berhasil diproses", data: updated });
     }
 
@@ -209,6 +269,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "overtimes", "delete");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
     const isAdmin = ["superadmin", "admin"].includes(normalizedRole);
@@ -221,6 +283,16 @@ export async function DELETE(_: Request, { params }: Params) {
     if (!existing) return NextResponse.json({ message: "Overtime not found" }, { status: 404 });
 
     await prisma.overtime.delete({ where: { id: p.id } });
+    writeAuditLog({
+      action: "overtimes.delete",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "overtime",
+      targetId: p.id,
+      message: "Overtime deleted",
+    });
     return NextResponse.json({ message: "Overtime deleted" });
   } catch {
     return NextResponse.json({ message: "Failed to delete overtime" }, { status: 500 });

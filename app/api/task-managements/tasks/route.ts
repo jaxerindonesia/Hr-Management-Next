@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { canManageTaskDepartment } from "@/lib/auth/task-management";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type AttachmentInput = {
   name: string;
@@ -80,6 +82,8 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "create");
+    if (forbid) return forbid;
 
     const body = await req.json();
     const title = String(body.title || "").trim();
@@ -193,6 +197,21 @@ export async function POST(req: NextRequest) {
           include: { category: true },
         },
         attachments: true,
+      },
+    });
+
+    writeAuditLog({
+      action: "tasks.create",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "task",
+      targetId: task.id,
+      message: "Task created",
+      metadata: {
+        departmentId,
+        listId,
       },
     });
 

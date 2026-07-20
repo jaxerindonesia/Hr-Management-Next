@@ -3,11 +3,14 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 export async function GET() {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "get-all");
+    if (forbid) return forbid;
 
     const scopedTenantId = ensureTenantScope(auth.user);
 

@@ -280,7 +280,9 @@ export default function DesktopNavbar() {
         return;
       }
 
-      setSuccessMsg("Password berhasil diubah!");
+      localStorage.removeItem("hr_user_data");
+      localStorage.removeItem("hr_user_role");
+      setSuccessMsg("Password berhasil diubah. Silakan login kembali.");
       setPasswordForm({
         currentPassword: "",
         newPassword: "",
@@ -453,10 +455,13 @@ export default function DesktopNavbar() {
                     {successMsg}
                   </p>
                   <button
-                    onClick={() => setModalOpen(false)}
+                    onClick={() => {
+                      setModalOpen(false);
+                      router.push("/login");
+                    }}
                     className="mt-2 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
                   >
-                    Tutup
+                    Login Ulang
                   </button>
                 </div>
               ) : (

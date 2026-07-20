@@ -462,7 +462,7 @@ export default function EmployeesPage() {
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
-    fetchDepartments();
+    if (checkRole("departments", "get-all")) fetchDepartments();
   }, [fetchDepartments]);
 
   useEffect(() => {
@@ -526,6 +526,7 @@ export default function EmployeesPage() {
       <FormData
         isOpen={showFormModal}
         initialData={detailItem}
+        departments={departments}
         onClose={() => {
           setShowFormModal(false);
           setDetailItem(undefined);
@@ -537,6 +538,8 @@ export default function EmployeesPage() {
       <DepartmentModal
         isOpen={showDepartmentModal}
         onClose={() => setShowDepartmentModal(false)}
+        departments={departments}
+        onRefresh={fetchDepartments}
       />
 
       <ImportModal

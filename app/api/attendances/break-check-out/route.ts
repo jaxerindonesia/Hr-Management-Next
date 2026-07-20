@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { getJakartaDayKey } from "@/lib/helper/date";
+import { validateBase64Image } from "@/lib/security/file-validation";
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -58,14 +59,22 @@ export async function POST(req: NextRequest) {
       return jsonError("Foto break wajib diambil saat config aktif", 400);
     }
 
-    const breakOutFaceImage = faceCaptureBase64
-      ? await uploadBase64ToMinio(
-          faceCaptureBase64,
-          `attendance-face/break-out-${randomUUID()}.jpg`,
-          BUCKET_AVATARS,
-          "image/jpeg",
-        )
-      : null;
+    let breakOutFaceImage: string | null = null;
+    if (faceCaptureBase64) {
+      const imageValidation = validateBase64Image(faceCaptureBase64, {
+        maxBytes: 3 * 1024 * 1024,
+      });
+      if (!imageValidation.ok) {
+        return jsonError(imageValidation.message, 415);
+      }
+
+      breakOutFaceImage = await uploadBase64ToMinio(
+        faceCaptureBase64,
+        `attendance-face/break-out-${randomUUID()}.${imageValidation.extension}`,
+        BUCKET_AVATARS,
+        imageValidation.contentType,
+      );
+    }
 
     const sessions = [...attendance.breakSessions] as Array<{
       breakIn: string;

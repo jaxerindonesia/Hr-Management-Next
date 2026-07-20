@@ -86,6 +86,8 @@ export default function FormData({
   };
 
   useEffect(() => {
+    if (!isOpen) return;
+
     if (!initialData) {
       setFormData(INITIAL_FORM_DATA);
       return;
@@ -100,7 +102,7 @@ export default function FormData({
       description: initialData.description ?? "",
       approvalDecisions: initialData.approvalDecisions ?? [],
     });
-  }, [initialData]);
+  }, [initialData, isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

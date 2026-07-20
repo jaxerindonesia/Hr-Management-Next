@@ -7,6 +7,10 @@ import prisma from "@/lib/prisma";
 import { requireSessionUser, ensureTenantScope } from "@/lib/auth/tenant";
 import { isSuperAdmin } from "@/lib/auth/session";
 import type { EmployeeImportPayload } from "@/lib/helper/employee-import";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { getRequestIp } from "@/lib/security/request";
 
 type ImportRequestRow = {
   rowNumber: number;
@@ -48,11 +52,45 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "users", "import");
+    if (forbid) return forbid;
+    const rateLimit = await consumeRateLimit({
+      key: `import:users:${auth.user.id}:${getRequestIp(req)}`,
+      limit: 10,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      writeAuditLog({
+        action: "users.import",
+        status: "denied",
+        request: req,
+        actorUserId: auth.user.id,
+        actorRole: auth.user.roleName,
+        tenantId: auth.user.tenantId,
+        message: "User import rate limit exceeded",
+      });
+      return NextResponse.json(
+        { message: "Terlalu banyak request import. Coba lagi beberapa menit lagi." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        },
+      );
+    }
 
     const body = await req.json();
     const rows = Array.isArray(body?.rows) ? (body.rows as ImportRequestRow[]) : [];
 
     if (rows.length === 0) {
+      writeAuditLog({
+        action: "users.import",
+        status: "failed",
+        request: req,
+        actorUserId: auth.user.id,
+        actorRole: auth.user.roleName,
+        tenantId: auth.user.tenantId,
+        message: "Import rows empty",
+      });
       return NextResponse.json(
         { message: "Data import tidak ditemukan" },
         { status: 400 },
@@ -226,6 +264,16 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
+    const session = await requireSessionUser().catch(() => null);
+    writeAuditLog({
+      action: "users.import",
+      status: "failed",
+      request: req,
+      actorUserId: session && "user" in session && !session.error ? session.user.id : null,
+      actorRole: session && "user" in session && !session.error ? session.user.roleName : null,
+      tenantId: session && "user" in session && !session.error ? session.user.tenantId : null,
+      message: error instanceof Error ? error.message : "Unhandled user import error",
+    });
     console.error("Error importing users:", error);
     return NextResponse.json(
       { message: "Gagal mengimpor data karyawan" },

@@ -1,9 +1,13 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import { requireSessionUser } from "@/lib/auth/tenant";
 
 export async function GET() {
   try {
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+
     const year = new Date().getFullYear();
     // Ambil data hari libur tahun ini dan tahun depan sekaligus
     const [resThis, resNext] = await Promise.all([

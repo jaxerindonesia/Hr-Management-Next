@@ -18,6 +18,7 @@ import {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const isProduction = process.env.NODE_ENV === "production";
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
@@ -39,6 +40,12 @@ export default function RegisterPage() {
     setError("");
     setSuccess("");
     setIsLoading(true);
+
+    if (isProduction) {
+      setError("Registrasi publik dinonaktifkan di production");
+      setIsLoading(false);
+      return;
+    }
 
     // Validation
     if (
@@ -200,6 +207,23 @@ export default function RegisterPage() {
               )}
 
               {/* Register Form */}
+              {isProduction ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 bg-amber-500/10 backdrop-blur-sm border border-amber-500/30 rounded-xl text-amber-300">
+                    <AlertCircle className="w-5 h-5 shrink-0" />
+                    <span className="text-sm font-medium">
+                      Registrasi publik dinonaktifkan di production. Hubungi administrator untuk pembuatan akun.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/login")}
+                    className="w-full h-12 rounded-xl bg-white/10 text-white font-semibold hover:bg-white/15 transition-colors"
+                  >
+                    Kembali ke Login
+                  </button>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Full Name Field */}
                 <div className="space-y-2 group">
@@ -431,6 +455,7 @@ export default function RegisterPage() {
                   )}
                 </button>
               </form>
+              )}
 
               {/* Footer Text */}
               <p className="text-center text-sm text-gray-400 pt-2">

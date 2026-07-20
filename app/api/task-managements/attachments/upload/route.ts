@@ -4,6 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { requireSessionUser } from "@/lib/auth/tenant";
 import { uploadBufferToMinio, BUCKET_AVATARS } from "@/lib/minio";
+import { requirePermission } from "@/lib/auth/permission";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { getRequestIp } from "@/lib/security/request";
+import { validateAttachmentBuffer } from "@/lib/security/file-validation";
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
@@ -40,6 +44,22 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "update");
+    if (forbid) return forbid;
+    const rateLimit = await consumeRateLimit({
+      key: `upload:task-attachment:${auth.user.id}:${getRequestIp(req)}`,
+      limit: 30,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { message: "Terlalu banyak upload. Coba lagi beberapa menit lagi." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        },
+      );
+    }
 
     const formData = await req.formData();
     const file = formData.get("file");
@@ -63,6 +83,15 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    const validation = validateAttachmentBuffer(
+      file.name || "",
+      file.type || "application/octet-stream",
+      buffer,
+    );
+    if (!validation.ok) {
+      return NextResponse.json({ message: validation.message }, { status: 415 });
+    }
+
     const fileName = safeName(file.name || "attachment");
     const objectKey = `task-attachments/${randomUUID()}-${fileName}`;
 
@@ -70,7 +99,7 @@ export async function POST(req: NextRequest) {
       buffer,
       objectKey,
       BUCKET_AVATARS,
-      file.type || "application/octet-stream",
+      validation.contentType,
     );
 
     return NextResponse.json(

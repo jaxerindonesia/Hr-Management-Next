@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireSessionUser, tenantWhere } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
@@ -13,10 +14,19 @@ type Context = {
 export async function PUT(req: NextRequest, context: Context) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "update");
+  if (forbid) return forbid;
 
   const { id } = await context.params;
   const body = await req.json();
   const scope = tenantWhere(auth.user);
+  const existing = await prisma.customer.findFirst({
+    where: { ...scope, id },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ message: "Customer tidak ditemukan" }, { status: 404 });
+  }
   const code = String(body.code || "").trim();
   const name = String(body.name || "").trim();
   const email = body.email ? String(body.email).trim().toLowerCase() : "";
@@ -68,8 +78,18 @@ export async function PUT(req: NextRequest, context: Context) {
 export async function DELETE(_req: NextRequest, context: Context) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "delete");
+  if (forbid) return forbid;
 
   const { id } = await context.params;
+  const scope = tenantWhere(auth.user);
+  const existing = await prisma.customer.findFirst({
+    where: { ...scope, id },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ message: "Customer tidak ditemukan" }, { status: 404 });
+  }
   await prisma.customer.delete({ where: { id } });
 
   return NextResponse.json({ success: true });

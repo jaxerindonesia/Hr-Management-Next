@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 function getDurationMinutes(start: Date, end: Date) {
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / (1000 * 60)));
@@ -12,10 +13,33 @@ function buildDateTime(date: string, time: string) {
   return new Date(`${date}T${time}:00`);
 }
 
+async function hasOverlappingOvertime(params: {
+  userId: string;
+  tenantId: string | null;
+  startTime: Date;
+  endTime: Date;
+  excludeId?: string;
+}) {
+  const overlapping = await prisma.overtime.findFirst({
+    where: {
+      userId: params.userId,
+      ...(params.tenantId ? { tenantId: params.tenantId } : { tenantId: null }),
+      ...(params.excludeId ? { NOT: { id: params.excludeId } } : {}),
+      startTime: { lt: params.endTime },
+      endTime: { gt: params.startTime },
+    },
+    select: { id: true },
+  });
+
+  return Boolean(overlapping);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "overtimes", "create");
+    if (forbid) return forbid;
 
     const body = await req.json();
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
@@ -27,12 +51,27 @@ export async function POST(req: NextRequest) {
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalUserId = isAdmin && requestedUserId ? requestedUserId : auth.user.id;
+    const finalTenantId = scopedTenantId ?? null;
 
     if (!overtimeDate || !start || !end) {
       return NextResponse.json({ message: "Tanggal, jam mulai, dan jam selesai wajib diisi" }, { status: 400 });
     }
 
-    const finalTenantId = scopedTenantId ?? null;
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        id: finalUserId,
+        deletedAt: null,
+        ...(finalTenantId ? { tenantId: finalTenantId } : {}),
+      },
+      select: { id: true },
+    });
+    if (!targetUser) {
+      return NextResponse.json(
+        { message: "User target tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
     const approverConfigs = await prisma.overtimeApproverConfig.findMany({
       where: finalTenantId ? { tenantId: finalTenantId } : { tenantId: null },
       select: { approverUserId: true },
@@ -68,6 +107,19 @@ export async function POST(req: NextRequest) {
 
     if (overtimeMinutes <= 0) {
       return NextResponse.json({ message: "Durasi lembur harus lebih dari 0 menit" }, { status: 400 });
+    }
+
+    const overlapping = await hasOverlappingOvertime({
+      userId: finalUserId,
+      tenantId: finalTenantId,
+      startTime,
+      endTime,
+    });
+    if (overlapping) {
+      return NextResponse.json(
+        { message: "Sudah ada pengajuan lembur lain yang tumpang tindih pada rentang waktu tersebut" },
+        { status: 409 },
+      );
     }
 
     const overtime = await prisma.overtime.create({

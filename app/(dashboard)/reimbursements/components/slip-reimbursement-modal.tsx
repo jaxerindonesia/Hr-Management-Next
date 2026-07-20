@@ -154,8 +154,9 @@ function SlipContent({
   reimbursement: ReimbursementDto;
   tenantConfig?: TenantConfig | null;
 }) {
-  const isApproved = reimbursement.status === "approved";
-  const isRejected = reimbursement.status === "rejected";
+  const normalizedStatus = String(reimbursement.status || "").toUpperCase();
+  const isApproved = normalizedStatus === "APPROVED";
+  const isRejected = normalizedStatus === "REJECTED";
   const departmentLabel =
     typeof reimbursement.user?.department === "string"
       ? reimbursement.user.department

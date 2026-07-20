@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -10,6 +11,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "delete");
+    if (forbid) return forbid;
 
     const { id } = await params;
     if (!id) {
