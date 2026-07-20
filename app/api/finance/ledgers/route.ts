@@ -2,11 +2,15 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireSessionUser } from "@/lib/auth/tenant";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 export async function GET(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "get-all");
+  if (forbid) return forbid;
+  const scopedTenantId = ensureTenantScope(auth.user);
 
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -31,6 +35,7 @@ export async function GET(req: NextRequest) {
           }
         : {}),
       journal: {
+        ...(scopedTenantId ? { creator: { tenantId: scopedTenantId } } : {}),
         status: "POSTED",
         ...(from || to
           ? {

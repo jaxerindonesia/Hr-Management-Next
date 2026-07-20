@@ -1,11 +1,26 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { isSuperAdmin } from "@/lib/auth/session";
+import { requireSessionUser } from "@/lib/auth/tenant";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { message: "Seed endpoint is disabled in production" },
+        { status: 403 },
+      );
+    }
+
+    const auth = await requireSessionUser();
+    if (auth.error) return auth.error;
+    if (!isSuperAdmin(auth.user.roleName)) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     // ===============================
     // ROLE PERMISSIONS
     // ===============================

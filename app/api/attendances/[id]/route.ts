@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { BUCKET_AVATARS, deleteFromMinio } from "@/lib/minio";
 import { getJakartaDayKey } from "@/lib/helper/date";
+import { requirePermission } from "@/lib/auth/permission";
 
 type Params = {
   params: {
@@ -19,6 +20,8 @@ export async function GET(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "attendances", "get-by-id");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const attendance = await prisma.attendance.findFirst({
@@ -49,6 +52,8 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "attendances", "update");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const existing = await prisma.attendance.findFirst({
@@ -104,6 +109,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "attendances", "delete");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const existing = await prisma.attendance.findFirst({

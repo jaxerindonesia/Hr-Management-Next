@@ -12,8 +12,17 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { parseApiError } from "@/lib/helper/response-api";
 
-export default function DepartmentModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [departments, setDepartments] = useState<DepartmentDto[]>([]);
+export default function DepartmentModal({
+  isOpen,
+  onClose,
+  departments,
+  onRefresh,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  departments: DepartmentDto[];
+  onRefresh: () => void;
+}) {
   const [newType, setNewType] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -45,7 +54,7 @@ export default function DepartmentModal({ isOpen, onClose }: { isOpen: boolean; 
 
       toast.success("Departemen berhasil ditambahkan");
       setNewType("");
-      fetchDepartments();
+      onRefresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
     } finally {
@@ -67,27 +76,10 @@ export default function DepartmentModal({ isOpen, onClose }: { isOpen: boolean; 
 
       toast.success("Departemen berhasil dihapus");
 
-      fetchDepartments();
+      onRefresh();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Gagal menghapus departemen",
-      );
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await fetch("/api/departments");
-      if (!res.ok) {
-        throw new Error(
-          await parseApiError(res, "Gagal mengambil data departemen"),
-        );
-      }
-      const json = await res.json();
-      setDepartments(json.data || []);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Gagal memuat departemen",
       );
     }
   };
@@ -105,8 +97,6 @@ export default function DepartmentModal({ isOpen, onClose }: { isOpen: boolean; 
         setIsSuperAdmin(false);
       }
     }
-
-    fetchDepartments();
   }, []);
 
   return (

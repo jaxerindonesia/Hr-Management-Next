@@ -4,11 +4,14 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { deleteFromMinio } from "@/lib/minio";
+import { requirePermission } from "@/lib/auth/permission";
 
 export async function POST(req: Request) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "delete");
+    if (forbid) return forbid;
 
     const body = await req.json();
     const attachmentId = body.attachmentId ? String(body.attachmentId) : "";

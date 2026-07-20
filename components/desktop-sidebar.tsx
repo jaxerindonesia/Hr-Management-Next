@@ -280,6 +280,7 @@ export default function DesktopSidebar() {
         icon: Shield,
         path: "/roles",
         permissions: ["get-all", "get-by-id"],
+        superadminOnly: true,
       },
     ];
 

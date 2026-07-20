@@ -241,7 +241,10 @@ export default function Page() {
       <PettyCashFormData
         isOpen={showFormModal}
         initialData={detailItem}
-        onClose={() => setShowFormModal(false)}
+        onClose={() => {
+          setShowFormModal(false);
+          setDetailItem(undefined);
+        }}
         onSuccess={fetchData}
       />
 

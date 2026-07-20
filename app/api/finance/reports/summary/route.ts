@@ -2,7 +2,8 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireSessionUser } from "@/lib/auth/tenant";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 function getMonthKey(date: Date) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -15,14 +16,21 @@ function getMonthKey(date: Date) {
 export async function GET() {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "get-all");
+  if (forbid) return forbid;
+  const scopedTenantId = ensureTenantScope(auth.user);
+  const journalWhere = scopedTenantId
+    ? { creator: { tenantId: scopedTenantId } }
+    : {};
 
   const [accountCount, journalCount, postedJournalCount, draftJournalCount, journals, statusGroup] =
     await Promise.all([
-      prisma.account.count(),
-      prisma.journal.count(),
-      prisma.journal.count({ where: { status: "POSTED" } }),
-      prisma.journal.count({ where: { status: "DRAFT" } }),
+      prisma.account.count({ where: scopedTenantId ? { tenantId: scopedTenantId } : {} }),
+      prisma.journal.count({ where: journalWhere }),
+      prisma.journal.count({ where: { ...journalWhere, status: "POSTED" } }),
+      prisma.journal.count({ where: { ...journalWhere, status: "DRAFT" } }),
       prisma.journal.findMany({
+        where: journalWhere,
         select: {
           date: true,
           status: true,
@@ -31,6 +39,7 @@ export async function GET() {
       }),
       prisma.journal.groupBy({
         by: ["status"],
+        where: journalWhere,
         _count: { status: true },
       }),
     ]);

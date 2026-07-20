@@ -5,9 +5,7 @@ import prisma from "@/lib/prisma";
 
 function isAuthorizedCron(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
-
-  // Allow local/manual call when secret is not configured
-  if (!cronSecret) return true;
+  if (!cronSecret) return false;
 
   const authHeader = req.headers.get("authorization") || "";
   return authHeader === `Bearer ${cronSecret}`;

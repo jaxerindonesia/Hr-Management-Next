@@ -27,7 +27,7 @@ export default function Page() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  
+
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -317,15 +317,19 @@ export default function Page() {
         onSuccess={fetchData}
       />
 
-      <TypeModal
-        isOpen={showTypeModal}
-        onClose={() => setShowTypeModal(false)}
-      />
+      {checkRole("submission_types", "create") && (
+        <>
+          <TypeModal
+            isOpen={showTypeModal}
+            onClose={() => setShowTypeModal(false)}
+          />
 
-      <LeaveConfigModal
-        isOpen={showLeaveConfigModal}
-        onClose={() => setShowLeaveConfigModal(false)}
-      />
+          <LeaveConfigModal
+            isOpen={showLeaveConfigModal}
+            onClose={() => setShowLeaveConfigModal(false)}
+          />
+        </>
+      )}
 
       <RejectModal
         isOpen={showRejectModal}

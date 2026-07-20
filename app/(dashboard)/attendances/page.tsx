@@ -842,10 +842,13 @@ export default function Page() {
 
   // Fetch data when page or filters change
   useEffect(() => {
-    if (userData.id) {
-      fetchAttendance(userData);
+    if (!userData.id) return;
+
+    fetchAttendance(userData);
+    fetchTodayAttendance(userData.id);
+
+    if (checkRole("attendances", "set-config")) {
       fetchAttendanceConfig();
-      fetchTodayAttendance(userData.id);
     }
   }, [fetchAttendance, fetchAttendanceConfig, fetchTodayAttendance, userData]);
 
@@ -957,15 +960,17 @@ export default function Page() {
         onClose={() => setIsFaceModalOpen(false)}
       />
 
-      <ModalAttendanceConfig
-        isOpen={showAttendanceConfig}
-        initialConfig={attendanceConfig}
-        onClose={() => {
-          setShowAttendanceConfig(false);
-          fetchAttendance(userData);
-        }}
-        onSaved={fetchAttendanceConfig}
-      />
+      {checkRole("attendances", "set-config") && (
+        <ModalAttendanceConfig
+          isOpen={showAttendanceConfig}
+          initialConfig={attendanceConfig}
+          onClose={() => {
+            setShowAttendanceConfig(false);
+            fetchAttendance(userData);
+          }}
+          onSaved={fetchAttendanceConfig}
+        />
+      )}
     </>
   );
 }

@@ -3,7 +3,9 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { requireSessionUser } from "@/lib/auth/tenant";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 function calcTotals(details: Array<{ debit?: number; credit?: number }>) {
   return details.reduce<{ debit: number; credit: number }>(
@@ -42,6 +44,9 @@ async function generateJournalNo(dateInput?: string | null) {
 export async function GET(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "get-all");
+  if (forbid) return forbid;
+  const scopedTenantId = ensureTenantScope(auth.user);
 
   const { searchParams } = new URL(req.url);
   const scope = searchParams.get("scope") || "list";
@@ -55,7 +60,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ journalNo });
   }
 
-  const where: Prisma.JournalWhereInput = {};
+  const where: Prisma.JournalWhereInput = scopedTenantId
+    ? { creator: { tenantId: scopedTenantId } }
+    : {};
 
   if (search) {
     where.OR = [
@@ -96,6 +103,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "create");
+  if (forbid) return forbid;
   const body = await req.json();
   const journalNo = String(body.journalNo || "").trim();
   const details = Array.isArray(body.details) ? body.details : [];
@@ -133,6 +142,21 @@ export async function POST(req: NextRequest) {
       },
     },
     include: { details: true },
+  });
+  writeAuditLog({
+    action: "finance.journals.create",
+    status: "success",
+    actorUserId: auth.user.id,
+    actorRole: auth.user.roleName,
+    tenantId: auth.user.tenantId,
+    targetType: "journal",
+    targetId: data.id,
+    message: "Journal created",
+    metadata: {
+      journalNo: data.journalNo,
+      status: body.status || "DRAFT",
+      detailCount: details.length,
+    },
   });
   return NextResponse.json({ data }, { status: 201 });
 }

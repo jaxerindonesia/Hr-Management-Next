@@ -4,12 +4,16 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { hasPermission, requirePermission } from "@/lib/auth/permission";
 import { uploadBufferToMinio, BUCKET_AVATARS } from "@/lib/minio";
+import { validateAttachmentBuffer } from "@/lib/security/file-validation";
 
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "reimbursements", "get-all");
+    if (forbid) return forbid;
 
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
@@ -75,6 +79,8 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "reimbursements", "create");
+    if (forbid) return forbid;
 
     const formData = await req.formData();
 
@@ -95,11 +101,35 @@ export async function POST(req: NextRequest) {
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId;
+    const canManageReimbursements = hasPermission(auth.user, "reimbursements", "update");
+    const targetUserId = canManageReimbursements ? userId : auth.user.id;
+
+    if (!canManageReimbursements && userId !== auth.user.id) {
+      return NextResponse.json(
+        { message: "Forbidden" },
+        { status: 403 },
+      );
+    }
+
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        id: targetUserId,
+        deletedAt: null,
+        ...(finalTenantId ? { tenantId: finalTenantId } : {}),
+      },
+      select: { id: true },
+    });
+    if (!targetUser) {
+      return NextResponse.json(
+        { message: "User target tidak ditemukan" },
+        { status: 404 },
+      );
+    }
 
     const reimbursement = await prisma.reimbursement.create({
       data: {
         tenantId: finalTenantId,
-        userId,
+        userId: targetUserId,
         title,
         category,
         amount: Number(amount),
@@ -114,6 +144,14 @@ export async function POST(req: NextRequest) {
     if (file && file.size > 0) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
+      const validation = validateAttachmentBuffer(
+        file.name || "",
+        file.type || "application/octet-stream",
+        buffer,
+      );
+      if (!validation.ok) {
+        return NextResponse.json({ message: validation.message }, { status: 415 });
+      }
 
       const fileName = `reimbursements/receipt-${reimbursement.id}-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
       
@@ -121,7 +159,7 @@ export async function POST(req: NextRequest) {
         buffer,
         fileName,
         BUCKET_AVATARS,
-        file.type || "application/octet-stream"
+        validation.contentType,
       );
 
       await prisma.reimbursement.update({

@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { deleteFromMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 // Helper: hapus file avatar lama dari MinIO
 async function deleteOldAvatar(avatarUrl: string | null) {
@@ -26,6 +28,8 @@ export async function GET(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "users", "get-by-id");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const { id } = await params;
@@ -51,6 +55,8 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "users", "update");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const { id } = await params;
@@ -133,6 +139,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "users", "delete");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     // Ambil avatarUrl sebelum hapus user, untuk cleanup MinIO
@@ -150,6 +158,17 @@ export async function DELETE(_: Request, { params }: Params) {
     if (user?.avatarUrl) {
       await deleteOldAvatar(user.avatarUrl);
     }
+
+    writeAuditLog({
+      action: "users.delete",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "user",
+      targetId: id,
+      message: "User deleted",
+    });
 
     return NextResponse.json({
       message: "User successfully deleted",

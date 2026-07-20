@@ -36,6 +36,17 @@ const STATUSES = [
   { value: "SETTLE", label: "Settled (Done)" },
 ];
 
+const createDefaultFormData = (): PettyCashDto => ({
+  userId: "",
+  purpose: "",
+  category: "",
+  amount: 0,
+  transferDate: null,
+  bankName: "",
+  accountNumber: "",
+  status: "PENDING",
+});
+
 export default function PettyCashFormData({
   isOpen,
   initialData,
@@ -50,18 +61,7 @@ export default function PettyCashFormData({
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<UserDto[]>([]);
 
-  const [formData, setFormData] = useState<PettyCashDto>(
-    initialData || {
-      userId: "",
-      purpose: "",
-      category: "",
-      amount: 0,
-      transferDate: null,
-      bankName: "",
-      accountNumber: "",
-      status: "PENDING",
-    },
-  );
+  const [formData, setFormData] = useState<PettyCashDto>(createDefaultFormData());
 
   const fetchEmployees = async () => {
     try {
@@ -83,6 +83,11 @@ export default function PettyCashFormData({
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormData(initialData ? { ...initialData } : createDefaultFormData());
+  }, [initialData, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,6 +112,7 @@ export default function PettyCashFormData({
         `Petty Cash berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
 
+      setFormData(createDefaultFormData());
       onSuccess();
       onClose();
     } catch (error) {
