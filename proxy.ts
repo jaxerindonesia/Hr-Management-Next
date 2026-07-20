@@ -4,13 +4,35 @@ import { verifyEdgeSessionToken } from "@/lib/auth/jwt-edge";
 import { getExpiredAuthCookieOptions } from "@/lib/auth/cookie";
 import { isStateChangingRequest, isTrustedOrigin } from "@/lib/security/origin";
 
-export async function middleware(request: NextRequest) {
+const cspBase =
+  "default-src 'self'; img-src 'self' data: blob: http://103.31.204.110:1608 https://s3-jaxer.tetrabit.my.id; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
+const createNonce = () => crypto.randomUUID().replace(/-/g, "");
+
+const withCsp = (request: NextRequest, response: NextResponse) => {
+  const nonce = createNonce();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+
+  const csp = `${cspBase}; script-src 'self' 'nonce-${nonce}'`;
+
+  response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("x-nonce", nonce);
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+    headers: response.headers,
+  });
+};
+
+export async function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const { pathname } = request.nextUrl;
 
-  // bypass cron routes
   if (pathname.startsWith("/api/cron")) {
-    return NextResponse.next();
+    return withCsp(request, NextResponse.next());
   }
 
   const publicRoutes = ["/login", "/register"];
@@ -27,17 +49,20 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isValidSession && publicRoutes.includes(pathname)) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return withCsp(request, NextResponse.redirect(new URL("/dashboard", request.url)));
   }
 
   if (isPublicRoute || isAuthApiRoute) {
-    return NextResponse.next();
+    return withCsp(request, NextResponse.next());
   }
 
   if (isApiRoute && isStateChangingRequest(request.method) && !isTrustedOrigin(request)) {
-    return NextResponse.json(
-      { message: "Forbidden origin" },
-      { status: 403 },
+    return withCsp(
+      request,
+      NextResponse.json(
+        { message: "Forbidden origin" },
+        { status: 403 },
+      ),
     );
   }
 
@@ -46,16 +71,16 @@ export async function middleware(request: NextRequest) {
       const response = NextResponse.json({ message: "Unauthorized" }, { status: 401 });
       response.cookies.set("token", "", getExpiredAuthCookieOptions());
       response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
-      return response;
+      return withCsp(request, response);
     }
 
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.set("token", "", getExpiredAuthCookieOptions());
     response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
-    return response;
+    return withCsp(request, response);
   }
 
-  return NextResponse.next();
+  return withCsp(request, NextResponse.next());
 }
 
 export const config = {

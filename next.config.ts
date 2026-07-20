@@ -1,20 +1,6 @@
 import type { NextConfig } from "next";
 
-const appEnv = process.env.APP_ENV;
-const isLocalDev = process.env.NODE_ENV !== "production";
-const isStaging = appEnv === "staging";
-
-const csp = isLocalDev
-  ? "default-src 'self'; img-src 'self' data: blob: http://103.31.204.110:1608 https://s3-jaxer.tetrabit.my.id; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; connect-src 'self' ws: http: https:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-  : isStaging
-    ? "default-src 'self'; img-src 'self' data: blob: http://103.31.204.110:1608 https://s3-jaxer.tetrabit.my.id; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self' http://103.31.204.110:4005 http://103.31.204.110:4003; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-    : "default-src 'self'; img-src 'self' data: blob: http://103.31.204.110:1608 https://s3-jaxer.tetrabit.my.id; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
-
 const securityHeaders = [
-  {
-    key: "Content-Security-Policy",
-    value: csp
-  },
   {
     key: "X-Content-Type-Options",
     value: "nosniff",
