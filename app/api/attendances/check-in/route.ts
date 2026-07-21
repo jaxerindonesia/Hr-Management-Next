@@ -11,6 +11,7 @@ import {
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { hasPermission } from "@/lib/auth/permission";
 import { getDateAtTime, getJakartaDayKey } from "@/lib/helper/date";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
 
 const DEFAULT_CONFIG = {
@@ -79,9 +80,15 @@ export async function POST(req: Request) {
     const checkInStatus = now <= lateLimit ? "On Time" : "Late";
     const attendanceDay = getJakartaDayKey(now);
 
+    const checkInObjectName = await buildTenantStorageObjectName(
+      finalTenantId,
+      "attendance-face",
+      `check-in-${randomUUID()}.${imageValidation.extension}`,
+    );
+
     uploadedFaceImage = await uploadBase64ToMinio(
       faceCaptureBase64,
-      `attendance-face/check-in-${randomUUID()}.${imageValidation.extension}`,
+      checkInObjectName,
       BUCKET_AVATARS,
       imageValidation.contentType,
     );

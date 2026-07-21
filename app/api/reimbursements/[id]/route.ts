@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { writeAuditLog } from "@/lib/security/audit-log";
 import { uploadBufferToMinio, deleteFromMinio, BUCKET_AVATARS } from "@/lib/minio";
 import { validateAttachmentBuffer } from "@/lib/security/file-validation";
@@ -138,7 +139,11 @@ export async function PUT(req: Request, { params }: Params) {
         return NextResponse.json({ message: validation.message }, { status: 415 });
       }
 
-      const fileName = `reimbursements/receipt-${p.id}-${Date.now()}-${newFile.name.replace(/\s+/g, "_")}`;
+      const fileName = await buildTenantStorageObjectName(
+        scopedTenantId,
+        "reimbursements",
+        `receipt-${p.id}-${Date.now()}-${newFile.name.replace(/\s+/g, "_")}`,
+      );
       
       receiptUrl = await uploadBufferToMinio(
         buffer,

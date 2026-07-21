@@ -7,6 +7,7 @@ import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { hasPermission } from "@/lib/auth/permission";
 import { getDateAtTime, getJakartaDayKey } from "@/lib/helper/date";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
 
 const DEFAULT_CONFIG = {
@@ -85,9 +86,15 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date();
+    const checkOutObjectName = await buildTenantStorageObjectName(
+      finalTenantId,
+      "attendance-face",
+      `check-out-${randomUUID()}.${imageValidation.extension}`,
+    );
+
     const checkOutFaceImage = await uploadBase64ToMinio(
       faceCaptureBase64,
-      `attendance-face/check-out-${randomUUID()}.${imageValidation.extension}`,
+      checkOutObjectName,
       BUCKET_AVATARS,
       imageValidation.contentType,
     );

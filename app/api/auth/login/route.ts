@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const rateLimit = await consumeRateLimit({
       key: `auth:login:${getRequestIp(req)}:${normalizedEmail || "unknown"}`,
       limit: 5,
-      windowMs: 15 * 60 * 1000,
+      windowMs: 5 * 60 * 1000, // 5 menit
     });
 
     if (!rateLimit.allowed) {

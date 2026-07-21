@@ -17,6 +17,31 @@ export const BUCKET_AVATARS = process.env.MINIO_BUCKET_AVATARS || "hr-manage-sys
 // Public base URL (tanpa trailing slash)
 const PUBLIC_URL = (process.env.MINIO_PUBLIC_URL || "http://103.31.204.110:1608").replace(/\/$/, "");
 
+function normalizeObjectSegment(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "unknown";
+}
+
+export function buildTenantScopedObjectName(
+  tenantName: string,
+  moduleName: string,
+  filename: string,
+) {
+  const tenantSegment = normalizeObjectSegment(tenantName);
+  const moduleSegment = normalizeObjectSegment(moduleName);
+  const safeFilename = filename
+    .split("/")
+    .map((segment) => normalizeObjectSegment(segment))
+    .join("/");
+
+  return `${tenantSegment}/${moduleSegment}/${safeFilename}`;
+}
+
 // ── Upload file dari base64 ───────────────────────────────────────────────────
 // objectName contoh: "face-photos/face-uuid.jpg"
 export async function uploadBase64ToMinio(

@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { uploadBufferToMinio, BUCKET_AVATARS } from "@/lib/minio";
 import { validateAttachmentBuffer } from "@/lib/security/file-validation";
 
@@ -73,7 +74,11 @@ export async function POST(req: NextRequest, { params }: Params) {
         return NextResponse.json({ message: validation.message }, { status: 415 });
       }
 
-      const fileName = `pettycash-receipts/usage-${usage.id}-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+      const fileName = await buildTenantStorageObjectName(
+        scopedTenantId,
+        "pettycash-receipts",
+        `usage-${usage.id}-${Date.now()}-${file.name.replace(/\s+/g, "_")}`,
+      );
       
       receiptUrl = await uploadBufferToMinio(
         buffer,
