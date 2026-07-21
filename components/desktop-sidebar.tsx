@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
+import { handleUnauthorizedClient } from "@/lib/helper/response-api";
 import {
   Dialog,
   DialogContent,
@@ -115,8 +116,15 @@ export default function DesktopSidebar() {
   // Fetch tenant config untuk logo sidebar
   useEffect(() => {
     fetch("/api/tenant-config")
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (res.status === 401) {
+          handleUnauthorizedClient();
+          return null;
+        }
+        return res.json();
+      })
       .then((json) => {
+        if (!json) return;
         if (json.data) setTenantConfig(json.data);
       })
       .catch(() => { });
