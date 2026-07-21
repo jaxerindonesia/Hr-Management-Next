@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+
 let isHandlingUnauthorized = false;
 
 export const UNAUTHORIZED_EVENT = "hr:unauthorized";
@@ -30,9 +32,12 @@ export function handleUnauthorizedClient() {
     // ignore localStorage access failures
   }
 
+  toast.error("Sesi Anda telah berakhir. Silakan login kembali.");
   window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
   document.body.classList.remove("mobile-menu-open");
-  window.location.replace("/login");
+  window.setTimeout(() => {
+    window.location.replace("/login");
+  }, 900);
 }
 
 export async function parseApiError(res: Response, fallback: string) {
