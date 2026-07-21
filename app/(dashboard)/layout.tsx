@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense } from "react";
+import AuthSessionGuard from "@/components/auth-session-guard";
 import MobileNavbar from "@/components/mobile-navbar";
 import DesktopNavbar from "@/components/desktop-navbar";
 import DesktopSidebar from "@/components/desktop-sidebar";
@@ -13,6 +14,8 @@ export default function DashboardLayout({
 }) {
   return (
     <>
+      <AuthSessionGuard />
+
       {/* Mobile Navbar - Only visible on mobile devices */}
       <MobileNavbar />
 
