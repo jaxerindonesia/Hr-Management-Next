@@ -1,5 +1,7 @@
 import FinanceDashboardPage from "./components/finance-dashboard-page";
 import type { AccountCategoryDto } from "@/lib/dto/finance-account-category";
+import { requirePermission } from "@/lib/auth/permission";
+import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import prisma from "@/lib/prisma";
 
 type DashboardAccount = {
@@ -37,14 +39,24 @@ function buildTopAccounts(
 }
 
 export default async function FinanceDashboardRoute() {
+  const auth = await requireSessionUser();
+  if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "get-all");
+  if (forbid) return forbid;
+  const scopedTenantId = ensureTenantScope(auth.user);
+  const accountWhere = scopedTenantId ? { tenantId: scopedTenantId } : {};
+  const journalWhere = scopedTenantId
+    ? { creator: { tenantId: scopedTenantId } }
+    : {};
+
   const [accountCount, journalCount, postedJournalCount, draftJournalCount, journals, statusGroup, accounts] =
     await Promise.all([
-      prisma.account.count(),
-      prisma.journal.count(),
-      prisma.journal.count({ where: { status: "POSTED" } }),
-      prisma.journal.count({ where: { status: "DRAFT" } }),
+      prisma.account.count({ where: accountWhere }),
+      prisma.journal.count({ where: journalWhere }),
+      prisma.journal.count({ where: { ...journalWhere, status: "POSTED" } }),
+      prisma.journal.count({ where: { ...journalWhere, status: "DRAFT" } }),
       prisma.journal.findMany({
-        where: { status: "POSTED" },
+        where: { ...journalWhere, status: "POSTED" },
         select: {
           date: true,
           details: { select: { debit: true, credit: true } },
@@ -52,9 +64,11 @@ export default async function FinanceDashboardRoute() {
       }),
       prisma.journal.groupBy({
         by: ["status"],
+        where: journalWhere,
         _count: { status: true },
       }),
       prisma.account.findMany({
+        where: accountWhere,
         select: {
           id: true,
           code: true,
@@ -86,7 +100,13 @@ export default async function FinanceDashboardRoute() {
   }
 
   const postedDetails = await prisma.journalDetail.findMany({
-    where: { journal: { status: "POSTED" } },
+    where: {
+      journal: {
+        ...journalWhere,
+        status: "POSTED",
+      },
+      ...(scopedTenantId ? { account: { tenantId: scopedTenantId } } : {}),
+    },
     select: {
       accountId: true,
       debit: true,

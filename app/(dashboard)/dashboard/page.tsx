@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle } from "lucide-react";
+import { handleUnauthorizedClient } from "@/lib/helper/response-api";
 import ActiveTenantsCard from "./components/active-tenants-card";
 import AttendanceChartCard from "./components/attendance-chart-card";
 import DashboardHeader from "./components/dashboard-header";
@@ -36,8 +37,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (r.status === 401) {
+          handleUnauthorizedClient();
+          return null;
+        }
+        return r.json();
+      })
       .then((res) => {
+        if (!res) return;
         if (res.data) setData(res.data);
         else setError("Gagal memuat data dashboard.");
       })
@@ -45,8 +53,15 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
 
     fetch("/api/holidays")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (r.status === 401) {
+          handleUnauthorizedClient();
+          return null;
+        }
+        return r.json();
+      })
       .then((res) => {
+        if (!res) return;
         if (res.data) setHolidays(res.data);
       })
       .catch(() => { })
