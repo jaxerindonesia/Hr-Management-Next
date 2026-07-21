@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     data: {
       bankName: body.bankName,
       accountNumber: body.accountNumber,
-      accountName: body.accountName,
+      accountHolder: body.accountHolder,
       accountId: account.id,
       tenantId: account.tenantId ?? scope.tenantId ?? null,
     },
