@@ -1,5 +1,7 @@
 let isHandlingUnauthorized = false;
 
+export const UNAUTHORIZED_EVENT = "hr:unauthorized";
+
 export function handleUnauthorizedClient() {
   if (typeof window === "undefined" || isHandlingUnauthorized) return;
 
@@ -12,7 +14,9 @@ export function handleUnauthorizedClient() {
     // ignore localStorage access failures
   }
 
-  window.location.href = "/login";
+  window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+  document.body.classList.remove("mobile-menu-open");
+  window.location.replace("/login");
 }
 
 export async function parseApiError(res: Response, fallback: string) {
