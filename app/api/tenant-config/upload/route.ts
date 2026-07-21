@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { uploadBase64ToMinio, BUCKET_AVATARS } from "@/lib/minio";
 import { requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { writeAuditLog } from "@/lib/security/audit-log";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { getRequestIp } from "@/lib/security/request";
@@ -52,7 +53,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: validation.message }, { status: 415 });
     }
 
-    const filename = `company-logos/logo-${randomUUID()}.${validation.extension}`;
+    const filename = await buildTenantStorageObjectName(
+      auth.user.tenantId,
+      "company-logos",
+      `logo-${randomUUID()}.${validation.extension}`,
+    );
     const url = await uploadBase64ToMinio(
       imageBase64,
       filename,

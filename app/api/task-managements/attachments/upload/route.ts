@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { requireSessionUser } from "@/lib/auth/tenant";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { uploadBufferToMinio, BUCKET_AVATARS } from "@/lib/minio";
 import { requirePermission } from "@/lib/auth/permission";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
@@ -93,7 +94,11 @@ export async function POST(req: NextRequest) {
     }
 
     const fileName = safeName(file.name || "attachment");
-    const objectKey = `task-attachments/${randomUUID()}-${fileName}`;
+    const objectKey = await buildTenantStorageObjectName(
+      auth.user.tenantId,
+      "task-attachments",
+      `${randomUUID()}-${fileName}`,
+    );
 
     const url = await uploadBufferToMinio(
       buffer,

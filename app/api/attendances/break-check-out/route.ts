@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { getJakartaDayKey } from "@/lib/helper/date";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
 
 function jsonError(message: string, status: number) {
@@ -68,9 +69,15 @@ export async function POST(req: NextRequest) {
         return jsonError(imageValidation.message, 415);
       }
 
+      const breakOutObjectName = await buildTenantStorageObjectName(
+        finalTenantId,
+        "attendance-face",
+        `break-out-${randomUUID()}.${imageValidation.extension}`,
+      );
+
       breakOutFaceImage = await uploadBase64ToMinio(
         faceCaptureBase64,
-        `attendance-face/break-out-${randomUUID()}.${imageValidation.extension}`,
+        breakOutObjectName,
         BUCKET_AVATARS,
         imageValidation.contentType,
       );

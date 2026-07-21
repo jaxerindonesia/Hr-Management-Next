@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { hasPermission, requirePermission } from "@/lib/auth/permission";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { uploadBufferToMinio, BUCKET_AVATARS } from "@/lib/minio";
 import { validateAttachmentBuffer } from "@/lib/security/file-validation";
 
@@ -153,7 +154,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: validation.message }, { status: 415 });
       }
 
-      const fileName = `reimbursements/receipt-${reimbursement.id}-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+      const fileName = await buildTenantStorageObjectName(
+        finalTenantId,
+        "reimbursements",
+        `receipt-${reimbursement.id}-${Date.now()}-${file.name.replace(/\s+/g, "_")}`,
+      );
       
       receiptUrl = await uploadBufferToMinio(
         buffer,
