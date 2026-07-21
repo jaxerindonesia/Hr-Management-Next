@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserDto } from "@/lib/dto/user";
+import { parseApiError } from "@/lib/helper/response-api";
 
 const CATEGORIES = [
   "Operasional",
@@ -35,48 +36,58 @@ const STATUSES = [
   { value: "SETTLE", label: "Settled (Done)" },
 ];
 
+const createDefaultFormData = (): PettyCashDto => ({
+  userId: "",
+  purpose: "",
+  category: "",
+  amount: 0,
+  transferDate: null,
+  bankName: "",
+  accountNumber: "",
+  status: "PENDING",
+});
+
 export default function PettyCashFormData({
+  isOpen,
   initialData,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   initialData?: PettyCashDto;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<UserDto[]>([]);
-  const [userData, setUserData] = useState({ id: "", role: "" });
 
-  const [formData, setFormData] = useState<PettyCashDto>(
-    initialData || {
-      userId: "",
-      purpose: "",
-      category: "",
-      amount: 0,
-      transferDate: null,
-      bankName: "",
-      accountNumber: "",
-      status: "PENDING",
-    },
-  );
+  const [formData, setFormData] = useState<PettyCashDto>(createDefaultFormData());
 
   const fetchEmployees = async () => {
     try {
       const res = await fetch("/api/users");
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data karyawan"),
+        );
+      }
       const json = await res.json();
       setEmployees(json.data || []);
-    } catch {
-      toast.error("Gagal memuat data karyawan");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data karyawan",
+      );
     }
   };
 
   useEffect(() => {
     fetchEmployees();
-    const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
-    setUserData(data);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormData(initialData ? { ...initialData } : createDefaultFormData());
+  }, [initialData, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,23 +104,30 @@ export default function PettyCashFormData({
         body: JSON.stringify(formData),
       });
 
-      if (!res.ok) throw new Error("Gagal menyimpan data");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal menyimpan data"));
+      }
 
       toast.success(
         `Petty Cash berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
 
+      setFormData(createDefaultFormData());
       onSuccess();
       onClose();
-    } catch (err) {
-      toast.error("Terjadi kesalahan saat menyimpan petty cash");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat menyimpan petty cash",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>

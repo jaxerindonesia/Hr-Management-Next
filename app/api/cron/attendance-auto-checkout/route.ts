@@ -13,7 +13,7 @@ const DEFAULT_CONFIG = {
 
 function isAuthorizedCron(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return true;
+  if (!cronSecret) return false;
   const authHeader = req.headers.get("authorization") || "";
   return authHeader === `Bearer ${cronSecret}`;
 }
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { startUtc, endUtc } = getJakartaDayRange();
-    const autoCheckoutTime = new Date(endUtc);
+    const jobRunTime = new Date(endUtc);
 
     const openAttendances = await prisma.attendance.findMany({
       where: {
@@ -86,8 +86,11 @@ export async function GET(req: NextRequest) {
             (attendance.tenantId
               ? configByTenant.get(attendance.tenantId)
               : null) || globalConfig || DEFAULT_CONFIG;
-          const officeEnd = getDateAtTime(autoCheckoutTime, cfg.officeEndTime);
-          const isHalfDay = autoCheckoutTime < officeEnd;
+          const officeEnd = getDateAtTime(jobRunTime, cfg.officeEndTime);
+          const effectiveCheckoutTime = attendance.checkIn
+            ? new Date(Math.max(new Date(attendance.checkIn).getTime(), officeEnd.getTime()))
+            : officeEnd;
+          const isHalfDay = effectiveCheckoutTime < officeEnd;
           const wasLate = attendance.status === "Late";
 
           let status = "Present";
@@ -104,14 +107,14 @@ export async function GET(req: NextRequest) {
           return prisma.attendance.update({
             where: { id: attendance.id },
             data: {
-              checkOut: autoCheckoutTime,
+              checkOut: effectiveCheckoutTime,
               autoCheckout: true,
               checkOutLocation: Prisma.JsonNull,
               checkOutFaceImage: null,
               workHours: attendance.checkIn
                 ? (() => {
                     const diffMs =
-                      autoCheckoutTime.getTime() - new Date(attendance.checkIn).getTime();
+                      effectiveCheckoutTime.getTime() - new Date(attendance.checkIn).getTime();
                     const totalMinutes = Math.max(0, Math.floor(diffMs / (1000 * 60)));
                     const hours = Math.floor(totalMinutes / 60);
                     const minutes = totalMinutes % 60;

@@ -1,24 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-
-import { UserDto } from "@/lib/dto/user";
-import { RoleDto } from "@/lib/dto/role";
-import FaceCapture from "./face-capture";
-
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-
 import {
   Select,
   SelectContent,
@@ -26,97 +21,144 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DepartmentDto } from "@/lib/dto/department";
+import type { UserDto } from "@/lib/dto/user";
+import type { RoleDto } from "@/lib/dto/role";
+import type { DepartmentDto } from "@/lib/dto/department";
+import { parseApiError } from "@/lib/helper/response-api";
+import FaceCapture from "./face-capture";
 
 type TenantDto = {
   id: string;
   companyName: string;
 };
 
+const INITIAL_FORM_DATA: UserDto = {
+  roleId: "",
+  departmentId: "",
+  department: null,
+  nik: "",
+  name: "",
+  email: "",
+  phone: "",
+  position: "",
+  joinDate: "",
+  salary: 0,
+  status: "active",
+  password: "",
+  avatarUrl: "",
+  tenantId: "",
+  gender: "",
+  address: "",
+  birthDate: "",
+  birthPlace: "",
+};
+
+function getPasswordValidationMessage(password: string) {
+  if (password.length < 8) {
+    return "Password minimal 8 karakter";
+  }
+  if (!/[A-Z]/.test(password)) {
+    return "Password harus mengandung minimal 1 huruf besar";
+  }
+  if (!/[a-z]/.test(password)) {
+    return "Password harus mengandung minimal 1 huruf kecil";
+  }
+  if (!/\d/.test(password)) {
+    return "Password harus mengandung minimal 1 angka";
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return "Password harus mengandung minimal 1 karakter khusus";
+  }
+  return null;
+}
+
+function getPasswordChecks(password: string) {
+  return [
+    {
+      label: "Minimal 8 karakter",
+      passed: password.length >= 8,
+    },
+    {
+      label: "Minimal 1 huruf besar",
+      passed: /[A-Z]/.test(password),
+    },
+    {
+      label: "Minimal 1 huruf kecil",
+      passed: /[a-z]/.test(password),
+    },
+    {
+      label: "Minimal 1 angka",
+      passed: /\d/.test(password),
+    },
+    {
+      label: "Minimal 1 karakter khusus",
+      passed: /[^A-Za-z0-9]/.test(password),
+    },
+  ];
+}
+
 export default function FormData({
+  isOpen,
   initialData,
+  departments,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   initialData?: UserDto;
+  departments: DepartmentDto[];
   onClose: () => void;
   onSuccess?: () => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<RoleDto[]>([]);
   const [tenants, setTenants] = useState<TenantDto[]>([]);
-  const [departments, setDepartments] = useState<DepartmentDto[]>([]);
-  const [departmentsLoaded, setDepartmentsLoaded] = useState(false);
   const [rePassword, setRePassword] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [currentTenantId, setCurrentTenantId] = useState<string>("");
+  const [currentTenantId, setCurrentTenantId] = useState("");
   const [changePassword, setChangePassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [faceDataUrl, setFaceDataUrl] = useState<string | null>(
     initialData?.avatarUrl || null,
   );
   const [formData, setFormData] = useState<UserDto>(
-    initialData || {
-      roleId: "",
-      departmentId: "",
-      department: null,
-      nik: "",
-      name: "",
-      email: "",
-      phone: "",
-      position: "",
-      joinDate: "",
-      salary: 0,
-      status: "active",
-      password: "",
-      avatarUrl: "",
-      tenantId: "",
-      gender: "",
-      address: "",
-      birthDate: "",
-      birthPlace: "",
-    },
+    initialData || INITIAL_FORM_DATA,
   );
 
   const fetchRoles = async () => {
     try {
       const res = await fetch("/api/roles");
-      if (!res.ok) throw new Error("Gagal mengambil data role");
+      if (!res.ok) {
+        throw new Error(await parseApiError(res, "Gagal mengambil data role"));
+      }
       const json = await res.json();
       setRoles(json.data || []);
-    } catch {
-      toast.error("Gagal memuat role");
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await fetch("/api/departments");
-      if (!res.ok) throw new Error("Gagal mengambil data departemen");
-      const json = await res.json();
-      setDepartments(json.data || []);
-    } catch {
-      toast.error("Gagal memuat departemen");
-    } finally {
-      setDepartmentsLoaded(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat role");
     }
   };
 
   const fetchTenants = async () => {
     try {
       const res = await fetch("/api/tenants?page=1&limit=100");
-      if (!res.ok) throw new Error("Gagal mengambil data tenant");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data tenant"),
+        );
+      }
       const json = await res.json();
       setTenants(json.data || []);
-    } catch {
-      toast.error("Gagal memuat tenant");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat tenant",
+      );
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setLoading(true);
 
-    // Validasi untuk tambah baru
     if ((!formData.id && !formData.password) || (!formData.id && !rePassword)) {
       toast.error("Password dan konfirmasi password wajib diisi");
       setLoading(false);
@@ -129,7 +171,17 @@ export default function FormData({
       return;
     }
 
-    // Validasi untuk edit dengan ganti password
+    if (!formData.id) {
+      const passwordValidationMessage = getPasswordValidationMessage(
+        formData.password || "",
+      );
+      if (passwordValidationMessage) {
+        toast.error(passwordValidationMessage);
+        setLoading(false);
+        return;
+      }
+    }
+
     if (formData.id && changePassword) {
       if (!formData.password) {
         toast.error("Password baru wajib diisi");
@@ -141,15 +193,17 @@ export default function FormData({
         setLoading(false);
         return;
       }
-      if (formData.password.length < 6) {
-        toast.error("Password minimal 6 karakter");
+      const passwordValidationMessage = getPasswordValidationMessage(
+        formData.password,
+      );
+      if (passwordValidationMessage) {
+        toast.error(passwordValidationMessage);
         setLoading(false);
         return;
       }
     }
 
     try {
-      // Upload face photo if it's a new base64 capture
       let avatarUrl = formData.avatarUrl || "";
       if (faceDataUrl && faceDataUrl.startsWith("data:image")) {
         const uploadRes = await fetch("/api/upload-avatar", {
@@ -157,14 +211,17 @@ export default function FormData({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageBase64: faceDataUrl }),
         });
-        if (uploadRes.ok) {
-          const uploadJson = await uploadRes.json();
-          avatarUrl = uploadJson.url;
-        } else {
-          toast.error("Gagal mengupload foto wajah");
+
+        if (!uploadRes.ok) {
+          toast.error(
+            await parseApiError(uploadRes, "Gagal mengupload foto wajah"),
+          );
           setLoading(false);
           return;
         }
+
+        const uploadJson = await uploadRes.json();
+        avatarUrl = uploadJson.url;
       }
 
       const url = formData.id ? `/api/users/${formData.id}` : "/api/users";
@@ -179,7 +236,6 @@ export default function FormData({
         return;
       }
 
-      // Jika mode edit dan tidak ganti password, hapus password dari payload
       const payload = { ...formData, avatarUrl, tenantId: finalTenantId };
       if (formData.id && !changePassword) {
         delete payload.password;
@@ -191,12 +247,12 @@ export default function FormData({
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Gagal menyimpan data");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal menyimpan data"));
 
       toast.success(
         `Data karyawan berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
-      if (onSuccess) onSuccess();
+      onSuccess?.();
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
@@ -211,7 +267,9 @@ export default function FormData({
       try {
         const userData = JSON.parse(raw);
         const rawRoleName =
-          typeof userData?.role === "string" ? userData.role : userData?.role?.name;
+          typeof userData?.role === "string"
+            ? userData.role
+            : userData?.role?.name;
         const normalizedRole = String(rawRoleName || "")
           .toLowerCase()
           .replace(/\s/g, "");
@@ -237,7 +295,6 @@ export default function FormData({
     }
 
     fetchRoles();
-    fetchDepartments();
   }, [initialData?.id, initialData?.tenantId]);
 
   useEffect(() => {
@@ -245,6 +302,25 @@ export default function FormData({
       fetchTenants();
     }
   }, [isSuperAdmin]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setChangePassword(false);
+      setShowPassword(false);
+      setShowConfirmPassword(false);
+      setRePassword("");
+      setFaceDataUrl(initialData?.avatarUrl || null);
+      setFormData(initialData || INITIAL_FORM_DATA);
+      return;
+    }
+
+    setChangePassword(false);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setRePassword("");
+    setFaceDataUrl(initialData?.avatarUrl || null);
+    setFormData(initialData || INITIAL_FORM_DATA);
+  }, [initialData, isOpen]);
 
   const visibleRoles = roles.filter((role) => {
     if (isSuperAdmin) return true;
@@ -257,18 +333,18 @@ export default function FormData({
   const selectedTenantId = isSuperAdmin
     ? formData.tenantId || ""
     : currentTenantId || formData.tenantId || initialData?.tenantId || "";
+  const passwordChecks = getPasswordChecks(formData.password || "");
 
-  const filteredDepartments = departments.filter((dept) => {
+  const filteredDepartments = departments.filter((department) => {
     if (!selectedTenantId) return false;
-    return dept.tenantId === selectedTenantId;
+    return department.tenantId === selectedTenantId;
   });
 
   useEffect(() => {
-    if (!formData.departmentId) return;
-    if (!departmentsLoaded) return;
+    if (!formData.departmentId || departments.length === 0) return;
 
     const isDepartmentStillValid = filteredDepartments.some(
-      (dept) => dept.id === formData.departmentId,
+      (department) => department.id === formData.departmentId,
     );
 
     if (!isDepartmentStillValid) {
@@ -277,35 +353,33 @@ export default function FormData({
         departmentId: "",
       }));
     }
-  }, [departmentsLoaded, filteredDepartments, formData.departmentId]);
+  }, [departments, filteredDepartments, formData.departmentId]);
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] overflow-y-auto p-4 sm:w-[92vw] sm:max-w-[960px] sm:p-6 lg:w-[72vw] lg:max-w-[1080px]">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Karyawan" : "Tambah Karyawan"}
           </DialogTitle>
+          <DialogDescription>
+            Lengkapi data karyawan sesuai informasi master perusahaan.
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Role */}
-          <div className={`grid ${isSuperAdmin ? "grid-cols-3" : "grid-cols-2"} gap-4`}>
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Role *
-              </Label>
-
+        <div className="space-y-4">
+          <div className={`grid gap-4 ${isSuperAdmin ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+            <div className="grid gap-2">
+              <Label>Role *</Label>
               <Select
                 value={formData.roleId || ""}
-                onValueChange={(val) =>
-                  setFormData({ ...formData, roleId: val })
+                onValueChange={(value) =>
+                  setFormData((current) => ({ ...current, roleId: value }))
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={"Pilih Role"} />
+                  <SelectValue placeholder="Pilih Role" />
                 </SelectTrigger>
-
                 <SelectContent>
                   {visibleRoles.map((role) => (
                     <SelectItem key={role.id} value={role.id ?? ""}>
@@ -316,21 +390,22 @@ export default function FormData({
               </Select>
             </div>
 
-            {isSuperAdmin && (
-              <div className="space-y-1">
-                <Label className="block text-sm font-medium dark:text-gray-300">
-                  Tenant *
-                </Label>
+            {isSuperAdmin ? (
+              <div className="grid gap-2">
+                <Label>Tenant *</Label>
                 <Select
                   value={formData.tenantId || ""}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, tenantId: val, departmentId: "" })
+                  onValueChange={(value) =>
+                    setFormData((current) => ({
+                      ...current,
+                      tenantId: value,
+                      departmentId: "",
+                    }))
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder={"Pilih Tenant"} />
+                    <SelectValue placeholder="Pilih Tenant" />
                   </SelectTrigger>
-
                   <SelectContent>
                     {tenants.map((tenant) => (
                       <SelectItem key={tenant.id} value={tenant.id}>
@@ -340,29 +415,25 @@ export default function FormData({
                   </SelectContent>
                 </Select>
               </div>
-            )}
+            ) : null}
 
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Departemen *
-              </Label>
-
+            <div className="grid gap-2">
+              <Label>Departemen *</Label>
               <Select
                 value={formData.departmentId || ""}
-                onValueChange={(val) =>
-                  setFormData({ ...formData, departmentId: val })
+                onValueChange={(value) =>
+                  setFormData((current) => ({ ...current, departmentId: value }))
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={"Pilih Departemen"} />
+                  <SelectValue placeholder="Pilih Departemen" />
                 </SelectTrigger>
-
                 <SelectContent>
-                  {filteredDepartments.map((dept) => (
-                    <SelectItem key={dept.id} value={dept.id ?? ""}>
+                  {filteredDepartments.map((department) => (
+                    <SelectItem key={department.id} value={department.id ?? ""}>
                       {isSuperAdmin
-                        ? `${dept.name} - ${dept.tenant?.companyName || "-"}`
-                        : dept.name}
+                        ? `${department.name} - ${department.tenant?.companyName || "-"}`
+                        : department.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -370,113 +441,103 @@ export default function FormData({
             </div>
           </div>
 
-          {/* NIK & Name */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                NIK
-              </Label>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-2">
+              <Label>NIK</Label>
               <Input
                 value={formData.nik || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, nik: e.target.value })
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    nik: event.target.value,
+                  }))
                 }
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Nama Lengkap *
-              </Label>
+            <div className="grid gap-2">
+              <Label>Nama Lengkap *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
                 }
                 required
               />
             </div>
-          </div>
 
-          {/* Email & Phone */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Email *
-              </Label>
+            <div className="grid gap-2">
+              <Label>Email *</Label>
               <Input
                 type="email"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                required
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                No. Telepon *
-              </Label>
-              <Input
-                value={formData.phone || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
                 }
                 required
               />
             </div>
           </div>
 
-          {/* Position & Department */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Posisi *
-              </Label>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-2">
+              <Label>No. Telepon *</Label>
               <Input
-                value={formData.position || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    position: e.target.value,
-                  })
+                value={formData.phone || ""}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    phone: event.target.value,
+                  }))
                 }
                 required
               />
             </div>
-
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Tanggal Bergabung *
-              </Label>
+            <div className="grid gap-2">
+              <Label>Posisi *</Label>
+              <Input
+                value={formData.position || ""}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    position: event.target.value,
+                  }))
+                }
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Tanggal Bergabung *</Label>
               <Input
                 type="date"
                 value={formData.joinDate ? formData.joinDate.split("T")[0] : ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    joinDate: e.target.value,
-                  })
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    joinDate: event.target.value,
+                  }))
                 }
                 required
               />
             </div>
           </div>
 
-          {/* Gender & Birth Place */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Gender
-              </Label>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-2">
+              <Label>Gender</Label>
               <Select
                 value={formData.gender || "unspecified"}
-                onValueChange={(val) =>
-                  setFormData({
-                    ...formData,
-                    gender: val === "unspecified" ? "" : val,
-                  })
+                onValueChange={(value) =>
+                  setFormData((current) => ({
+                    ...current,
+                    gender: value === "unspecified" ? "" : value,
+                  }))
                 }
               >
                 <SelectTrigger className="w-full">
@@ -489,92 +550,59 @@ export default function FormData({
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Tempat Lahir
-              </Label>
+            <div className="grid gap-2">
+              <Label>Tempat Lahir</Label>
               <Input
                 value={formData.birthPlace || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    birthPlace: e.target.value,
-                  })
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    birthPlace: event.target.value,
+                  }))
                 }
               />
             </div>
-          </div>
-
-          {/* Birth Date & Address */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Tanggal Lahir
-              </Label>
+            <div className="grid gap-2">
+              <Label>Tanggal Lahir</Label>
               <Input
                 type="date"
                 value={formData.birthDate ? formData.birthDate.split("T")[0] : ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    birthDate: e.target.value,
-                  })
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    birthDate: event.target.value,
+                  }))
                 }
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Alamat
-              </Label>
-              <Textarea
-                value={formData.address || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    address: e.target.value,
-                  })
-                }
-                rows={3}
               />
             </div>
           </div>
 
-          {/* Salary & Status */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Gaji
-              </Label>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-2">
+              <Label>Gaji</Label>
               <Input
                 type="text"
-                value={
-                  formData.salary ? formData.salary.toLocaleString("id-ID") : ""
-                }
-                onChange={(e) => {
-                  // Hapus semua karakter non-digit
-                  const numericValue = e.target.value.replace(/\D/g, "");
-                  setFormData({
-                    ...formData,
+                value={formData.salary ? formData.salary.toLocaleString("id-ID") : ""}
+                onChange={(event) => {
+                  const numericValue = event.target.value.replace(/\D/g, "");
+                  setFormData((current) => ({
+                    ...current,
                     salary: numericValue ? Number(numericValue) : 0,
-                  });
+                  }));
                 }}
                 placeholder="0"
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="block text-sm font-medium dark:text-gray-300">
-                Status
-              </Label>
+            <div className="grid gap-2">
+              <Label>Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(val) =>
-                  setFormData({
-                    ...formData,
-                    status: val as "active" | "inactive",
-                  })
+                onValueChange={(value) =>
+                  setFormData((current) => ({
+                    ...current,
+                    status: value as "active" | "inactive",
+                  }))
                 }
               >
                 <SelectTrigger className="w-full">
@@ -588,126 +616,244 @@ export default function FormData({
             </div>
           </div>
 
-          {/* Foto Wajah */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium dark:text-gray-300">
-              Foto Wajah (untuk absensi)
-            </label>
-            <FaceCapture
-              value={faceDataUrl}
-              onChange={(url) => setFaceDataUrl(url)}
+          <div className="grid gap-2">
+            <Label>Alamat</Label>
+            <Textarea
+              value={formData.address || ""}
+              onChange={(event) =>
+                setFormData((current) => ({
+                  ...current,
+                  address: event.target.value,
+                }))
+              }
+              rows={4}
             />
           </div>
 
-          {/* Password */}
+          <div className="grid gap-2">
+            <Label>Foto Wajah (untuk absensi)</Label>
+            <FaceCapture value={faceDataUrl} onChange={setFaceDataUrl} />
+          </div>
+
           {!formData.id ? (
-            // Mode Tambah: password wajib diisi
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="block text-sm font-medium dark:text-gray-300">
-                  Password *
-                </Label>
-                <Input
-                  type="password"
-                  value={formData.password || ""}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      password: e.target.value,
-                    })
-                  }
-                  required
-                />
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label>Password *</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password || ""}
+                      onChange={(event) =>
+                        setFormData((current) => ({
+                          ...current,
+                          password: event.target.value,
+                        }))
+                      }
+                      className="pr-11"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                      aria-label={
+                        showPassword ? "Sembunyikan password" : "Lihat password"
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Konfirmasi Password *</Label>
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={rePassword}
+                      onChange={(event) => setRePassword(event.target.value)}
+                      className="pr-11"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword((current) => !current)
+                      }
+                      className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                      aria-label={
+                        showConfirmPassword
+                          ? "Sembunyikan konfirmasi password"
+                          : "Lihat konfirmasi password"
+                      }
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="block text-sm font-medium dark:text-gray-300">
-                  Konfirmasi Password *
-                </Label>
-                <Input
-                  type="password"
-                  value={rePassword}
-                  onChange={(e) => setRePassword(e.target.value)}
-                  required
-                />
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+                <p className="mb-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+                  Syarat password
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {passwordChecks.map((check) => (
+                    <p
+                      key={check.label}
+                      className={`text-sm ${
+                        check.passed
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-slate-500 dark:text-slate-400"
+                      }`}
+                    >
+                      {check.passed ? "✓" : "•"} {check.label}
+                    </p>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
-            // Mode Edit: ganti password opsional
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
-                <input
-                  type="checkbox"
-                  id="changePasswordToggle"
-                  checked={changePassword}
-                  onChange={(e) => {
-                    setChangePassword(e.target.checked);
-                    if (!e.target.checked) {
-                      setFormData({ ...formData, password: "" });
+              <div className="flex items-center justify-between rounded-lg border bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50">
+                <div className="space-y-1">
+                  <Label>Ganti Password</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Aktifkan jika password karyawan perlu diperbarui.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={changePassword ? "default" : "outline"}
+                  onClick={() => {
+                    const nextValue = !changePassword;
+                    setChangePassword(nextValue);
+                    if (!nextValue) {
+                      setFormData((current) => ({
+                        ...current,
+                        password: "",
+                      }));
+                      setShowPassword(false);
+                      setShowConfirmPassword(false);
                       setRePassword("");
                     }
                   }}
-                  className="w-4 h-4 accent-blue-600 cursor-pointer"
-                />
-                <label
-                  htmlFor="changePasswordToggle"
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none"
                 >
-                  Ganti Password
-                </label>
-                {!changePassword && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                    (Biarkan kosong jika tidak ingin mengubah password)
-                  </span>
-                )}
+                  {changePassword ? "Batalkan" : "Aktifkan"}
+                </Button>
               </div>
 
-              {changePassword && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label className="block text-sm font-medium dark:text-gray-300">
-                      Password Baru *
-                    </Label>
-                    <Input
-                      type="password"
-                      value={formData.password || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          password: e.target.value,
-                        })
-                      }
-                      placeholder="Min. 6 karakter"
-                    />
+              {changePassword ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label>Password Baru *</Label>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          value={formData.password || ""}
+                          onChange={(event) =>
+                            setFormData((current) => ({
+                              ...current,
+                              password: event.target.value,
+                            }))
+                          }
+                          placeholder="Password baru"
+                          className="pr-11"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((current) => !current)}
+                          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                          aria-label={
+                            showPassword
+                              ? "Sembunyikan password baru"
+                              : "Lihat password baru"
+                          }
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>Konfirmasi Password Baru *</Label>
+                      <div className="relative">
+                        <Input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={rePassword}
+                          onChange={(event) => setRePassword(event.target.value)}
+                          placeholder="Ulangi password baru"
+                          className="pr-11"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowConfirmPassword((current) => !current)
+                          }
+                          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                          aria-label={
+                            showConfirmPassword
+                              ? "Sembunyikan konfirmasi password baru"
+                              : "Lihat konfirmasi password baru"
+                          }
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label className="block text-sm font-medium dark:text-gray-300">
-                      Konfirmasi Password Baru *
-                    </Label>
-                    <Input
-                      type="password"
-                      value={rePassword}
-                      onChange={(e) => setRePassword(e.target.value)}
-                      placeholder="Ulangi password baru"
-                    />
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+                    <p className="mb-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+                      Syarat password
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {passwordChecks.map((check) => (
+                        <p
+                          key={check.label}
+                          className={`text-sm ${
+                            check.passed
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-slate-500 dark:text-slate-400"
+                          }`}
+                        >
+                          {check.passed ? "✓" : "•"} {check.label}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
-          {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t">
+          <div className="flex justify-end gap-3 border-t pt-6">
             <Button type="button" variant="outline" onClick={onClose}>
               Batal
             </Button>
-
-            <Button type="submit" disabled={loading}>
+            <Button type="button" onClick={handleSubmit} disabled={loading}>
               {loading ? "Menyimpan..." : formData.id ? "Update" : "Simpan"}
             </Button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

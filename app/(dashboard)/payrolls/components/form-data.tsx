@@ -2,7 +2,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -18,12 +17,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { months } from "@/lib/helper/date";
 import { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
+import { parseApiError } from "@/lib/helper/response-api";
 
 export default function FormData({
+  isOpen,
   initialData,
   onClose,
   onSuccess,
 } : {
+  isOpen: boolean;
   initialData?: PayrollDto;
   onClose: () => void;
   onSuccess?: () => void;
@@ -39,18 +41,24 @@ export default function FormData({
      allowances: 0,
      deductions: 0,
      totalSalary: 0,
-     status: "pending",
+     status: "PENDING",
    },
  );
 
  const fetchEmployees = async () => {
    try {
      const res = await fetch("/api/users");
-        if (!res.ok) throw new Error("Gagal mengambil data karyawan");
+        if (!res.ok) {
+          throw new Error(
+            await parseApiError(res, "Gagal mengambil data karyawan"),
+          );
+        }
         const json = await res.json();
         setEmployees(json.data || []);
     } catch (error) {
-        toast.error("Gagal memuat data karyawan");
+        toast.error(
+          error instanceof Error ? error.message : "Gagal memuat data karyawan",
+        );
     }
  };
 
@@ -66,7 +74,7 @@ export default function FormData({
        body: JSON.stringify(formData),
      });
 
-     if (!res.ok) throw new Error("Gagal menyimpan data");   
+     if (!res.ok) throw new Error(await parseApiError(res, "Gagal menyimpan data"));   
      toast.success(
        `Data gaji berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
      );
@@ -85,7 +93,7 @@ export default function FormData({
  }, []);
 
  return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -236,8 +244,8 @@ export default function FormData({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="PAID">Paid</SelectItem>
                 </SelectContent>
               </Select>
             </div>

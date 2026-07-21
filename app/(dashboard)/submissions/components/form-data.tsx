@@ -5,6 +5,7 @@ import { SubmissionTypeDto } from "@/lib/dto/submission-type";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { UserDto } from "@/lib/dto/user";
 import { Label } from "@/components/ui/label";
+import { parseApiError } from "@/lib/helper/response-api";
 import {
   Select,
   SelectContent,
@@ -23,11 +25,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+function toInputDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().split("T")[0] ?? "";
+}
+
 export default function FormData({
+  isOpen,
   initialData,
   onClose,
   onSuccess,
 }: {
+  isOpen: boolean;
   initialData?: SubmissionDto;
   onClose: () => void;
   onSuccess: () => void;
@@ -48,31 +59,53 @@ export default function FormData({
       approvedAt: null,
     },
   );
+  const startDateValue = toInputDate(formData.startDate);
+  const endDateValue = toInputDate(formData.endDate);
+  const isEndDateBeforeStartDate =
+    !!startDateValue && !!endDateValue && endDateValue < startDateValue;
 
   const fetchSubmissionTypes = async () => {
     try {
       const res = await fetch("/api/submission-types");
-      if (!res.ok) throw new Error("Gagal mengambil data tipe pengajuan");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data tipe pengajuan"),
+        );
+      }
       const json = await res.json();
       setSubmissionType(json.data || []);
-    } catch (err) {
-      toast.error("Gagal memuat tipe pengajuan");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat tipe pengajuan",
+      );
     }
   };
 
   const fetchEmployees = async () => {
     try {
       const res = await fetch("/api/users");
-      if (!res.ok) throw new Error("Gagal mengambil data karyawan");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data karyawan"),
+        );
+      }
       const json = await res.json();
       setEmployees(json.data || []);
     } catch (error) {
-      toast.error("Gagal memuat data karyawan");
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data karyawan",
+      );
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isEndDateBeforeStartDate) {
+      toast.error("Tanggal selesai tidak boleh sebelum tanggal mulai");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -87,15 +120,14 @@ export default function FormData({
       });
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || "Gagal menyimpan data");
+        throw new Error(await parseApiError(res, "Gagal menyimpan data"));
       }
 
       toast.success(
         `Data cuti berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
 
-      onSuccess && onSuccess();
+      onSuccess();
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
@@ -112,7 +144,7 @@ export default function FormData({
   }, []);
 
   useEffect(() => {
-    if (userData.role && userData.role !== "Super Admin") {
+    if (userData.role && userData.role === "Karyawan") {
       setFormData((prev) => ({
         ...prev,
         userId: userData.id,
@@ -120,13 +152,36 @@ export default function FormData({
     }
   }, [userData]);
 
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+      return;
+    }
+
+    setFormData({
+      userId: "",
+      submissionTypeId: "",
+      startDate: "",
+      endDate: "",
+      reason: "",
+      status: "PENDING",
+      approvedBy: null,
+      approvedAt: null,
+    });
+  }, [initialData]);
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Pengajuan Cuti" : "Tambah Pengajuan Cuti"}
           </DialogTitle>
+          <DialogDescription>
+            {formData.id
+              ? "Perbarui detail pengajuan cuti yang sudah dibuat."
+              : "Lengkapi form untuk membuat pengajuan cuti baru."}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -135,17 +190,15 @@ export default function FormData({
             <Select
               value={
                 formData.userId ||
-                (userData.role !== "Super Admin" ? userData.id : "")
+                (userData.role === "Karyawan" ? userData.id : "")
               }
               onValueChange={(val) => {
-                if (userData.role === "Super Admin") {
-                  setFormData({
-                    ...formData,
-                    userId: val,
-                  });
-                }
+                setFormData({
+                  ...formData,
+                  userId: val,
+                });
               }}
-              disabled={userData.role !== "Super Admin"}
+              disabled={userData.role === "Karyawan"}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={"Pilih Karyawan"} />
@@ -186,13 +239,21 @@ export default function FormData({
             <Label>Tanggal Mulai</Label>
             <Input
               type="date"
-              value={
-                formData.startDate
-                  ? new Date(formData.startDate).toISOString().split("T")[0]
-                  : ""
-              }
+              value={startDateValue}
               onChange={(e) =>
-                setFormData({ ...formData, startDate: e.target.value })
+                setFormData((prev) => {
+                  const nextStartDate = e.target.value;
+                  const nextEndDate =
+                    prev.endDate && toInputDate(prev.endDate) < nextStartDate
+                      ? nextStartDate
+                      : prev.endDate;
+
+                  return {
+                    ...prev,
+                    startDate: nextStartDate,
+                    endDate: nextEndDate,
+                  };
+                })
               }
             />
           </div>
@@ -201,15 +262,17 @@ export default function FormData({
             <Label>Tanggal Selesai</Label>
             <Input
               type="date"
-              value={
-                formData.endDate
-                  ? new Date(formData.endDate).toISOString().split("T")[0]
-                  : ""
-              }
+              value={endDateValue}
+              min={startDateValue || undefined}
               onChange={(e) =>
                 setFormData({ ...formData, endDate: e.target.value })
               }
             />
+            {isEndDateBeforeStartDate ? (
+              <p className="text-sm text-red-500">
+                Tanggal selesai tidak boleh sebelum tanggal mulai.
+              </p>
+            ) : null}
           </div>
 
           <div className="grid gap-2">

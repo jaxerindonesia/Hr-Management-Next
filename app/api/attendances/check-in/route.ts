@@ -9,7 +9,10 @@ import {
   uploadBase64ToMinio,
 } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { hasPermission } from "@/lib/auth/permission";
 import { getDateAtTime, getJakartaDayKey } from "@/lib/helper/date";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
+import { validateBase64Image } from "@/lib/security/file-validation";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -41,6 +44,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { userId, checkInLocation, faceCaptureBase64 } = body;
+    const canManageAttendances = hasPermission(auth.user, "attendances", "create");
 
     if (!userId) {
       return jsonError("UserId is required", 400);
@@ -48,9 +52,20 @@ export async function POST(req: Request) {
     if (!faceCaptureBase64) {
       return jsonError("Face capture evidence is required", 400);
     }
+    const imageValidation = validateBase64Image(faceCaptureBase64, {
+      maxBytes: 3 * 1024 * 1024,
+    });
+    if (!imageValidation.ok) {
+      return jsonError(imageValidation.message, 415);
+    }
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+    const targetUserId = canManageAttendances ? userId : auth.user.id;
+
+    if (!canManageAttendances && userId !== auth.user.id) {
+      return jsonError("Forbidden", 403);
+    }
 
     const now = new Date();
     const cfg =
@@ -65,18 +80,24 @@ export async function POST(req: Request) {
     const checkInStatus = now <= lateLimit ? "On Time" : "Late";
     const attendanceDay = getJakartaDayKey(now);
 
+    const checkInObjectName = await buildTenantStorageObjectName(
+      finalTenantId,
+      "attendance-face",
+      `check-in-${randomUUID()}.${imageValidation.extension}`,
+    );
+
     uploadedFaceImage = await uploadBase64ToMinio(
       faceCaptureBase64,
-      `attendance-face/check-in-${randomUUID()}.jpg`,
+      checkInObjectName,
       BUCKET_AVATARS,
-      "image/jpeg",
+      imageValidation.contentType,
     );
 
     const attendance = await prisma.$transaction(async (tx) => {
       const existingToday = await tx.attendance.findFirst({
         where: {
           ...(finalTenantId ? { tenantId: finalTenantId } : {}),
-          userId,
+          userId: targetUserId,
           attendanceDay,
         },
         select: {
@@ -97,7 +118,7 @@ export async function POST(req: Request) {
       return tx.attendance.create({
         data: {
           tenantId: finalTenantId,
-          userId,
+          userId: targetUserId,
           date: now,
           attendanceDay,
           checkIn: now,

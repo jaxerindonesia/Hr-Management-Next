@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { canManageTaskDepartment } from "@/lib/auth/task-management";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type AttachmentInput = {
   name: string;
@@ -80,6 +82,8 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "create");
+    if (forbid) return forbid;
 
     const body = await req.json();
     const title = String(body.title || "").trim();
@@ -140,13 +144,29 @@ export async function POST(req: NextRequest) {
       body.position !== undefined
         ? Number(body.position)
         : await prisma.task.count({ where: { listId } });
+    const startDate = body.startDate ? new Date(body.startDate) : new Date();
+    const dueDate = body.dueDate ? new Date(body.dueDate) : null;
+
+    if (Number.isNaN(startDate.getTime()) || (dueDate && Number.isNaN(dueDate.getTime()))) {
+      return NextResponse.json(
+        { message: "Format tanggal task tidak valid" },
+        { status: 400 },
+      );
+    }
+
+    if (dueDate && dueDate < startDate) {
+      return NextResponse.json(
+        { message: "Tanggal jatuh tempo tidak boleh sebelum tanggal mulai task" },
+        { status: 400 },
+      );
+    }
 
     const task = await prisma.task.create({
       data: {
         title,
         description: body.description ? String(body.description) : null,
-        startDate: body.startDate ? new Date(body.startDate) : new Date(),
-        dueDate: body.dueDate ? new Date(body.dueDate) : null,
+        startDate,
+        dueDate,
         position,
         listId,
         departmentId,
@@ -177,6 +197,21 @@ export async function POST(req: NextRequest) {
           include: { category: true },
         },
         attachments: true,
+      },
+    });
+
+    writeAuditLog({
+      action: "tasks.create",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "task",
+      targetId: task.id,
+      message: "Task created",
+      metadata: {
+        departmentId,
+        listId,
       },
     });
 

@@ -5,11 +5,21 @@ import bcrypt from "bcryptjs";
 
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 export async function POST(req: NextRequest) {
   try {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { message: "Public registration is disabled in production" },
+        { status: 403 },
+      );
+    }
+
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "users", "create");
+    if (forbid) return forbid;
 
     const body = await req.json();
     const {

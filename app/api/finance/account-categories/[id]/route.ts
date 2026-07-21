@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireSessionUser, ensureTenantScope } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -11,6 +12,8 @@ type Context = {
 export async function PUT(req: NextRequest, context: Context) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "update");
+  if (forbid) return forbid;
 
   const { id } = await context.params;
   const body = await req.json();
@@ -60,6 +63,8 @@ export async function PUT(req: NextRequest, context: Context) {
 export async function DELETE(_req: NextRequest, context: Context) {
   const auth = await requireSessionUser();
   if (auth.error) return auth.error;
+  const forbid = requirePermission(auth.user, "finance", "delete");
+  if (forbid) return forbid;
 
   const { id } = await context.params;
   const tenantId = ensureTenantScope(auth.user);

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { deleteFromMinio } from "@/lib/minio";
+import { requirePermission } from "@/lib/auth/permission";
 
 type Params = {
   params: {
@@ -17,6 +18,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "delete");
+    if (forbid) return forbid;
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const attachment = await prisma.taskAttachment.findFirst({

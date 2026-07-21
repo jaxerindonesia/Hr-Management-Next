@@ -5,7 +5,10 @@ import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { hasPermission } from "@/lib/auth/permission";
 import { getDateAtTime, getJakartaDayKey } from "@/lib/helper/date";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
+import { validateBase64Image } from "@/lib/security/file-validation";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -23,6 +26,7 @@ export async function POST(req: NextRequest) {
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
     const { userId, checkOutLocation, faceCaptureBase64 } = body;
+    const canManageAttendances = hasPermission(auth.user, "attendances", "update");
 
     if (!userId) {
       return NextResponse.json(
@@ -36,6 +40,18 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+    const imageValidation = validateBase64Image(faceCaptureBase64, {
+      maxBytes: 3 * 1024 * 1024,
+    });
+    if (!imageValidation.ok) {
+      return NextResponse.json({ message: imageValidation.message }, { status: 415 });
+    }
+
+    if (!canManageAttendances && userId !== auth.user.id) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const targetUserId = canManageAttendances ? userId : auth.user.id;
 
     const today = new Date();
     const attendanceDay = getJakartaDayKey(today);
@@ -43,7 +59,7 @@ export async function POST(req: NextRequest) {
     const attendance = await prisma.attendance.findFirst({
       where: {
         ...(finalTenantId ? { tenantId: finalTenantId } : {}),
-        userId,
+        userId: targetUserId,
         attendanceDay,
       },
     });
@@ -70,11 +86,17 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date();
+    const checkOutObjectName = await buildTenantStorageObjectName(
+      finalTenantId,
+      "attendance-face",
+      `check-out-${randomUUID()}.${imageValidation.extension}`,
+    );
+
     const checkOutFaceImage = await uploadBase64ToMinio(
       faceCaptureBase64,
-      `attendance-face/check-out-${randomUUID()}.jpg`,
+      checkOutObjectName,
       BUCKET_AVATARS,
-      "image/jpeg",
+      imageValidation.contentType,
     );
 
     // hitung jam kerja

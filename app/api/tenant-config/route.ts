@@ -3,11 +3,15 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 export async function GET() {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "tenants", "get-by-id");
+    if (forbid) return forbid;
 
     const tenantId = ensureTenantScope(auth.user);
     if (!tenantId) {
@@ -38,6 +42,8 @@ export async function PUT(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "tenants", "update");
+    if (forbid) return forbid;
 
     const tenantId = ensureTenantScope(auth.user);
     if (!tenantId) {
@@ -70,6 +76,23 @@ export async function PUT(req: NextRequest) {
       },
     });
 
+    writeAuditLog({
+      action: "tenants.update",
+      status: "success",
+      request: req,
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "tenant",
+      targetId: updated.id,
+      message: "Tenant configuration updated",
+      metadata: {
+        companyNameChanged: companyName !== undefined,
+        logoUrlChanged: logoUrl !== undefined,
+        logoDarkUrlChanged: logoDarkUrl !== undefined,
+      },
+    });
+
     return NextResponse.json({
       message: "Konfigurasi tenant berhasil disimpan",
       data: updated,
@@ -87,15 +110,28 @@ export async function DELETE() {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "tenants", "update");
+    if (forbid) return forbid;
 
     const tenantId = ensureTenantScope(auth.user);
     if (!tenantId) {
       return NextResponse.json({ message: "Tenant tidak ditemukan" }, { status: 404 });
     }
 
-    await prisma.tenant.update({
+    const updated = await prisma.tenant.update({
       where: { id: tenantId },
       data: { logoUrl: null, logoDarkUrl: null },
+    });
+
+    writeAuditLog({
+      action: "tenants.reset_logo",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "tenant",
+      targetId: updated.id,
+      message: "Tenant logos reset",
     });
 
     return NextResponse.json({

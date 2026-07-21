@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 const DEFAULT_CONFIG = {
   payMethod: "PER_HOUR",
@@ -14,6 +15,8 @@ export async function GET() {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "overtimes", "set-config");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const cfg = await prisma.overtimeConfig.findFirst({
@@ -36,6 +39,8 @@ export async function PUT(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "overtimes", "set-config");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
     const body = await req.json();
 

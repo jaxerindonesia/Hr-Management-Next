@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { PerformanceDto } from "@/lib/dto/performance";
 import { toast } from "sonner";
 import { UserDto } from "@/lib/dto/user";
+import { parseApiError } from "@/lib/helper/response-api";
 
 export default function FormData({
     initialData,
@@ -49,11 +50,17 @@ export default function FormData({
   const fetchEmployees = async () => {
     try {
       const res = await fetch("/api/users");
-         if (!res.ok) throw new Error("Gagal mengambil data karyawan");
+         if (!res.ok) {
+           throw new Error(
+             await parseApiError(res, "Gagal mengambil data karyawan"),
+           );
+         }
          const json = await res.json();
          setEmployees(json.data || []);
      } catch (error) {
-         toast.error("Gagal memuat data karyawan");
+         toast.error(
+           error instanceof Error ? error.message : "Gagal memuat data karyawan",
+         );
      }
   };
 
@@ -81,7 +88,7 @@ export default function FormData({
         body: JSON.stringify(formData),
       });
 
-      if (!res.ok) throw new Error("Gagal menyimpan data");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal menyimpan data"));
 
       toast.success(
         `Data penilaian berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
@@ -89,7 +96,9 @@ export default function FormData({
       onSuccess && onSuccess();
       onClose();
     } catch (error) {
-      toast.error((error as Error).message || "Terjadi kesalahan");
+      toast.error(
+        error instanceof Error ? error.message : "Terjadi kesalahan",
+      );
     } finally {
       setLoading(false);
     }

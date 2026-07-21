@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type Params = { params: { id: string } };
 
@@ -12,6 +14,8 @@ export async function GET(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "submissions", "get-by-id");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const submission = await prisma.submission.findFirst({
@@ -23,7 +27,7 @@ export async function GET(_: Request, { params }: Params) {
     });
 
     if (!submission) return NextResponse.json({ message: "Submission not found" }, { status: 404 });
-    return NextResponse.json(submission);
+    return NextResponse.json({ message: "Success", data: submission });
   } catch {
     return NextResponse.json({ message: "Failed to retrieve submission" }, { status: 500 });
   }
@@ -34,6 +38,8 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "submissions", "update");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const existing = await prisma.submission.findFirst({
@@ -79,14 +85,48 @@ export async function PUT(req: Request, { params }: Params) {
         },
       });
 
+      writeAuditLog({
+        action: nextStatus === "REJECTED" ? "submissions.reject" : "submissions.approve",
+        status: "success",
+        actorUserId: auth.user.id,
+        actorRole: auth.user.roleName,
+        tenantId: auth.user.tenantId,
+        targetType: "submission",
+        targetId: updated.id,
+        message: `Submission ${nextStatus.toLowerCase()}`,
+        metadata: {
+          finalStatus,
+          rejectReason,
+        },
+      });
+
       return NextResponse.json({ message: "Approval berhasil diproses", data: updated });
     }
 
     const updateData: any = {};
+    const nextStartDate = body.startDate ? new Date(body.startDate) : null;
+    const nextEndDate = body.endDate ? new Date(body.endDate) : null;
+
+    if (nextStartDate && Number.isNaN(nextStartDate.getTime())) {
+      return NextResponse.json({ message: "Format tanggal mulai tidak valid" }, { status: 400 });
+    }
+    if (nextEndDate && Number.isNaN(nextEndDate.getTime())) {
+      return NextResponse.json({ message: "Format tanggal selesai tidak valid" }, { status: 400 });
+    }
+
+    const finalStartDate = nextStartDate ?? existing.startDate;
+    const finalEndDate = nextEndDate ?? existing.endDate;
+    if (finalEndDate < finalStartDate) {
+      return NextResponse.json(
+        { message: "Tanggal selesai tidak boleh sebelum tanggal mulai" },
+        { status: 400 },
+      );
+    }
+
     if (body.userId) updateData.userId = body.userId;
     if (body.submissionTypeId) updateData.submissionTypeId = body.submissionTypeId;
-    if (body.startDate) updateData.startDate = new Date(body.startDate);
-    if (body.endDate) updateData.endDate = new Date(body.endDate);
+    if (body.startDate) updateData.startDate = nextStartDate;
+    if (body.endDate) updateData.endDate = nextEndDate;
     if (body.reason) updateData.reason = body.reason;
 
     const submission = await prisma.submission.update({ where: { id: p.id }, data: updateData });
@@ -101,6 +141,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "submissions", "delete");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const existing = await prisma.submission.findFirst({
@@ -110,6 +152,16 @@ export async function DELETE(_: Request, { params }: Params) {
     if (!existing) return NextResponse.json({ message: "Submission not found" }, { status: 404 });
 
     await prisma.submission.delete({ where: { id: p.id } });
+    writeAuditLog({
+      action: "submissions.delete",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "submission",
+      targetId: p.id,
+      message: "Submission deleted",
+    });
     return NextResponse.json({ message: "Submission successfully deleted" });
   } catch {
     return NextResponse.json({ message: "Failed to delete submission" }, { status: 500 });

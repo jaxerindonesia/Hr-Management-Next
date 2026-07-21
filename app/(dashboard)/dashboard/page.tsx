@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle } from "lucide-react";
+import { handleUnauthorizedClient } from "@/lib/helper/response-api";
+import ActiveTenantsCard from "./components/active-tenants-card";
 import AttendanceChartCard from "./components/attendance-chart-card";
 import DashboardHeader from "./components/dashboard-header";
 import DepartmentChartCard from "./components/department-chart-card";
+import ExpiringTenantsCard from "./components/expiring-tenants-card";
 import NewEmployeesCard from "./components/new-employees-card";
+import RecentAttendanceCard from "./components/recent-attendance-card";
+import RecentJournalsCard from "./components/recent-journals-card";
 import RecentSubmissionsCard from "./components/recent-submissions-card";
 import StatsGrid from "./components/stats-grid";
-import type { DashboardData, HolidayItem, TenantConfig } from "./components/types";
+import TenantGrowthCard from "./components/tenant-growth-card";
+import TopTenantsCard from "./components/top-tenants-card";
+import type { DashboardData, HolidayItem } from "./components/types";
 import UpcomingHolidaysCard from "./components/upcoming-holidays-card";
 
 export default function DashboardPage() {
@@ -17,17 +24,6 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [holidays, setHolidays] = useState<HolidayItem[]>([]);
   const [holidaysLoading, setHolidaysLoading] = useState(true);
-  const [tenantName, setTenantName] = useState("perusahaan Anda");
-  const [userRole] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = localStorage.getItem("hr_user_data");
-      if (!raw) return null;
-      return JSON.parse(raw)?.role ?? null;
-    } catch {
-      return null;
-    }
-  });
   const [userName] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -41,8 +37,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (r.status === 401) {
+          handleUnauthorizedClient();
+          return null;
+        }
+        return r.json();
+      })
       .then((res) => {
+        if (!res) return;
         if (res.data) setData(res.data);
         else setError("Gagal memuat data dashboard.");
       })
@@ -50,25 +53,20 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
 
     fetch("/api/holidays")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (r.status === 401) {
+          handleUnauthorizedClient();
+          return null;
+        }
+        return r.json();
+      })
       .then((res) => {
+        if (!res) return;
         if (res.data) setHolidays(res.data);
       })
       .catch(() => { })
       .finally(() => setHolidaysLoading(false));
-
-    fetch("/api/tenant-config")
-      .then((r) => r.json())
-      .then((res: { data?: TenantConfig | null }) => {
-        const companyName = res.data?.companyName?.trim();
-        if (companyName) {
-          setTenantName(companyName);
-        }
-      })
-      .catch(() => {});
   }, []);
-  const canViewEmployeeStats =
-    userRole === "Super Admin" || userRole === "Admin";
 
   if (loading) {
     return (
@@ -93,31 +91,80 @@ export default function DashboardPage() {
   }
 
   const {
-    stats,
+    roleKey,
+    subtitle,
+    summaryCards,
     attendanceChart,
     departmentDist,
     recentSubmissions,
     newEmployees,
+    topTenants,
+    activeTenants,
+    expiringTenants,
+    tenantGrowthMonthly,
+    tenantGrowthYearly,
+    recentAttendances,
+    recentJournals,
   } = data!;
 
   return (
-    <div className="space-y-6">
-      <DashboardHeader tenantName={tenantName} userName={userName} />
+    <div className="space-y-4">
+      <DashboardHeader userName={userName} subtitle={subtitle} />
 
-      <StatsGrid canViewEmployeeStats={canViewEmployeeStats} stats={stats} userRole={userRole} />
+      <StatsGrid summaryCards={summaryCards} />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <AttendanceChartCard attendanceChart={attendanceChart} />
-        <DepartmentChartCard departmentDist={departmentDist} />
-      </div>
+      {(roleKey === "admin" || roleKey === "employee") && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <AttendanceChartCard attendanceChart={attendanceChart} />
+          {roleKey === "admin" ? (
+            <DepartmentChartCard departmentDist={departmentDist} />
+          ) : (
+            <RecentAttendanceCard items={recentAttendances} />
+          )}
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <RecentSubmissionsCard recentSubmissions={recentSubmissions} />
-        <div className="flex flex-col gap-6">
-          <NewEmployeesCard newEmployees={newEmployees} />
+      {roleKey === "super_admin" && (
+        <>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <TenantGrowthCard monthlyData={tenantGrowthMonthly} yearlyData={tenantGrowthYearly} />
+            </div>
+            <ExpiringTenantsCard tenants={expiringTenants} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <TopTenantsCard tenants={topTenants} />
+            <ActiveTenantsCard tenants={activeTenants} />
+          </div>
+        </>
+      )}
+
+      {roleKey === "admin" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <RecentSubmissionsCard recentSubmissions={recentSubmissions} />
+          <div className="flex flex-col gap-6">
+            <NewEmployeesCard newEmployees={newEmployees} />
+            <UpcomingHolidaysCard holidays={holidays} holidaysLoading={holidaysLoading} />
+          </div>
+        </div>
+      )}
+
+      {roleKey === "employee" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <RecentSubmissionsCard recentSubmissions={recentSubmissions} />
           <UpcomingHolidaysCard holidays={holidays} holidaysLoading={holidaysLoading} />
         </div>
-      </div>
+      )}
+
+      {roleKey === "finance" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <RecentJournalsCard items={recentJournals} />
+          </div>
+          <UpcomingHolidaysCard holidays={holidays} holidaysLoading={holidaysLoading} />
+        </div>
+      )}
     </div>
   );
 }

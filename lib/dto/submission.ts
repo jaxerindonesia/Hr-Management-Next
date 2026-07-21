@@ -18,13 +18,10 @@ export interface SubmissionDto {
     submissionType?: {
         id: string;
         name: string;
-        approverConfigs?: {
-            approverUserId: string;
-            approverUser: { id: string; name: string };
-        }[];
     } | null;
     approvalDecisions?: {
         approverUserId: string;
+        approverUser: { name: string };
         status: string;
         reason?: string | null;
         decidedAt?: string | Date | null;

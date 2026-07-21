@@ -4,11 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { hasPermission, requirePermission } from "@/lib/auth/permission";
 
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "submissions", "get-all");
+    if (forbid) return forbid;
 
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
@@ -49,17 +52,10 @@ export async function GET(req: NextRequest) {
         include: {
           user: { select: { id: true, name: true } },
           submissionType: {
-            select: {
-              id: true,
-              name: true,
-              approverConfigs: {
-                select: { approverUserId: true, approverUser: { select: { id: true, name: true } } },
-                orderBy: { createdAt: "asc" },
-              },
-            },
+            select: { id: true, name: true },
           },
           approvalDecisions: {
-            select: { approverUserId: true, status: true, reason: true, decidedAt: true },
+            select: { approverUserId: true, approverUser: { select: { name: true } }, status: true, reason: true, decidedAt: true },
           },
         },
       }),
@@ -76,13 +72,44 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "submissions", "create");
+    if (forbid) return forbid;
     const body = await req.json();
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+    const canManageSubmissions = hasPermission(auth.user, "submissions", "update");
 
     const { userId, submissionTypeId, startDate, endDate, reason, status } = body;
     if (!userId || !status || !submissionTypeId || !startDate || !endDate || !reason) {
       return NextResponse.json({ message: "All submission fields are required fields" }, { status: 400 });
+    }
+    if (!canManageSubmissions && userId !== auth.user.id) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const targetUserId = canManageSubmissions ? userId : auth.user.id;
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        id: targetUserId,
+        deletedAt: null,
+        ...(finalTenantId ? { tenantId: finalTenantId } : {}),
+      },
+      select: { id: true },
+    });
+    if (!targetUser) {
+      return NextResponse.json({ message: "User target tidak ditemukan" }, { status: 404 });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return NextResponse.json({ message: "Format tanggal tidak valid" }, { status: 400 });
+    }
+    if (end < start) {
+      return NextResponse.json(
+        { message: "Tanggal selesai tidak boleh sebelum tanggal mulai" },
+        { status: 400 },
+      );
     }
 
     const submissionType = await prisma.submissionType.findFirst({
@@ -95,8 +122,6 @@ export async function POST(req: NextRequest) {
 
     if (submissionType?.leaveConfig) {
       const config = submissionType.leaveConfig;
-      const start = new Date(startDate);
-      const end = new Date(endDate);
       const requestedDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const linkedTypeIds = config.submissionTypes.map((t: { id: string }) => t.id);
       const yearStart = new Date(start.getFullYear(), 0, 1);
@@ -104,7 +129,7 @@ export async function POST(req: NextRequest) {
       const approvedSubmissions = await prisma.submission.findMany({
         where: {
           ...(finalTenantId ? { tenantId: finalTenantId } : {}),
-          userId,
+          userId: targetUserId,
           submissionTypeId: { in: linkedTypeIds },
           status: "APPROVED",
           startDate: { gte: yearStart, lte: yearEnd },
@@ -119,7 +144,7 @@ export async function POST(req: NextRequest) {
     }
 
     const existing = await prisma.submission.findFirst({
-      where: { ...(finalTenantId ? { tenantId: finalTenantId } : {}), userId, submissionTypeId, startDate: new Date(startDate), endDate: new Date(endDate) },
+      where: { ...(finalTenantId ? { tenantId: finalTenantId } : {}), userId: targetUserId, submissionTypeId, startDate: new Date(startDate), endDate: new Date(endDate) },
     });
     if (existing) return NextResponse.json({ message: "Submission already exists for this user" }, { status: 409 });
 
@@ -128,7 +153,7 @@ export async function POST(req: NextRequest) {
     const submission = await prisma.submission.create({
       data: {
         tenantId: finalTenantId,
-        userId,
+        userId: targetUserId,
         submissionTypeId,
         startDate: new Date(startDate),
         endDate: new Date(endDate),

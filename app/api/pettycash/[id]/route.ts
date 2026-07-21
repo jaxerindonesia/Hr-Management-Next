@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { writeAuditLog } from "@/lib/security/audit-log";
 
 type Params = { params: { id: string } };
 
@@ -11,6 +13,8 @@ export async function GET(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "pettycash", "get-by-id");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const item = await prisma.pettyCash.findFirst({
@@ -47,6 +51,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "pettycash", "update");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const body = await req.json();
@@ -105,6 +111,21 @@ export async function PUT(req: NextRequest, { params }: Params) {
       },
     });
 
+    writeAuditLog({
+      action: "pettycash.update",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "pettycash",
+      targetId: updated.id,
+      message: "Petty cash updated",
+      metadata: {
+        status: updated.status,
+        amount: updated.amount,
+      },
+    });
+
     return NextResponse.json({
       message: "Petty Cash updated successfully",
       data: updated,
@@ -123,6 +144,8 @@ export async function DELETE(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "pettycash", "delete");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     // Admin only
@@ -150,6 +173,17 @@ export async function DELETE(req: Request, { params }: Params) {
 
     await prisma.pettyCash.delete({
       where: { id: p.id },
+    });
+
+    writeAuditLog({
+      action: "pettycash.delete",
+      status: "success",
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      targetType: "pettycash",
+      targetId: p.id,
+      message: "Petty cash deleted",
     });
 
     return NextResponse.json({

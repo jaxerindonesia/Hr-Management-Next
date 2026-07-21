@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 type Params = {
   params: {
@@ -31,6 +32,8 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "update");
+    if (forbid) return forbid;
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const existing = await findScopedList(p.id, scopedTenantId);
@@ -74,6 +77,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "task-managements", "delete");
+    if (forbid) return forbid;
 
     const scopedTenantId = ensureTenantScope(auth.user);
     const existing = await findScopedList(p.id, scopedTenantId);

@@ -4,20 +4,49 @@ import { X, Printer, Building2, CheckCircle, Clock } from "lucide-react";
 import { PayrollDto } from "@/lib/dto/payroll";
 import { months } from "@/lib/helper/date";
 import { formatCurrency } from "@/lib/helper/format-currency";
+import { useEffect, useState } from "react";
 
 interface SlipGajiModalProps {
-    payroll: PayrollDto;
-    tenantConfig?: {
-        companyName?: string | null;
-        logoUrl?: string | null;
-    } | null;
+    isOpen?: boolean;
+    detailItem?: any;
     onClose: () => void;
+    loading?: boolean;
 }
 
-export default function SlipGajiModal({ payroll, tenantConfig, onClose }: SlipGajiModalProps) {
-    const monthName = months.find((m) => m.value === payroll.month)?.label ?? "-";
-    const periodLabel = `${monthName} ${payroll.year}`;
-    const isPaid = payroll.status === "paid";
+type TenantConfig = {
+    companyName?: string | null;
+    companyUrl?: string | null;
+    logoUrl?: string | null;
+};
+
+export default function SlipGajiModal({
+    isOpen,
+    detailItem,
+    onClose,
+    loading = false,
+}: SlipGajiModalProps) {
+    const [tenantConfig, setTenantConfig] = useState<TenantConfig | null>(null);
+
+    const monthName = months.find((m) => m.value === detailItem?.month)?.label ?? "-";
+    const periodLabel = `${monthName} ${detailItem?.year}`;
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem("hr_user_data");
+            if (!raw) return;
+
+            const parsed = JSON.parse(raw) as TenantConfig;
+            setTenantConfig({
+                companyName: parsed.companyName ?? null,
+                companyUrl: parsed.companyUrl ?? null,
+                logoUrl: parsed.logoUrl ?? null,
+            });
+        } catch {
+            setTenantConfig(null);
+        }
+    }, []);
+
+    if (!isOpen) return null;
 
     const handlePrint = () => {
         const slip = document.getElementById("slip-print-area");
@@ -67,98 +96,95 @@ export default function SlipGajiModal({ payroll, tenantConfig, onClose }: SlipGa
         printWindow.document.close();
 
         const doPrint = () => {
-          try {
-            printWindow.focus();
-            printWindow.print();
-            printWindow.onafterprint = () => printWindow.close();
-          } catch {
-            printWindow.close();
-          }
+            try {
+                printWindow.focus();
+                printWindow.print();
+                printWindow.onafterprint = () => printWindow.close();
+            } catch {
+                printWindow.close();
+            }
         };
 
         const schedulePrint = () => {
-          if (printWindow.document.readyState === "complete") {
-            setTimeout(doPrint, 250);
-            return;
-          }
-          printWindow.onload = () => setTimeout(doPrint, 250);
+            if (printWindow.document.readyState === "complete") {
+                setTimeout(doPrint, 250);
+                return;
+            }
+            printWindow.onload = () => setTimeout(doPrint, 250);
         };
 
         schedulePrint();
     };
 
     return (
-        <>
-            {/* ===== MODAL OVERLAY (hidden on print) ===== */}
-            <div className="no-print fixed inset-0 z-[9999] flex items-center justify-center">
-                {/* Backdrop */}
-                <div
-                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                    onClick={onClose}
-                />
+        <div className="no-print fixed inset-0 z-[9999] flex items-center justify-center">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={onClose}
+            />
 
-                {/* Modal Card */}
-                <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-                    {/* Modal Header */}
-                    <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                                Slip Gaji Karyawan
-                            </h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                                Periode: {periodLabel}
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handlePrint}
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm"
-                            >
-                                <Printer className="w-4 h-4" />
-                                Cetak / Download PDF
-                            </button>
-                            <button
-                                onClick={onClose}
-                                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all hover:rotate-90"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
+            {/* Modal Card */}
+            <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                            Slip Gaji Karyawan
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                            Periode: {periodLabel}
+                        </p>
                     </div>
-
-                    {/* Slip Preview */}
-                    <div className="p-6">
-                        <SlipContent
-                            payroll={payroll}
-                            tenantConfig={tenantConfig}
-                            periodLabel={periodLabel}
-                            isPaid={isPaid}
-                        />
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handlePrint}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Cetak / Download PDF
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all hover:rotate-90"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
                 </div>
+
+                <div className="p-6">
+                    {!detailItem || loading ? (
+                        <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                            {loading ? "Memuat detail payroll..." : "Data payroll tidak ditemukan."}
+                        </div>
+                    ) : (
+                        <SlipContent
+                            payroll={detailItem}
+                            tenantConfig={tenantConfig}
+                            periodLabel={periodLabel}
+                        />
+                    )}
+                </div>
             </div>
-        </>
+        </div>
     );
 }
 
-/* ---------- Reusable slip content ---------- */
+
 function SlipContent({
     payroll,
     tenantConfig,
     periodLabel,
-    isPaid,
 }: {
     payroll: PayrollDto;
-    tenantConfig?: {
-        companyName?: string | null;
-        logoUrl?: string | null;
-    } | null;
+    tenantConfig?: TenantConfig | null;
     periodLabel: string;
-    isPaid: boolean;
 }) {
     const takeHomePay = payroll.basicSalary + payroll.allowances - payroll.deductions;
     const companyName = tenantConfig?.companyName?.trim() || "JAXER GRUP INDONESIA";
     const companyLogo = tenantConfig?.logoUrl || "/logo22.png";
+    const isPaid = payroll.status === "paid";
 
     return (
         <div
@@ -308,7 +334,7 @@ function SlipContent({
                                 Gaji Pokok + Tunjangan − Potongan
                             </p>
                         </div>
-                        <p className="text-2xl font-bold">{formatCurrency(takeHomePay)}</p>
+                        <p className="text-2xl font-semibold">{formatCurrency(takeHomePay)}</p>
                     </div>
                 </div>
             </div>

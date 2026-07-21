@@ -3,7 +3,11 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
+import { writeAuditLog } from "@/lib/security/audit-log";
 import { uploadBufferToMinio, deleteFromMinio, BUCKET_AVATARS } from "@/lib/minio";
+import { validateAttachmentBuffer } from "@/lib/security/file-validation";
 
 type Params = { params: { id: string } };
 
@@ -12,6 +16,8 @@ export async function GET(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "reimbursements", "get-by-id");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const item = await prisma.reimbursement.findFirst({
@@ -45,6 +51,18 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const body =
+      req.headers.get("content-type")?.includes("application/json")
+        ? await req.clone().json().catch(() => ({}))
+        : null;
+    const nextStatus =
+      typeof body?.status === "string" ? body.status.toUpperCase() : null;
+    const action =
+      nextStatus === "APPROVED" || nextStatus === "REJECTED"
+        ? "approve"
+        : "update";
+    const forbid = requirePermission(auth.user, "reimbursements", action);
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const contentType = req.headers.get("content-type") || "";
@@ -62,7 +80,6 @@ export async function PUT(req: Request, { params }: Params) {
       const date = formData.get("date");
       const description = formData.get("description");
       const status = formData.get("status");
-      const approvedBy = formData.get("approvedBy");
       const approvedAt = formData.get("approvedAt");
       removeReceipt = formData.get("removeReceipt") === "true";
       newFile = formData.get("file") as File | null;
@@ -73,40 +90,30 @@ export async function PUT(req: Request, { params }: Params) {
       if (date !== null) updateData.date = new Date(date as string);
       if (description !== null) updateData.description = description;
       if (status !== null) updateData.status = status;
-      if (approvedBy !== null) updateData.approvedBy = approvedBy;
       if (approvedAt !== null)
         updateData.approvedAt = approvedAt
           ? new Date(approvedAt as string)
           : null;
+      updateData.approvedBy = auth.user.id;
     } else {
-      const body = await req.json();
+      const parsedBody = body ?? (await req.json());
 
-      if (body.title !== undefined) updateData.title = body.title;
-      if (body.category !== undefined) updateData.category = body.category;
-      if (body.amount !== undefined) updateData.amount = Number(body.amount);
-      if (body.date !== undefined) updateData.date = new Date(body.date);
-      if (body.description !== undefined)
-        updateData.description = body.description;
-      if (body.status !== undefined) updateData.status = body.status;
-      if (body.approvedBy !== undefined)
-        updateData.approvedBy = body.approvedBy;
-      if (body.approvedAt !== undefined)
-        updateData.approvedAt = body.approvedAt
-          ? new Date(body.approvedAt)
+      if (parsedBody.title !== undefined) updateData.title = parsedBody.title;
+      if (parsedBody.category !== undefined) updateData.category = parsedBody.category;
+      if (parsedBody.amount !== undefined) updateData.amount = Number(parsedBody.amount);
+      if (parsedBody.date !== undefined) updateData.date = new Date(parsedBody.date);
+      if (parsedBody.description !== undefined)
+        updateData.description = parsedBody.description;
+      if (parsedBody.status !== undefined) updateData.status = parsedBody.status;
+      if (parsedBody.approvedAt !== undefined)
+        updateData.approvedAt = parsedBody.approvedAt
+          ? new Date(parsedBody.approvedAt)
           : null;
 
-      removeReceipt = body.removeReceipt === true;
+      updateData.approvedBy = auth.user.id;
+      removeReceipt = parsedBody.removeReceipt === true;
     }
 
-    console.log(
-      "Update Data:",
-      p.id,
-      updateData,
-      "Remove Receipt:",
-      removeReceipt,
-      "New File:",
-      newFile,
-    );
     const existing = await prisma.reimbursement.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
     });
@@ -123,14 +130,26 @@ export async function PUT(req: Request, { params }: Params) {
     if (newFile && newFile.size > 0) {
       const bytes = await newFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
+      const validation = validateAttachmentBuffer(
+        newFile.name || "",
+        newFile.type || "application/octet-stream",
+        buffer,
+      );
+      if (!validation.ok) {
+        return NextResponse.json({ message: validation.message }, { status: 415 });
+      }
 
-      const fileName = `reimbursements/receipt-${p.id}-${Date.now()}-${newFile.name.replace(/\s+/g, "_")}`;
+      const fileName = await buildTenantStorageObjectName(
+        scopedTenantId,
+        "reimbursements",
+        `receipt-${p.id}-${Date.now()}-${newFile.name.replace(/\s+/g, "_")}`,
+      );
       
       receiptUrl = await uploadBufferToMinio(
         buffer,
         fileName,
         BUCKET_AVATARS,
-        newFile.type || "application/octet-stream"
+        validation.contentType,
       );
 
       
@@ -157,6 +176,26 @@ export async function PUT(req: Request, { params }: Params) {
       data: updateData,
     });
 
+    if (action === "approve") {
+      writeAuditLog({
+        action:
+          nextStatus === "REJECTED"
+            ? "reimbursements.reject"
+            : "reimbursements.approve",
+        status: "success",
+        actorUserId: auth.user.id,
+        actorRole: auth.user.roleName,
+        tenantId: auth.user.tenantId,
+        targetType: "reimbursement",
+        targetId: updated.id,
+        message: `Reimbursement ${nextStatus?.toLowerCase() || "updated"}`,
+        metadata: {
+          status: updated.status,
+          approvedBy: updated.approvedBy,
+        },
+      });
+    }
+
     return NextResponse.json({
       message: "Reimbursement successfully updated",
       data: updated,
@@ -175,6 +214,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "reimbursements", "delete");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const existing = await prisma.reimbursement.findFirst({

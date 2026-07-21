@@ -3,7 +3,9 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { uploadBufferToMinio, BUCKET_AVATARS } from "@/lib/minio";
+import { validateAttachmentBuffer } from "@/lib/security/file-validation";
 
 type Params = { params: { id: string } };
 
@@ -63,14 +65,26 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (file && file.size > 0) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
+      const validation = validateAttachmentBuffer(
+        file.name || "",
+        file.type || "application/octet-stream",
+        buffer,
+      );
+      if (!validation.ok) {
+        return NextResponse.json({ message: validation.message }, { status: 415 });
+      }
 
-      const fileName = `pettycash-receipts/usage-${usage.id}-${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+      const fileName = await buildTenantStorageObjectName(
+        scopedTenantId,
+        "pettycash-receipts",
+        `usage-${usage.id}-${Date.now()}-${file.name.replace(/\s+/g, "_")}`,
+      );
       
       receiptUrl = await uploadBufferToMinio(
         buffer,
         fileName,
         BUCKET_AVATARS,
-        file.type || "application/octet-stream"
+        validation.contentType,
       );
 
       await prisma.pettyCashUsage.update({

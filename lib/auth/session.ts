@@ -12,6 +12,10 @@ export type SessionUser = {
   roleName: string;
   tenantId: string | null;
   departmentId: string | null;
+  permissions: Array<{
+    model: string;
+    action: string;
+  }>;
 };
 
 export async function getSessionUser(): Promise<SessionUser | null> {
@@ -25,17 +29,37 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     const user = await prisma.user.findUnique({
       where: { id: decoded.sub },
       include: {
-        role: { select: { name: true } },
+        role: { select: { name: true, permission: true } },
+        tenant: {
+          select: {
+            isActive: true,
+            subscriptionEnd: true,
+          },
+        },
       },
     });
 
     if (!user || user.deletedAt) return null;
+    if (!user.currentToken || user.currentToken !== token) return null;
+
+    if (user.tenantId && user.tenant) {
+      if (!user.tenant.isActive) return null;
+
+      if (user.tenant.subscriptionEnd) {
+        const endDate = new Date(user.tenant.subscriptionEnd);
+        endDate.setHours(23, 59, 59, 999);
+        if (Date.now() > endDate.getTime()) return null;
+      }
+    }
 
     return {
       id: user.id,
       roleName: user.role.name,
       tenantId: user.tenantId ?? null,
       departmentId: user.departmentId ?? null,
+      permissions: Array.isArray(user.role.permission)
+        ? (user.role.permission as Array<{ model: string; action: string }>)
+        : [],
     };
   } catch {
     return null;

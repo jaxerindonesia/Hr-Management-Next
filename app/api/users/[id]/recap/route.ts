@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { hasPermission } from "@/lib/auth/permission";
 
 type Params = {
   params: Promise<{
@@ -17,6 +18,13 @@ export async function GET(req: Request, { params }: Params) {
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const { id } = await params;
+    const canReadOtherUsers =
+      hasPermission(auth.user, "users", "get-by-id") ||
+      hasPermission(auth.user, "attendances", "get-all");
+    if (!canReadOtherUsers && id !== auth.user.id) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const month = parseInt(searchParams.get("month") || String(new Date().getMonth() + 1));
     const year = parseInt(searchParams.get("year") || String(new Date().getFullYear()));

@@ -1,44 +1,18 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import Image from "next/image";
-import {
-  Clock,
-  CheckCircle,
-  XCircle,
-  Search,
-  Trash2,
-  ChevronRight,
-  ChevronLeft,
-  Eye,
-  X,
-  Download,
-  Settings,
-  Coffee,
-} from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
 import { AttendanceDto } from "@/lib/dto/attendance";
 import DetailData from "./components/detail-data";
 import { usePermission } from "@/lib/helper/check-role";
-import { haversineKm, parseApiError } from "@/lib/helper/attendance";
+import { haversineKm } from "@/lib/helper/attendance";
+import { parseApiError } from "@/lib/helper/response-api";
 import { getJakartaDayKey } from "@/lib/helper/date";
 import { ensureFaceModelLoaded } from "@/lib/helper/face-models";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import FaceRecognitionModal from "./components/face-recognition-modal";
 import ModalAttendanceConfig from "./components/modal-attendance-config";
+import DynamicPage from "@/components/dynamic-page";
+import { getColumnFormats, headerToolbar, ITEMS_PER_PAGE, renderActions, STATUS_LABEL } from "./page.config";
 
 type AttendanceConfigState = {
   officeStartTime: string;
@@ -73,32 +47,31 @@ type SavedGeoPoint = {
   timestamp: number;
 };
 
-export default function AttendancePage() {
-  const { checkRole, checkRoleMulti } = usePermission();
-  const [selectedRecord, setSelectedRecord] = useState<AttendanceDto | null>(
-    null,
-  );
-  const [userData, setUserData] = useState({ id: "", role: "", avatarUrl: "" });
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceDto[]>(
-    [],
-  );
+function getLastBreakSession(record: AttendanceDto) {
+  const sessions = record.breakSessions ?? [];
+  return sessions.length > 0 ? sessions[sessions.length - 1] : null;
+}
+
+export default function Page() {
+  const { checkRole } = usePermission();
+  const [data, setData] = useState<AttendanceDto[]>([]);
   const [total, setTotal] = useState(0);
-  const [isAttendanceLoading, setIsAttendanceLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [detailItem, setDetailItem] = useState<AttendanceDto | undefined>(undefined);
+  const [userData, setUserData] = useState({ id: "", role: "", avatarUrl: "" });
+  const [todayAttendance, setTodayAttendance] = useState<AttendanceDto | null>(null);
+
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [currentTime, setCurrentTime] = useState("");
   const [currentDateLabel, setCurrentDateLabel] = useState("");
-  const [mounted, setMounted] = useState(false);
-  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [todayAttendance, setTodayAttendance] = useState<AttendanceDto | null>(
-    null,
-  );
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
   const [showAttendanceConfig, setShowAttendanceConfig] = useState(false);
-  const [attendanceConfig, setAttendanceConfig] = useState<AttendanceConfigState>(
-    DEFAULT_ATTENDANCE_CONFIG,
-  );
+  const [attendanceConfig, setAttendanceConfig] = useState<AttendanceConfigState>(DEFAULT_ATTENDANCE_CONFIG);
   const [locationReady, setLocationReady] = useState(false);
   const [locationChecking, setLocationChecking] = useState(true);
   const [locationWarning, setLocationWarning] = useState("");
@@ -110,23 +83,21 @@ export default function AttendancePage() {
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
   const [faceModalMode, setFaceModalMode] = useState<"check-in" | "check-out" | "break-in" | "break-out">("check-in");
 
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(total / itemsPerPage);
+  const isAdmin = ["Super Admin", "Admin"].includes(userData.role);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)),
+    [total],
+  );
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (isAdmin && searchTerm) count++;
+    if (filterStatus !== "all") count++;
+    return count;
+  }, [filterStatus, isAdmin, searchTerm]);
   const openBreakSession = todayAttendance?.breakSessions?.find(
     (session) => session && !session.breakOut,
   );
   const hasBreakSession = (todayAttendance?.breakSessions?.length || 0) > 0;
-
-  useEffect(() => {
-    if (total === 0 && currentPage !== 1) {
-      setCurrentPage(1);
-      return;
-    }
-
-    if (totalPages > 0 && currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, total, totalPages]);
 
   const refreshLocationReadiness = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -279,7 +250,7 @@ export default function AttendancePage() {
   const fetchAttendanceConfig = useCallback(async () => {
     try {
       const res = await fetch("/api/attendance-config");
-      if (!res.ok) throw new Error("Gagal mengambil konfigurasi kehadiran");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil konfigurasi kehadiran"));
       const json = await res.json();
       const config = json?.data || DEFAULT_ATTENDANCE_CONFIG;
       setAttendanceConfig({
@@ -294,14 +265,15 @@ export default function AttendancePage() {
             : DEFAULT_ATTENDANCE_CONFIG.workingDays,
         isDefault: Boolean(json?.isDefault),
       });
-    } catch {
+    } catch (error) {
       setAttendanceConfig(DEFAULT_ATTENDANCE_CONFIG);
+      toast.error(error instanceof Error ? error.message : "Gagal mengambil konfigurasi kehadiran");
     }
   }, []);
 
   const fetchAttendance = useCallback(
     async (user: { id: string; role: string }) => {
-      setIsAttendanceLoading(true);
+      setLoading(true);
       try {
         if (!user?.id) return;
 
@@ -309,38 +281,38 @@ export default function AttendancePage() {
           // Server-side pagination for admin
           const params = new URLSearchParams();
           params.set("page", String(currentPage));
-          params.set("limit", String(itemsPerPage));
-          if (searchQuery) params.set("search", searchQuery);
+          params.set("limit", String(ITEMS_PER_PAGE));
+          if (searchTerm) params.set("search", searchTerm);
           if (filterStatus !== "all") params.set("status", filterStatus);
 
           const res = await fetch(`/api/attendances?${params.toString()}`);
-          if (!res.ok) throw new Error("Gagal mengambil data attendance");
+          if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data attendance"));
 
           const json = await res.json();
-          setAttendanceRecords(json.data || []);
+          setData(json.data || []);
           setTotal(json.total || 0);
         } else {
           // Regular users are paginated by the same page size on the server.
           const params = new URLSearchParams();
           params.set("page", String(currentPage));
-          params.set("limit", String(itemsPerPage));
+          params.set("limit", String(ITEMS_PER_PAGE));
           if (filterStatus !== "all") params.set("status", filterStatus);
 
           const res = await fetch(`/api/attendances/user/${user.id}?${params.toString()}`);
-          if (!res.ok) throw new Error("Gagal mengambil data attendance");
+          if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data attendance"));
 
           const json = await res.json();
           const data = json.data || [];
-          setAttendanceRecords(data);
+          setData(data);
           setTotal(json.total || 0);
         }
-      } catch {
-        toast.error("Gagal memuat data attendance");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Gagal memuat data attendance");
       } finally {
-        setIsAttendanceLoading(false);
+        setLoading(false);
       }
     },
-    [currentPage, searchQuery, filterStatus],
+    [currentPage, searchTerm, filterStatus],
   );
 
   const fetchTodayAttendance = useCallback(async (userId: string) => {
@@ -352,16 +324,17 @@ export default function AttendancePage() {
       params.set("limit", "1");
 
       const res = await fetch(`/api/attendances/user/${userId}?${params.toString()}`);
-      if (!res.ok) throw new Error("Gagal mengambil data attendance hari ini");
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data attendance hari ini"));
 
       const json = await res.json();
       setTodayAttendance(json.data?.[0] || null);
-    } catch {
+    } catch (error) {
       setTodayAttendance(null);
+      toast.error(error instanceof Error ? error.message : "Gagal mengambil data attendance hari ini");
     }
   }, []);
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     try {
       setIsExporting(true);
 
@@ -370,11 +343,11 @@ export default function AttendancePage() {
       if (["Super Admin", "Admin"].includes(userData.role)) {
         const params = new URLSearchParams();
         params.set("limit", "999999");
-        if (searchQuery) params.set("search", searchQuery);
+        if (searchTerm) params.set("search", searchTerm);
         if (filterStatus !== "all") params.set("status", filterStatus);
 
         const res = await fetch(`/api/attendances?${params.toString()}`);
-        if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+        if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data untuk export"));
 
         const json = await res.json();
         allData = json.data || [];
@@ -385,23 +358,13 @@ export default function AttendancePage() {
         if (filterStatus !== "all") params.set("status", filterStatus);
 
         const res = await fetch(`/api/attendances/user/${userData.id}?${params.toString()}`);
-        if (!res.ok) throw new Error("Gagal mengambil data untuk export");
+        if (!res.ok) throw new Error(await parseApiError(res, "Gagal mengambil data untuk export"));
 
         const json = await res.json();
         allData = json.data || [];
       }
 
       const XLSX = await import("xlsx");
-      const statusExportLabel: Record<string, string> = {
-        "On Time": "Tepat Waktu",
-        Present: "Hadir",
-        Late: "Terlambat",
-        "Late - Present": "Telat - Hadir",
-        "Late - Half Day": "Telat - Setengah Hari",
-        Absent: "Tidak Hadir",
-        "Half Day": "Setengah Hari",
-      };
-
       const rows: Array<Record<string, string>> = allData.map((record) => {
         const tanggal = new Date(record.date).toLocaleDateString("id-ID", {
           weekday: "short",
@@ -426,27 +389,25 @@ export default function AttendancePage() {
           ? record?.user?.name
           : "-";
         const row: Record<string, string> = {
-          "Nama Karyawan": emp!,
+          "Karyawan": emp!,
           Tanggal: tanggal,
           "Check In": checkIn,
           "Check Out": checkOut,
           "Break In": record.breakSessions?.[0]?.breakIn
             ? new Date(record.breakSessions[0].breakIn).toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
+              hour: "2-digit",
+              minute: "2-digit",
+            })
             : "-",
-          "Break Out": record.breakSessions?.[record.breakSessions.length - 1]?.breakOut
-            ? new Date(
-                record.breakSessions[record.breakSessions.length - 1].breakOut as string,
-              ).toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
+          "Break Out": getLastBreakSession(record)?.breakOut
+            ? new Date(getLastBreakSession(record)?.breakOut as string).toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
             : "-",
           "Durasi Break": record.breakDuration ?? "-",
           "Jam Kerja": record.workHours ?? "-",
-          Status: statusExportLabel[record.status] || record.status,
+          Status: STATUS_LABEL[record.status] || record.status,
           "Bukti Check In": record.checkInFaceImage ?? "-",
           "Bukti Check Out": record.checkOutFaceImage ?? "-",
         };
@@ -472,12 +433,12 @@ export default function AttendancePage() {
       XLSX.writeFile(workbook, fileName);
 
       toast.success(`Berhasil mengexport ${allData.length} data kehadiran`);
-    } catch {
-      toast.error("Gagal mengexport data");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengexport data");
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [filterStatus, searchTerm, userData.id, userData.role]);
 
   // ── Raw check-in / check-out (called after face verified) ──────────────
   const doCheckIn = useCallback(async (faceCaptureBase64: string) => {
@@ -734,39 +695,39 @@ export default function AttendancePage() {
   }, [userData, fetchAttendance, fetchTodayAttendance, getBreakLocation]);
 
   // ── Open face-recognition modal first ──────────────────────────────────
-  const handleCheckIn = async () => {
+  const handleCheckIn = useCallback(async () => {
     const canProceed =
       locationReady || isIOSBrowser || (await ensureLocationAccess());
     if (!canProceed) return;
     setFaceModalMode("check-in");
     setIsFaceModalOpen(true);
-  };
+  }, [ensureLocationAccess, isIOSBrowser, locationReady]);
 
-  const handleCheckOut = async () => {
+  const handleCheckOut = useCallback(async () => {
     const canProceed =
       locationReady || isIOSBrowser || (await ensureLocationAccess());
     if (!canProceed) return;
     setFaceModalMode("check-out");
     setIsFaceModalOpen(true);
-  };
+  }, [ensureLocationAccess, isIOSBrowser, locationReady]);
 
-  const handleBreakCheckIn = () => {
+  const handleBreakCheckIn = useCallback(() => {
     if (attendanceConfig.breakFaceCaptureEnabled) {
       setFaceModalMode("break-in");
       setIsFaceModalOpen(true);
       return;
     }
     doBreakCheckIn();
-  };
+  }, [attendanceConfig.breakFaceCaptureEnabled, doBreakCheckIn]);
 
-  const handleBreakCheckOut = () => {
+  const handleBreakCheckOut = useCallback(() => {
     if (attendanceConfig.breakFaceCaptureEnabled) {
       setFaceModalMode("break-out");
       setIsFaceModalOpen(true);
       return;
     }
     doBreakCheckOut();
-  };
+  }, [attendanceConfig.breakFaceCaptureEnabled, doBreakCheckOut]);
 
   const handleFaceSuccess = useCallback((captureDataUrl: string) => {
     if (!captureDataUrl) {
@@ -791,80 +752,103 @@ export default function AttendancePage() {
         method: "DELETE",
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal menghapus data"));
 
       toast.success("Data berhasil dihapus");
       fetchAttendance(userData);
-    } catch {
-      toast.error("Gagal menghapus data");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus data");
     } finally {
-      setOpenPopoverId(null);
+      setDeleteId(null);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Present":
-      case "On Time":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-      case "Late":
-      case "Late - Present":
-      case "Late - Half Day":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
-      case "Absent":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-      case "Half Day":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
-      default:
-        return "";
-    }
-  };
+  const clearFilters = useCallback(() => {
+    setSearchTerm("");
+    setFilterStatus("all");
+  }, []);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Present":
-      case "On Time":
-        return <CheckCircle className="w-4 h-4" />;
-      case "Late":
-      case "Late - Present":
-      case "Late - Half Day":
-        return <Clock className="w-4 h-4" />;
-      case "Absent":
-        return <XCircle className="w-4 h-4" />;
-      case "Half Day":
-        return <Clock className="w-4 h-4" />;
-      default:
-        return null;
-    }
-  };
+  const toolbar = useMemo(
+    () =>
+      headerToolbar({
+        actions: {
+          checkRole,
+          isExporting,
+          onExport: handleExport,
+          onBreakCheckIn: handleBreakCheckIn,
+          onBreakCheckOut: handleBreakCheckOut,
+          onCheckIn: handleCheckIn,
+          onCheckOut: handleCheckOut,
+          onOpenConfig: () => setShowAttendanceConfig(true),
+        },
+        attendance: {
+          attendanceConfig,
+          currentDateLabel,
+          currentTime,
+          hasBreakSession,
+          locationChecking,
+          locationReady,
+          locationWarning,
+          openBreakSession,
+          todayAttendance,
+        },
+        filters: {
+          activeCount: activeFilterCount,
+          clear: clearFilters,
+          searchQuery: searchTerm,
+          setSearchQuery: setSearchTerm,
+          show: showFilterPanel,
+          setShow: setShowFilterPanel,
+          status: filterStatus,
+          setStatus: setFilterStatus,
+        },
+        isAdmin,
+      }),
+    [
+      activeFilterCount,
+      attendanceConfig,
+      checkRole,
+      clearFilters,
+      currentDateLabel,
+      currentTime,
+      filterStatus,
+      handleBreakCheckIn,
+      handleBreakCheckOut,
+      handleCheckIn,
+      handleCheckOut,
+      handleExport,
+      hasBreakSession,
+      isAdmin,
+      isExporting,
+      locationChecking,
+      locationReady,
+      locationWarning,
+      openBreakSession,
+      searchTerm,
+      showFilterPanel,
+      todayAttendance,
+    ],
+  );
 
-  const statusLabel: Record<string, string> = {
-    "On Time": "Tepat Waktu",
-    Present: "Hadir",
-    Late: "Terlambat",
-    "Late - Present": "Telat - Hadir",
-    "Late - Half Day": "Telat - Setengah Hari",
-    Absent: "Tidak Hadir",
-    "Half Day": "Setengah Hari",
-  };
-  
-  const tableColSpan =
-    6 +
-    (["Super Admin", "Admin"].includes(userData.role) ? 1 : 0) +
-    (attendanceConfig.breakEnabled ? 3 : 0) +
-    (checkRoleMulti("attendances", ["get-by-id", "delete"]) ? 1 : 0);
+  const columns = useMemo(
+    () => getColumnFormats({ attendanceConfig, isAdmin }),
+    [attendanceConfig, isAdmin],
+  );
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterStatus]);
+  }, [searchTerm, filterStatus]);
 
   // Fetch data when page or filters change
   useEffect(() => {
-    if (userData.id) {
-      fetchAttendance(userData);
+    if (!userData.id) return;
+
+    fetchAttendance(userData);
+    fetchTodayAttendance(userData.id);
+
+    if (checkRole("attendances", "set-config")) {
       fetchAttendanceConfig();
-      fetchTodayAttendance(userData.id);
     }
   }, [fetchAttendance, fetchAttendanceConfig, fetchTodayAttendance, userData]);
 
@@ -875,10 +859,6 @@ export default function AttendancePage() {
       role: data.role || "",
       avatarUrl: data.avatarUrl || data.avatar_url || "",
     });
-  }, []);
-
-  useEffect(() => {
-    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -950,512 +930,25 @@ export default function AttendancePage() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!mounted) return null;
-
   return (
     <>
-      <div className="mx-auto w-full max-w-7xl space-y-6 pb-28 sm:pb-6">
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl border dark:border-gray-700">
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* LIVE TIME */}
-              <div className="w-full sm:w-auto sm:min-w-[185px] rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white px-3 py-2 dark:border-slate-600 dark:from-slate-800 dark:to-slate-700">
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-300">
-                  {currentDateLabel}
-                </div>
-                <div className="mt-1 text-xl leading-none font-bold tracking-tight text-slate-900 dark:text-white">
-                  {currentTime}
-                </div>
-                <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-600">
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                      {attendanceConfig.officeStartTime}
-                    </span>
-                    <span className="text-xs text-slate-400 dark:text-slate-500">-</span>
-                    <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                      {attendanceConfig.officeEndTime}
-                    </span>
-                  </div>
-                </div>
-              </div>
+      <DynamicPage
+        toolbar={toolbar}
+        columns={columns}
+        items={data}
+        total={total}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        loading={loading}
+        emptyMessage="Tidak ada data kehadiran untuk filter atau halaman ini"
+        onPageChange={setCurrentPage}
+        renderActions={(row) => renderActions({ row, checkRole, onDelete: handleDelete, onView: setDetailItem, deleteId, setDeleteId, })}
+      />
 
-              {checkRole("attendances", "create") && (
-                <div className="flex w-full flex-col gap-2 sm:w-auto">
-                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                  {!todayAttendance ? (
-                    <Button
-                      onClick={handleCheckIn}
-                      className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Clock className="w-4 h-4 mr-2" />
-                      Check In
-                    </Button>
-                  ) : todayAttendance && !todayAttendance.checkOut ? (
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <Button
-                        onClick={handleCheckOut}
-                        className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
-                      >
-                        <Clock className="w-4 h-4 mr-2" />
-                        Check Out
-                      </Button>
-                      {attendanceConfig.breakEnabled && (
-                        openBreakSession ? (
-                          <Button
-                            onClick={handleBreakCheckOut}
-                            className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white"
-                          >
-                            <Coffee className="w-4 h-4 mr-2" />
-                            Break Check Out
-                          </Button>
-                        ) : !hasBreakSession ? (
-                          <Button onClick={handleBreakCheckIn} variant="outline" className="w-full sm:w-auto">
-                            <Coffee className="w-4 h-4 mr-2" />
-                            Break Check In
-                          </Button>
-                        ) : null
-                      )}
-                    </div>
-                  ) : (
-                    <Button
-                      disabled
-                      className="w-full sm:w-auto justify-center text-center bg-gray-400 text-white cursor-not-allowed"
-                    >
-                      Sudah Absen Hari Ini
-                    </Button>
-                  )}
-                  </div>
-                  {locationChecking ? (
-                    <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                      Memeriksa izin lokasi...
-                    </p>
-                  ) : !locationReady ? (
-                    <p className="text-xs leading-5 text-amber-600 dark:text-amber-400">
-                      {locationWarning ||
-                        "Jika prompt lokasi belum muncul, tekan tombol Check In/Out untuk memicu izin lokasi."}
-                    </p>
-                  ) : null}
-                </div>
-              )}
-
-              {checkRole("attendances", "set-config") && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowAttendanceConfig(true)}
-                  className="flex w-full items-center justify-center gap-2 sm:w-auto"
-                >
-                  <Settings className="w-4 h-4" />
-                  Konfigurasi Kehadiran
-                </Button>
-              )}
-            </div>
-
-            <div className="ml-auto flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-              {["Super Admin", "Admin"].includes(userData.role) && (
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Cari nama karyawan..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  />
-                  {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                  )}
-                </div>
-              )}
-
-              {/* Filter */}
-              <div className="relative">
-                <Select
-                  value={filterStatus}
-                  onValueChange={(value) => setFilterStatus(value)}
-                >
-                  <SelectTrigger className="w-full pl-4 pr-8 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:w-[180px]">
-                    <SelectValue placeholder="Semua" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    <SelectItem value="all">Semua</SelectItem>
-                    <SelectItem value="On Time">Tepat Waktu</SelectItem>
-                    <SelectItem value="Present">Hadir</SelectItem>
-                    <SelectItem value="Late">Terlambat</SelectItem>
-                    <SelectItem value="Late - Present">Telat - Hadir</SelectItem>
-                    <SelectItem value="Late - Half Day">Telat - Setengah Hari</SelectItem>
-                    <SelectItem value="Absent">Tidak Hadir</SelectItem>
-                    <SelectItem value="Half Day">Setengah Hari</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Export Button */}
-              {checkRole("attendances", "export") && (
-                <Button
-                  onClick={handleExport}
-                  disabled={isExporting}
-                  variant="outline"
-                  className="flex w-full items-center justify-center gap-2 border-green-600 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-900/20 sm:w-auto"
-                >
-                  <Download className="w-4 h-4" />
-                  {isExporting ? "Mengexport..." : "Export Excel"}
-                </Button>
-              )}
-            </div>
-          </div>
-          <div
-            className={`overflow-x-auto transition-opacity duration-200 ${
-              isAttendanceLoading ? "opacity-70" : ""
-            }`}
-          >
-            <table className="w-full">
-              <thead>
-                <tr className="border-b dark:border-gray-700">
-                  {["Super Admin", "Admin"].includes(userData.role) && (
-                    <th className="text-left p-3 font-semibold dark:text-gray-300">
-                      Nama Karyawan
-                    </th>
-                  )}
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Tanggal
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Check In
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Check Out
-                  </th>
-                  {attendanceConfig.breakEnabled && (
-                    <>
-                      <th className="text-left p-3 font-semibold dark:text-gray-300">
-                        Break In
-                      </th>
-                      <th className="text-left p-3 font-semibold dark:text-gray-300">
-                        Break Out
-                      </th>
-                      <th className="text-left p-3 font-semibold dark:text-gray-300">
-                        Durasi Istirahat
-                      </th>
-                    </>
-                  )}
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Jam Kerja
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Status
-                  </th>
-                  <th className="text-left p-3 font-semibold dark:text-gray-300">
-                    Bukti
-                  </th>
-                  {checkRoleMulti("attendances", ["get-by-id", "delete"]) && (
-                    <th className="text-right p-3 font-semibold dark:text-gray-300">
-                      Aksi
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {isAttendanceLoading && attendanceRecords.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={tableColSpan}
-                      className="p-8 text-center text-gray-500 dark:text-gray-400"
-                    >
-                      <div className="flex items-center justify-center gap-3">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
-                        <span>Memuat data kehadiran...</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : attendanceRecords.length > 0 ? (
-                  attendanceRecords.map((record) => (
-                    <tr
-                      key={record.id}
-                      className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      {["Super Admin", "Admin"].includes(userData.role) && (
-                        <td className="p-3 dark:text-gray-300">
-                          {record?.user?.name}
-                        </td>
-                      )}
-                      <td className="p-3 font-medium dark:text-white">
-                        {new Date(record.date).toLocaleDateString("id-ID", {
-                          weekday: "short",
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </td>
-                      <td className="p-3 dark:text-gray-300">
-                        {record.checkIn
-                          ? new Date(record.checkIn).toLocaleDateString(
-                            "id-ID",
-                            {
-                              minute: "2-digit",
-                              hour: "2-digit",
-                            },
-                          )
-                          : "-"}
-                      </td>
-                      <td className="p-3 dark:text-gray-300">
-                        {record.checkOut
-                          ? new Date(record.checkOut).toLocaleDateString(
-                            "id-ID",
-                            {
-                              minute: "2-digit",
-                              hour: "2-digit",
-                            },
-                          )
-                          : "-"}
-                      </td>
-                      {attendanceConfig.breakEnabled && (
-                        <>
-                          <td className="p-3 dark:text-gray-300">
-                            {record.breakSessions?.[0]?.breakIn
-                              ? new Date(record.breakSessions[0].breakIn).toLocaleTimeString("id-ID", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "-"}
-                          </td>
-                          <td className="p-3 dark:text-gray-300">
-                            {record.breakSessions?.[record.breakSessions.length - 1]?.breakOut
-                              ? new Date(
-                                  record.breakSessions[record.breakSessions.length - 1].breakOut as string,
-                                ).toLocaleTimeString("id-ID", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
-                              : "-"}
-                          </td>
-                          <td className="p-3 dark:text-gray-300">{record.breakDuration || "-"}</td>
-                        </>
-                      )}
-                      <td className="p-3 dark:text-gray-300 font-medium">
-                        {record.workHours}
-                      </td>
-
-                      <td className="p-3 dark:text-gray-300">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            record.status,
-                          )}`}
-                        >
-                          {getStatusIcon(record.status)}
-                          {statusLabel[record.status] || record.status}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          {record.checkInFaceImage ? (
-                            <a
-                              href={record.checkInFaceImage}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block"
-                              title="Bukti Check In"
-                            >
-                              <Image
-                                src={record.checkInFaceImage}
-                                alt="Bukti check in"
-                                width={40}
-                                height={40}
-                                className="w-10 h-10 rounded object-cover border"
-                                unoptimized
-                              />
-                            </a>
-                          ) : (
-                            <span className="text-xs text-gray-400">CI: -</span>
-                          )}
-                          {record.checkOutFaceImage ? (
-                            <a
-                              href={record.checkOutFaceImage}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block"
-                              title="Bukti Check Out"
-                            >
-                              <Image
-                                src={record.checkOutFaceImage}
-                                alt="Bukti check out"
-                                width={40}
-                                height={40}
-                                className="w-10 h-10 rounded object-cover border"
-                                unoptimized
-                              />
-                            </a>
-                          ) : (
-                            <span className="text-xs text-gray-400">CO: -</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {checkRoleMulti("attendances", ["get-by-id", "delete"]) && (
-                        <td className="p-3 text-right">
-                          <div className="flex justify-end gap-2">
-                            {checkRole("attendances", "get-by-id") && (
-                              <button
-                                onClick={() => setSelectedRecord(record)}
-                                className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                            )}
-
-                            {checkRole("attendances", "delete") && (
-                              <Popover
-                                open={openPopoverId === record.id}
-                                onOpenChange={(open) =>
-                                  setOpenPopoverId(open ? record.id : null)
-                                }
-                              >
-                                <PopoverTrigger asChild>
-                                  <button className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </PopoverTrigger>
-
-                                <PopoverContent className="w-56 space-y-3">
-                                  <p className="text-sm">
-                                    Yakin ingin menghapus data ini?
-                                  </p>
-                                  <div className="flex justify-end gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => setOpenPopoverId(null)}
-                                    >
-                                      Batal
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      onClick={() => handleDelete(record.id)}
-                                    >
-                                      Hapus
-                                    </Button>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={tableColSpan}
-                      className="p-8 text-center text-gray-500 dark:text-gray-400"
-                    >
-                      Tidak ada data kehadiran untuk filter atau halaman ini
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 pt-4 dark:border-gray-700 gap-4">
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Menampilkan{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {attendanceRecords.length}
-              </span>{" "}
-              dari{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
-                {total}
-              </span>{" "}
-              kehadiran
-              {totalPages > 0 && (
-                <span>
-                  {" "}
-                  — Halaman {currentPage} dari {totalPages}
-                </span>
-              )}
-            </div>
-
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentPage === 1 || isAttendanceLoading}
-                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <div className="flex items-center gap-1">
-                  {(() => {
-                    const pages: (number | "...")[] = [];
-                    if (totalPages <= 5) {
-                      // Tampilkan semua jika <= 5 halaman
-                      for (let i = 1; i <= totalPages; i++) pages.push(i);
-                    } else if (currentPage <= 3) {
-                      // Di awal: 1 2 3 ... last-1 last
-                      pages.push(1, 2, 3, "...", totalPages - 1, totalPages);
-                    } else if (currentPage >= totalPages - 2) {
-                      // Di akhir: 1 2 ... last-2 last-1 last
-                      pages.push(1, 2, "...", totalPages - 2, totalPages - 1, totalPages);
-                    } else {
-                      // Di tengah: 1 ... prev current next ... last
-                      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
-                    }
-                    return pages.map((page, idx) =>
-                      page === "..." ? (
-                        <span
-                          key={`ellipsis-${idx}`}
-                          className="w-8 h-8 flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm select-none"
-                        >
-                          ...
-                        </span>
-                      ) : (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page as number)}
-                          disabled={isAttendanceLoading}
-                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                            currentPage === page
-                              ? "bg-blue-600 text-white"
-                              : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      )
-                    );
-                  })()}
-                </div>
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage === totalPages || isAttendanceLoading}
-                  className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-200"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {selectedRecord && (
+      {detailItem && (
         <DetailData
-          initialData={selectedRecord}
-          onClose={() => setSelectedRecord(null)}
+          initialData={detailItem}
+          onClose={() => setDetailItem(undefined)}
         />
       )}
 
@@ -1467,8 +960,9 @@ export default function AttendancePage() {
         onClose={() => setIsFaceModalOpen(false)}
       />
 
-      {showAttendanceConfig && (
+      {checkRole("attendances", "set-config") && (
         <ModalAttendanceConfig
+          isOpen={showAttendanceConfig}
           initialConfig={attendanceConfig}
           onClose={() => {
             setShowAttendanceConfig(false);

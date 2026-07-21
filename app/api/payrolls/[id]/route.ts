@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import { requirePermission } from "@/lib/auth/permission";
 
 type Params = {
   params: {
@@ -16,20 +17,27 @@ export async function GET(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "payrolls", "get-by-id");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
-    const payroll = await prisma.payroll.findFirst({
+    const item = await prisma.payroll.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      include: {
+        user: {
+          select: { id: true, name: true, position: true, department: true },
+        },
+      },
     });
 
-    if (!payroll) {
+    if (!item) {
       return NextResponse.json(
         { message: "Payroll not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(payroll);
+    return NextResponse.json({ message: "Success", data: item });
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to retrieve payroll" },
@@ -43,6 +51,8 @@ export async function PUT(req: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "payrolls", "update");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const existing = await prisma.payroll.findFirst({
@@ -88,6 +98,8 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
+    const forbid = requirePermission(auth.user, "payrolls", "delete");
+    if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const existing = await prisma.payroll.findFirst({
