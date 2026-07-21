@@ -18,7 +18,6 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { theme } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -117,7 +116,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-48 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
@@ -140,18 +139,18 @@ export default function LoginPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex flex-1">
         {/* LEFT SIDE - Login Form */}
-        <div className="flex-1 flex items-center justify-center p-8 relative z-10">
+        <div className="relative z-10 flex flex-1 items-center justify-center px-4 py-6 sm:px-6 sm:py-8 lg:p-8">
           <div className="w-full max-w-md">
             {/* Glass Card */}
             <div
-              className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl p-8 space-y-8"
+              className="space-y-6 rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur-xl sm:space-y-8 sm:rounded-3xl sm:p-8"
               style={{ animation: "fadeInUp 0.6s ease-out" }}
             >
               {/* Logo & Title */}
-              <div className="text-center space-y-4">
-                <div className="flex justify-center mb-6 transform hover:scale-105 transition-transform duration-300">
+              <div className="space-y-3 text-center sm:space-y-4">
+                <div className="mb-3 flex justify-center transition-transform duration-300 hover:scale-105 sm:mb-6">
                   <div className="relative">
                     <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full" />
                     <Image
@@ -160,17 +159,17 @@ export default function LoginPage() {
                       width={380}
                       height={60}
                       priority
-                      className="object-contain relative z-10"
+                      className="relative z-10 h-auto w-[210px] object-contain sm:w-[300px] lg:w-[340px]"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <h2 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">
+                  <h2 className="bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-3xl font-bold leading-tight text-transparent sm:text-4xl">
                     Selamat Datang
                   </h2>
-                  <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-400" />
-                    Masuk untuk mengakses dashboard Anda
+                  <p className="mx-auto flex max-w-[320px] items-center justify-center gap-2 text-sm leading-6 text-gray-400 sm:max-w-none sm:leading-normal">
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-400 sm:mt-0" />
+                    <span>Satu akses untuk semua aktivitas kerja</span>
                   </p>
                 </div>
               </div>
@@ -190,7 +189,7 @@ export default function LoginPage() {
               )}
 
               {/* Login Form */}
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
                 {/* Email Field */}
                 <div className="space-y-2 group">
                   <label
@@ -211,7 +210,7 @@ export default function LoginPage() {
                       required
                       value={formData.email}
                       onChange={handleChange}
-                      className="block w-full pl-12 pr-4 py-3.5 border border-white/10 rounded-xl
+                      className="block w-full rounded-xl border border-white/10 py-3.5 pl-12 pr-4 text-[16px]
                       bg-white/5 text-white
                       placeholder-gray-500
                       focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white/10
@@ -248,7 +247,7 @@ export default function LoginPage() {
                       required
                       value={formData.password}
                       onChange={handleChange}
-                      className="block w-full pl-12 pr-14 py-3.5 border border-white/10 rounded-xl
+                      className="block w-full rounded-xl border border-white/10 py-3.5 pl-12 pr-14 text-[16px]
                       bg-white/5 text-white
                       placeholder-gray-500
                       focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white/10
@@ -270,45 +269,34 @@ export default function LoginPage() {
                 </div>
 
                 {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center group cursor-pointer">
-                    <input
-                      id="remember-me"
-                      name="remember-me"
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-white/20 rounded bg-white/5 cursor-pointer transition-all"
-                    />
-                    <label
-                      htmlFor="remember-me"
-                      className="ml-2.5 block text-sm text-gray-300 cursor-pointer group-hover:text-white transition-colors"
-                    >
-                      Ingat saya
-                    </label>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors relative group"
+                <div className="flex items-center group cursor-pointer my-6">
+                  <input
+                    id="remember-me"
+                    name="remember-me"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-white/20 rounded bg-white/5 cursor-pointer transition-all"
+                  />
+                  <label
+                    htmlFor="remember-me"
+                    className="ml-2.5 block text-sm text-gray-300 cursor-pointer group-hover:text-white transition-colors"
                   >
-                    <span>Lupa password?</span>
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-400 group-hover:w-full transition-all duration-300" />
-                  </button>
+                    Ingat saya
+                  </label>
                 </div>
 
                 {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full group relative flex justify-center items-center gap-2 py-3.5 px-4 
-                  rounded-xl text-white font-semibold
+                  className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-4 py-3.5 text-base font-semibold text-white
                   bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600
                   focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-offset-slate-900
                   disabled:opacity-50 disabled:cursor-not-allowed
                   transition-all duration-300 ease-out
                   shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02]
-                  overflow-hidden"
+                  sm:text-lg"
                   style={{
                     backgroundSize: "200%",
                     backgroundPosition: "0% center",
@@ -338,11 +326,10 @@ export default function LoginPage() {
 
             {/* Watermark Logo Jaxer */}
             <div
-              className="mt-6 flex items-center justify-center gap-2 opacity-50 hover:opacity-100 transition-opacity cursor-pointer select-none"
+              className="mt-5 flex cursor-pointer select-none items-center justify-center gap-2 opacity-50 transition-opacity hover:opacity-100 sm:mt-6"
               onClick={handleLogoClick}
 
             >
-              <span className="text-xs font-medium text-gray-500">by</span>
               <Image
                 src="/logo22.png"
                 alt="Jaxer Watermark"
@@ -354,7 +341,7 @@ export default function LoginPage() {
             </div>
 
             {/* Trust Indicators */}
-            <div className="mt-8 flex items-center justify-center gap-8 text-gray-500 text-xs">
+            <div className="mt-6 hidden items-center justify-center gap-8 text-xs text-gray-500 sm:flex">
               <div className="flex items-center gap-2">
                 <svg
                   className="w-4 h-4 text-green-400"
@@ -500,7 +487,7 @@ export default function LoginPage() {
       </div>
 
       {/* Footer - Transparant tanpa background */}
-      <footer className="relative z-10 py-4 text-center text-xs text-gray-400">
+      <footer className="relative z-10 px-4 py-3 text-center text-[11px] text-gray-400 sm:py-4 sm:text-xs">
         &copy; {new Date().getFullYear()} Jaxer Teknologi Indonesia.
       </footer>
 
