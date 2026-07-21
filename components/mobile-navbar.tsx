@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
+import { usePermission } from "@/lib/helper/check-role";
 import {
   LayoutDashboard,
   Users,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 
 export default function MobileNavbar() {
+  const { checkRoleMulti } = usePermission();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(
@@ -68,60 +70,63 @@ export default function MobileNavbar() {
       name: "Data Karyawan",
       icon: Users,
       path: "/employees",
+      permissions: ["get-all", "get-by-id"],
     },
     {
       id: "submissions",
       name: "Ketidakhadiran",
       icon: Calendar,
       path: "/submissions",
+      permissions: ["get-all", "get-by-id"],
     },
     {
       id: "attendances",
       name: "Kehadiran",
       icon: ClipboardCheck,
       path: "/attendances",
+      permissions: ["get-all", "get-by-id"],
     },
     {
       id: "task-managements",
       name: "Manajemen Tugas",
       icon: ListTodo,
       path: "/task-managements",
+      permissions: ["get-all", "get-by-id"],
     },
     {
       id: "payrolls",
       name: "Payroll",
       icon: Wallet,
       path: "/payrolls",
+      permissions: ["get-all", "get-by-id"],
     },
     {
       id: "reimbursements",
       name: "Reimbursement",
       icon: Receipt,
       path: "/reimbursements",
+      permissions: ["get-all", "get-by-id"],
     },
     {
       id: "overtimes",
       name: "Lembur",
       icon: Clock,
       path: "/overtimes",
-    },
-    {
-      id: "performances",
-      name: "Penilaian Kinerja",
-      icon: TrendingUp,
-      path: "/performances",
+      permissions: ["get-all", "get-by-id"],
     },
     {
       id: "pettycash",
       name: "Petty Cash",
       icon: Banknote,
       path: "/pettycash",
+      permissions: ["get-all", "get-by-id"],
     },
     {
       id: "finance",
       name: "Keuangan",
       icon: Wallet,
       path: "/finance",
+      permissions: ["get-all", "get-by-id"],
       subItems: [
         { name: "Dashboard", path: "/finance/dashboard" },
         { name: "Kategori Akun", path: "/finance/account-categories" },
@@ -132,15 +137,52 @@ export default function MobileNavbar() {
         { name: "Buku Besar", path: "/finance/ledger" },
       ],
     },
-  ];
+    {
+      id: "performances",
+      name: "Penilaian Kinerja",
+      icon: TrendingUp,
+      path: "/performances",
+      permissions: ["get-all", "get-by-id"],
+    },
+  ].filter((item) => {
+    if (!("permissions" in item) || !item.permissions) return true;
+    return checkRoleMulti(item.id, item.permissions);
+  });
 
   const bottomNavItems = [
-    { icon: Home, path: "/dashboard", label: "Home" },
-    { icon: Calendar, path: "/submissions", label: "Cuti" },
-    { icon: ClipboardCheck, path: "/attendances", label: "Kehadiran" },
-    { icon: ListTodo, path: "/task-managements", label: "Tugas" },
-    { icon: Receipt, path: "/reimbursements", label: "Reimburse" },
-  ];
+    { id: "dashboard", icon: Home, path: "/dashboard", label: "Home" },
+    {
+      id: "submissions",
+      icon: Calendar,
+      path: "/submissions",
+      label: "Cuti",
+      permissions: ["get-all", "get-by-id"],
+    },
+    {
+      id: "attendances",
+      icon: ClipboardCheck,
+      path: "/attendances",
+      label: "Kehadiran",
+      permissions: ["get-all", "get-by-id"],
+    },
+    {
+      id: "task-managements",
+      icon: ListTodo,
+      path: "/task-managements",
+      label: "Tugas",
+      permissions: ["get-all", "get-by-id"],
+    },
+    {
+      id: "reimbursements",
+      icon: Receipt,
+      path: "/reimbursements",
+      label: "Reimburse",
+      permissions: ["get-all", "get-by-id"],
+    },
+  ].filter((item) => {
+    if (!("permissions" in item) || !item.permissions) return true;
+    return checkRoleMulti(item.id, item.permissions);
+  });
 
   const handleLogout = async () => {
     try {
