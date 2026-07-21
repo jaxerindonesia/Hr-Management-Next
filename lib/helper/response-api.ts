@@ -7,6 +7,22 @@ export function handleUnauthorizedClient() {
 
   isHandlingUnauthorized = true;
 
+  const logoutUrl = "/api/auth/logout";
+
+  try {
+    if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {
+      navigator.sendBeacon(logoutUrl);
+    } else {
+      void fetch(logoutUrl, {
+        method: "POST",
+        credentials: "include",
+        keepalive: true,
+      }).catch(() => undefined);
+    }
+  } catch {
+    // ignore logout cleanup failures
+  }
+
   try {
     localStorage.removeItem("hr_user_data");
     localStorage.removeItem("hr_user_role");
