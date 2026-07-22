@@ -145,7 +145,7 @@ export default function Page() {
         Tunjangan: emp.allowances,
         Potongan: emp.deductions,
         "Total Gaji": emp.totalSalary,
-        Status: emp.status === "paid" ? "Dibayar" : "Pending",
+        Status: emp.status === "PAID" ? "Dibayar" : "Pending",
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
