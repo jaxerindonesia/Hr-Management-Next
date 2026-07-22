@@ -7,7 +7,8 @@ import { writeAuditLog } from "@/lib/security/audit-log";
 
 export async function POST() {
   const token = (await cookies()).get("token")?.value;
-  const user = await getSessionUser();
+  const session = await getSessionUser();
+  const user = session.ok ? session.user : null;
 
   if (token) {
     await prisma.user.updateMany({
