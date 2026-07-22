@@ -19,6 +19,17 @@ import { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { parseApiError } from "@/lib/helper/response-api";
 
+const createDefaultFormData = (): PayrollDto => ({
+  userId: "",
+  month: new Date().getMonth() + 1,
+  year: new Date().getFullYear(),
+  basicSalary: 0,
+  allowances: 0,
+  deductions: 0,
+  totalSalary: 0,
+  status: "PENDING",
+});
+
 export default function FormData({
   isOpen,
   initialData,
@@ -32,18 +43,7 @@ export default function FormData({
 }) {
  const [loading, setLoading] = useState(false);
  const [employees, setEmployees] = useState<UserDto[]>([]);
- const [formData, setFormData] = useState<PayrollDto>(
-   initialData || {
-     userId: "",
-     month: new Date().getMonth() + 1,
-     year: new Date().getFullYear(),
-     basicSalary: 0,
-     allowances: 0,
-     deductions: 0,
-     totalSalary: 0,
-     status: "PENDING",
-   },
- );
+ const [formData, setFormData] = useState<PayrollDto>(createDefaultFormData);
 
  const fetchEmployees = async () => {
    try {
@@ -91,6 +91,21 @@ export default function FormData({
  useEffect(() => {
    fetchEmployees();
  }, []);
+
+ useEffect(() => {
+   if (!isOpen) return;
+
+   if (initialData) {
+     setFormData({
+       ...createDefaultFormData(),
+       ...initialData,
+       userId: initialData.userId || initialData.user?.id || "",
+     });
+     return;
+   }
+
+   setFormData(createDefaultFormData());
+ }, [initialData, isOpen]);
 
  return (
     <Dialog open={isOpen} onOpenChange={onClose}>
