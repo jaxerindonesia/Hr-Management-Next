@@ -4,6 +4,12 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { hasPermission } from "@/lib/auth/permission";
+import {
+  isAbsentAttendanceStatus,
+  isLateAttendanceStatus,
+  normalizeAttendanceStatus,
+  isPresentAttendanceStatus,
+} from "@/lib/helper/attendance-status";
 
 type Params = {
   params: Promise<{
@@ -43,13 +49,25 @@ export async function GET(req: Request, { params }: Params) {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
-    const attendances = await prisma.attendance.findMany({
-      where: {
-        userId: id,
-        date: { gte: startDate, lte: endDate },
-      },
-      orderBy: { date: "asc" },
-    });
+    const [attendances, submissionTypes] = await Promise.all([
+      prisma.attendance.findMany({
+        where: {
+          userId: id,
+          date: { gte: startDate, lte: endDate },
+        },
+        orderBy: { date: "asc" },
+      }),
+      prisma.submissionType.findMany({
+        where: scopedTenantId ? { tenantId: scopedTenantId } : {},
+        select: { name: true },
+      }),
+    ]);
+
+    const submissionTypeStatusSet = new Set(
+      submissionTypes.map((submissionType) =>
+        normalizeAttendanceStatus(submissionType.name),
+      ),
+    );
 
     // 3. Hitung summary kehadiran
     const summary = {
@@ -60,14 +78,13 @@ export async function GET(req: Request, { params }: Params) {
     };
 
     attendances.forEach((att) => {
-      const s = att.status?.toLowerCase() || "";
-      if (["hadir", "present", "tepat waktu", "on time", "half day"].includes(s)) {
+      if (isPresentAttendanceStatus(att.status)) {
         summary.totalHadir++;
-      } else if (["telat", "late", "terlambat", "late - present", "late - half day"].includes(s)) {
+      } else if (isLateAttendanceStatus(att.status)) {
         summary.totalTelat++;
-      } else if (["alpha", "absent", "tidak hadir"].includes(s)) {
+      } else if (isAbsentAttendanceStatus(att.status)) {
         summary.totalAlpha++;
-      } else if (["izin", "cuti", "sakit", "leave", "sick"].includes(s)) {
+      } else if (submissionTypeStatusSet.has(normalizeAttendanceStatus(att.status))) {
         summary.totalIzin++;
       }
     });
