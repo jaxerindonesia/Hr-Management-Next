@@ -24,7 +24,7 @@ import ImportModal from "./components/import-modal";
 import RecapModal from "./components/recap-modal";
 
 export default function EmployeesPage() {
-  const { checkRole } = usePermission();
+  const { checkRole, permissions } = usePermission();
   const [userData, setUserData] = useState({ id: "", role: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -54,6 +54,13 @@ export default function EmployeesPage() {
   );
   const isSuperAdmin = userData.role === "Super Admin";
   const isAdmin = userData.role === "Admin";
+  const canFetchDepartments = useMemo(
+    () => permissions.some(
+      (permission) =>
+        permission.model === "departments" && permission.action === "get-all",
+    ),
+    [permissions],
+  );
 
   const getDepartmentDisplayName = useCallback(
     (dept?: DepartmentOption) => {
@@ -462,8 +469,12 @@ export default function EmployeesPage() {
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
-    if (checkRole("departments", "get-all")) fetchDepartments();
-  }, [fetchDepartments]);
+  }, []);
+
+  useEffect(() => {
+    if (!canFetchDepartments) return;
+    fetchDepartments();
+  }, [canFetchDepartments, fetchDepartments]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
