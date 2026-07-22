@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
-        orderBy: [{ name: "asc" }, { createdAt: "desc" }],
+        orderBy: [{ name: "asc" }, { status: "asc" }, { createdAt: "desc" }],
         skip: (page - 1) * limit,
         take: limit,
         select: {
