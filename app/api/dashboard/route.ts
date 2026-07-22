@@ -4,6 +4,10 @@ import { NextResponse } from "next/server";
 import { getOrSetRedisJsonCache } from "@/lib/cache/redis";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
+import {
+  isAbsentAttendanceStatus,
+  isWorkedAttendanceStatus,
+} from "@/lib/helper/attendance-status";
 
 function normalizeRoleKey(roleName: string) {
   const normalized = roleName.toLowerCase().replace(/\s/g, "");
@@ -56,22 +60,22 @@ async function buildAttendanceChart(where: Record<string, unknown>) {
   for (let i = 6; i >= 0; i -= 1) {
     const { start, end } = getDayRange(-i);
 
-    const [hadir, absen] = await Promise.all([
-      prisma.attendance.count({
-        where: {
-          ...where,
-          date: { gte: start, lt: end },
-          status: { notIn: ["Absent"] },
-        },
-      }),
-      prisma.attendance.count({
-        where: {
-          ...where,
-          date: { gte: start, lt: end },
-          status: "Absent",
-        },
-      }),
-    ]);
+    const attendances = await prisma.attendance.findMany({
+      where: {
+        ...where,
+        date: { gte: start, lt: end },
+      },
+      select: {
+        status: true,
+      },
+    });
+
+    const hadir = attendances.filter((attendance) =>
+      isWorkedAttendanceStatus(attendance.status),
+    ).length;
+    const absen = attendances.filter((attendance) =>
+      isAbsentAttendanceStatus(attendance.status),
+    ).length;
 
     last7Days.push({
       date: start.toLocaleDateString("id-ID", {
@@ -438,8 +442,7 @@ export async function GET() {
         if (roleKey === "employee") {
           const [
             todayAttendance,
-            monthlyPresent,
-            monthlyAbsent,
+            monthAttendances,
             pendingSubmissions,
             pendingOvertimes,
             attendanceChart,
@@ -454,21 +457,13 @@ export async function GET() {
               },
               orderBy: { date: "desc" },
             }),
-            prisma.attendance.count({
+            prisma.attendance.findMany({
               where: {
                 userId: auth.user.id,
                 ...tenantWhere,
                 date: { gte: monthStart, lt: monthEnd },
-                status: { notIn: ["Absent"] },
               },
-            }),
-            prisma.attendance.count({
-              where: {
-                userId: auth.user.id,
-                ...tenantWhere,
-                date: { gte: monthStart, lt: monthEnd },
-                status: "Absent",
-              },
+              select: { status: true },
             }),
             prisma.submission.count({
               where: {
@@ -508,6 +503,13 @@ export async function GET() {
               },
             }),
           ]);
+
+          const monthlyPresent = monthAttendances.filter((attendance) =>
+            isWorkedAttendanceStatus(attendance.status),
+          ).length;
+          const monthlyAbsent = monthAttendances.filter((attendance) =>
+            isAbsentAttendanceStatus(attendance.status),
+          ).length;
 
           const todayStatus = todayAttendance?.status ?? "Belum Absen";
 

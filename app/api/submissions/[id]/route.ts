@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { syncSubmissionAttendanceForRange } from "@/lib/helper/submission-attendance";
 import { writeAuditLog } from "@/lib/security/audit-log";
 
 type Params = { params: { id: string } };
@@ -85,6 +86,13 @@ export async function PUT(req: Request, { params }: Params) {
         },
       });
 
+      await syncSubmissionAttendanceForRange({
+        userId: existing.userId,
+        tenantId: existing.tenantId,
+        startDate: existing.startDate,
+        endDate: existing.endDate,
+      });
+
       writeAuditLog({
         action: nextStatus === "REJECTED" ? "submissions.reject" : "submissions.approve",
         status: "success",
@@ -130,6 +138,33 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.reason) updateData.reason = body.reason;
 
     const submission = await prisma.submission.update({ where: { id: p.id }, data: updateData });
+
+    if (
+      existing.status === "APPROVED" ||
+      submission.status === "APPROVED"
+    ) {
+      const syncStartDate =
+        existing.startDate < submission.startDate ? existing.startDate : submission.startDate;
+      const syncEndDate =
+        existing.endDate > submission.endDate ? existing.endDate : submission.endDate;
+
+      await syncSubmissionAttendanceForRange({
+        userId: submission.userId,
+        tenantId: submission.tenantId,
+        startDate: syncStartDate,
+        endDate: syncEndDate,
+      });
+
+      if (existing.userId !== submission.userId) {
+        await syncSubmissionAttendanceForRange({
+          userId: existing.userId,
+          tenantId: existing.tenantId,
+          startDate: syncStartDate,
+          endDate: syncEndDate,
+        });
+      }
+    }
+
     return NextResponse.json({ message: "Submission successfully updated", data: submission });
   } catch {
     return NextResponse.json({ message: "Failed to update submission" }, { status: 500 });
@@ -147,11 +182,28 @@ export async function DELETE(_: Request, { params }: Params) {
 
     const existing = await prisma.submission.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
-      select: { id: true },
+      select: {
+        id: true,
+        userId: true,
+        tenantId: true,
+        startDate: true,
+        endDate: true,
+        status: true,
+      },
     });
     if (!existing) return NextResponse.json({ message: "Submission not found" }, { status: 404 });
 
     await prisma.submission.delete({ where: { id: p.id } });
+
+    if (existing.status === "APPROVED") {
+      await syncSubmissionAttendanceForRange({
+        userId: existing.userId,
+        tenantId: existing.tenantId,
+        startDate: existing.startDate,
+        endDate: existing.endDate,
+      });
+    }
+
     writeAuditLog({
       action: "submissions.delete",
       status: "success",

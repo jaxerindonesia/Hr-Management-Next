@@ -4,14 +4,7 @@ export interface AttendanceDto {
   date: string;
   checkIn?: string | null;
   checkOut?: string | null;
-  status:
-    | "On Time"
-    | "Late"
-    | "Present"
-    | "Half Day"
-    | "Late - Present"
-    | "Late - Half Day"
-    | "Absent";
+  status: string;
   workHours: string;
   notes?: string | null;
   checkInLocation?: LocationData;

@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { hasPermission, requirePermission } from "@/lib/auth/permission";
+import { syncSubmissionAttendanceForRange } from "@/lib/helper/submission-attendance";
 
 export async function GET(req: NextRequest) {
   try {
@@ -164,6 +165,15 @@ export async function POST(req: NextRequest) {
           : undefined,
       },
     });
+
+    if (submission.status === "APPROVED") {
+      await syncSubmissionAttendanceForRange({
+        userId: submission.userId,
+        tenantId: submission.tenantId,
+        startDate: submission.startDate,
+        endDate: submission.endDate,
+      });
+    }
 
     return NextResponse.json({ message: "Submission successfully created.", data: submission }, { status: 201 });
   } catch (error) {

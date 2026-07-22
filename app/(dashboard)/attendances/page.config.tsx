@@ -6,6 +6,7 @@ import {
   CheckCircle,
   Clock,
   Coffee,
+  Flag,
   Download,
   Eye,
   Filter,
@@ -61,7 +62,7 @@ export function getStatusColor(status: string) {
     case "Half Day":
       return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
     default:
-      return "";
+      return "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300";
   }
 }
 
@@ -78,7 +79,7 @@ function getStatusIcon(status: string) {
     case "Absent":
       return <XCircle className="h-4 w-4" />;
     default:
-      return null;
+      return <Flag className="h-4 w-4" />;
   }
 }
 
