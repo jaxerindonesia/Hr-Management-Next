@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
-import { requirePermission } from "@/lib/auth/permission";
+import { hasPermission, requirePermission } from "@/lib/auth/permission";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -29,8 +29,16 @@ export async function GET() {
   try {
     const auth = await requireSessionUser();
     if (auth.error) return auth.error;
-    const forbid = requirePermission(auth.user, "attendances", "set-config");
-    if (forbid) return forbid;
+    const canReadAttendanceConfig =
+      hasPermission(auth.user, "attendances", "create") ||
+      hasPermission(auth.user, "attendances", "update") ||
+      hasPermission(auth.user, "attendances", "get-all") ||
+      hasPermission(auth.user, "attendances", "get-by-id");
+
+    if (!canReadAttendanceConfig) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const cfg = await prisma.attendanceConfig.findFirst({
