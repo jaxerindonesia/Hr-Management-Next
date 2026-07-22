@@ -296,7 +296,10 @@ export default function Page() {
       <FormData
         isOpen={showFormModal}
         initialData={detailItem}
-        onClose={() => setShowFormModal(false)}
+        onClose={() => {
+          setShowFormModal(false);
+          setDetailItem(undefined);
+        }}
         onSuccess={fetchData}
       />
 
