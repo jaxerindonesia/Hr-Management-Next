@@ -846,10 +846,7 @@ export default function Page() {
 
     fetchAttendance(userData);
     fetchTodayAttendance(userData.id);
-
-    if (checkRole("attendances", "set-config")) {
-      fetchAttendanceConfig();
-    }
+    fetchAttendanceConfig();
   }, [fetchAttendance, fetchAttendanceConfig, fetchTodayAttendance, userData]);
 
   useEffect(() => {
