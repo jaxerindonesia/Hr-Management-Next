@@ -184,7 +184,7 @@ function SlipContent({
     const takeHomePay = payroll.basicSalary + payroll.allowances - payroll.deductions;
     const companyName = tenantConfig?.companyName?.trim() || "JAXER GRUP INDONESIA";
     const companyLogo = tenantConfig?.logoUrl || "/logo22.png";
-    const isPaid = payroll.status === "paid";
+    const isPaid = payroll.status === "PAID";
 
     return (
         <div

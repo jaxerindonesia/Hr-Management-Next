@@ -251,7 +251,7 @@ export default function FormData({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value: "paid" | "pending") =>
+                onValueChange={(value: "PAID" | "PENDING") =>
                   setFormData({ ...formData, status: value })
                 }
               >
