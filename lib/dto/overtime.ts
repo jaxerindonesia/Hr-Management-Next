@@ -4,17 +4,30 @@ export interface OvertimeDto {
   userId: string;
   attendanceId?: string | null;
   overtimeDate: string;
-  startTime: string;
-  endTime: string;
+  startTime?: string | null;
+  endTime?: string | null;
   overtimeMinutes: number;
   requestedMinutes: number;
   description?: string | null;
+  proofUrl?: string | null;
+  checkInLocation?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number | null;
+  } | null;
+  checkOutLocation?: {
+    latitude: number;
+    longitude: number;
+    accuracy?: number | null;
+  } | null;
+  checkInFaceImage?: string | null;
+  checkOutFaceImage?: string | null;
   rejectReason?: string | null;
   payMethod: "PER_HOUR" | "PER_DAY";
   hourlyRate: number;
   dailyRate: number;
   payoutAmount: number;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "DRAFT" | "CHECKED_IN" | "PENDING" | "APPROVED" | "REJECTED";
   approvedBy?: string | null;
   approvedAt?: string | null;
   createdAt?: string | null;

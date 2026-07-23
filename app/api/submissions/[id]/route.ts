@@ -5,8 +5,11 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { syncSubmissionAttendanceForRange } from "@/lib/helper/submission-attendance";
+import { uploadBufferToMinio, deleteFromMinio, BUCKET_AVATARS } from "@/lib/minio";
 import { writeAuditLog } from "@/lib/security/audit-log";
+import { validateAttachmentBuffer } from "@/lib/security/file-validation";
 
 type Params = { params: { id: string } };
 
@@ -49,9 +52,11 @@ export async function PUT(req: Request, { params }: Params) {
     });
     if (!existing) return NextResponse.json({ message: "Submission not found" }, { status: 404 });
 
-    const body = await req.json();
+    const contentType = req.headers.get("content-type") || "";
+    const isMultipart = contentType.includes("multipart/form-data");
+    const body = isMultipart ? null : await req.json();
 
-    if (body.approvalAction) {
+    if (body?.approvalAction) {
       const approverUserId = auth.user.id;
       const allowed = existing.submissionType.approverConfigs.some((c) => c.approverUserId === approverUserId);
       if (!allowed) return NextResponse.json({ message: "Anda tidak memiliki akses approval pada submission ini" }, { status: 403 });
@@ -112,8 +117,43 @@ export async function PUT(req: Request, { params }: Params) {
     }
 
     const updateData: any = {};
-    const nextStartDate = body.startDate ? new Date(body.startDate) : null;
-    const nextEndDate = body.endDate ? new Date(body.endDate) : null;
+    let removeProof = false;
+    let newFile: File | null = null;
+    let nextStartDate: Date | null = null;
+    let nextEndDate: Date | null = null;
+
+    if (isMultipart) {
+      const formData = await req.formData();
+      const userId = formData.get("userId");
+      const submissionTypeId = formData.get("submissionTypeId");
+      const startDate = formData.get("startDate");
+      const endDate = formData.get("endDate");
+      const reason = formData.get("reason");
+      const status = formData.get("status");
+
+      nextStartDate = startDate ? new Date(String(startDate)) : null;
+      nextEndDate = endDate ? new Date(String(endDate)) : null;
+      removeProof = formData.get("removeProof") === "true";
+      newFile = formData.get("file") as File | null;
+
+      if (userId) updateData.userId = String(userId);
+      if (submissionTypeId) updateData.submissionTypeId = String(submissionTypeId);
+      if (startDate) updateData.startDate = nextStartDate;
+      if (endDate) updateData.endDate = nextEndDate;
+      if (reason !== null) updateData.reason = String(reason);
+      if (status) updateData.status = String(status);
+    } else {
+      nextStartDate = body.startDate ? new Date(body.startDate) : null;
+      nextEndDate = body.endDate ? new Date(body.endDate) : null;
+
+      if (body.userId) updateData.userId = body.userId;
+      if (body.submissionTypeId) updateData.submissionTypeId = body.submissionTypeId;
+      if (body.startDate) updateData.startDate = nextStartDate;
+      if (body.endDate) updateData.endDate = nextEndDate;
+      if (body.reason !== undefined) updateData.reason = body.reason;
+      if (body.status !== undefined) updateData.status = body.status;
+      removeProof = body.removeProof === true;
+    }
 
     if (nextStartDate && Number.isNaN(nextStartDate.getTime())) {
       return NextResponse.json({ message: "Format tanggal mulai tidak valid" }, { status: 400 });
@@ -131,11 +171,46 @@ export async function PUT(req: Request, { params }: Params) {
       );
     }
 
-    if (body.userId) updateData.userId = body.userId;
-    if (body.submissionTypeId) updateData.submissionTypeId = body.submissionTypeId;
-    if (body.startDate) updateData.startDate = nextStartDate;
-    if (body.endDate) updateData.endDate = nextEndDate;
-    if (body.reason) updateData.reason = body.reason;
+    let proofUrl = existing.proofUrl;
+
+    if (newFile && newFile.size > 0) {
+      const bytes = await newFile.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const validation = validateAttachmentBuffer(
+        newFile.name || "",
+        newFile.type || "application/octet-stream",
+        buffer,
+      );
+      if (!validation.ok) {
+        return NextResponse.json({ message: validation.message }, { status: 415 });
+      }
+
+      const fileName = await buildTenantStorageObjectName(
+        scopedTenantId,
+        "submissions",
+        `proof-${p.id}-${Date.now()}-${newFile.name.replace(/\s+/g, "_")}`,
+      );
+
+      proofUrl = await uploadBufferToMinio(
+        buffer,
+        fileName,
+        BUCKET_AVATARS,
+        validation.contentType,
+      );
+
+      if (existing.proofUrl?.includes(BUCKET_AVATARS)) {
+        await deleteFromMinio(existing.proofUrl);
+      }
+    }
+
+    if (removeProof) {
+      if (existing.proofUrl?.includes(BUCKET_AVATARS)) {
+        await deleteFromMinio(existing.proofUrl);
+      }
+      proofUrl = null;
+    }
+
+    updateData.proofUrl = proofUrl;
 
     const submission = await prisma.submission.update({ where: { id: p.id }, data: updateData });
 
@@ -189,9 +264,14 @@ export async function DELETE(_: Request, { params }: Params) {
         startDate: true,
         endDate: true,
         status: true,
+        proofUrl: true,
       },
     });
     if (!existing) return NextResponse.json({ message: "Submission not found" }, { status: 404 });
+
+    if (existing.proofUrl?.includes(BUCKET_AVATARS)) {
+      await deleteFromMinio(existing.proofUrl);
+    }
 
     await prisma.submission.delete({ where: { id: p.id } });
 

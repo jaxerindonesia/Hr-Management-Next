@@ -14,6 +14,8 @@ import {
   Trash2,
   X,
   XCircle,
+  LogIn,
+  LogOut,
 } from "lucide-react";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
 import { Button } from "@/components/ui/button";
@@ -31,6 +33,7 @@ const modelName = "attendances";
 export const STATUS_LABEL: Record<string, string> = {
   "On Time": "Tepat Waktu",
   Present: "Hadir",
+  Lembur: "Lembur",
   Late: "Terlambat",
   "Late - Present": "Telat - Hadir",
   "Late - Half Day": "Telat - Setengah Hari",
@@ -41,6 +44,7 @@ export const STATUS_LABEL: Record<string, string> = {
 export const STATUS_OPTIONS = [
   { value: "On Time", label: "Tepat Waktu" },
   { value: "Present", label: "Hadir" },
+  { value: "Lembur", label: "Lembur" },
   { value: "Late", label: "Terlambat" },
   { value: "Late - Present", label: "Telat - Hadir" },
   { value: "Late - Half Day", label: "Telat - Setengah Hari" },
@@ -52,6 +56,7 @@ export function getStatusColor(status: string) {
   switch (status) {
     case "Present":
     case "On Time":
+    case "Lembur":
       return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
     case "Late":
     case "Late - Present":
@@ -70,6 +75,7 @@ function getStatusIcon(status: string) {
   switch (status) {
     case "Present":
     case "On Time":
+    case "Lembur":
       return <CheckCircle className="h-4 w-4" />;
     case "Late":
     case "Late - Present":
@@ -86,6 +92,14 @@ function getStatusIcon(status: string) {
 function getLastBreakSession(row: AttendanceDto) {
   const sessions = row.breakSessions ?? [];
   return sessions.length > 0 ? sessions[sessions.length - 1] : null;
+}
+
+function isOvertimeAttendance(row: AttendanceDto) {
+  return (
+    row.status === "Lembur" ||
+    row.notes?.toLowerCase().includes("from overtime") ||
+    false
+  );
 }
 
 type AttendanceConfigLike = {
@@ -208,14 +222,21 @@ export function getColumnFormats({
       key: "status",
       title: "Status",
       formatter: (_value, row) => (
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(
-            row.status,
-          )}`}
-        >
-          {getStatusIcon(row.status)}
-          {STATUS_LABEL[row.status] ?? row.status}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(
+              row.status,
+            )}`}
+          >
+            {getStatusIcon(row.status)}
+            {STATUS_LABEL[row.status] ?? row.status}
+          </span>
+          {isOvertimeAttendance(row) ? (
+            <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+              Dari Lembur
+            </span>
+          ) : null}
+        </div>
       ),
     },
     {
@@ -300,13 +321,13 @@ export const headerToolbar = ({ actions, attendance, filters, isAdmin }: HeaderT
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               {!attendance.todayAttendance ? (
                 <Button onClick={actions.onCheckIn} className="w-full bg-green-600 text-white hover:bg-green-700 sm:w-auto">
-                  <Clock className="mr-2 h-4 w-4" />
+                  <LogIn className="mr-2 h-4 w-4" />
                   Check In
                 </Button>
               ) : attendance.todayAttendance && !attendance.todayAttendance.checkOut ? (
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Button onClick={actions.onCheckOut} className="w-full bg-red-600 text-white hover:bg-red-700 sm:w-auto">
-                    <Clock className="mr-2 h-4 w-4" />
+                    <LogOut className="mr-2 h-4 w-4" />
                     Check Out
                   </Button>
                   {attendance.attendanceConfig.breakEnabled &&

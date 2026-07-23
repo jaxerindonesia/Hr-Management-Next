@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, Download, Edit, Filter, Info, Plus, Printer, Receipt, Trash2, X, XCircle } from "lucide-react";
+import { CheckCircle, Download, Edit, ExternalLink, Filter, Info, Plus, Printer, Receipt, Trash2, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -106,6 +106,24 @@ export const columnFormats: DefaultColumnFormat<ReimbursementDto>[] = [
     title: "Nominal Klaim",
     textClassName: "text-slate-700 dark:text-slate-200 font-semibold",
     formatter: (_value, row) => `Rp ${row.amount.toLocaleString("id-ID") ?? "-"}`,
+  },
+  {
+    key: "receiptUrl",
+    title: "Bukti Pembayaran",
+    formatter: (value) =>
+      value ? (
+        <a
+          href={String(value)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+        >
+          Lihat Bukti
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      ) : (
+        "-"
+      ),
   },
   {
     key: "status",

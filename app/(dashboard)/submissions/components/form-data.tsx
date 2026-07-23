@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { UserDto } from "@/lib/dto/user";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { FileText, Upload } from "lucide-react";
 
 function toInputDate(value?: string | null) {
   if (!value) return "";
@@ -47,6 +48,12 @@ export default function FormData({
   const [userData, setUserData] = useState({ id: "", role: "" });
   const [submissionType, setSubmissionType] = useState<SubmissionTypeDto[]>([]);
   const [employees, setEmployees] = useState<UserDto[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    initialData?.proofUrl ?? null,
+  );
+  const [isProofRemoved, setIsProofRemoved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<SubmissionDto>(
     initialData || {
       userId: "",
@@ -54,6 +61,7 @@ export default function FormData({
       startDate: "",
       endDate: "",
       reason: "",
+      proofUrl: null,
       status: "PENDING",
       approvedBy: null,
       approvedAt: null,
@@ -98,6 +106,55 @@ export default function FormData({
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Ukuran file maksimal 5MB");
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "application/pdf",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Format file tidak didukung");
+      return;
+    }
+
+    if (previewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setSelectedFile(file);
+    setIsProofRemoved(false);
+
+    if (file.type.startsWith("image/")) {
+      setPreviewUrl(URL.createObjectURL(file));
+      return;
+    }
+
+    setPreviewUrl("pdf");
+  };
+
+  const removeProof = () => {
+    if (previewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setIsProofRemoved(true);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -113,10 +170,30 @@ export default function FormData({
         ? `/api/submissions/${formData.id}`
         : "/api/submissions";
       const method = formData.id ? "PUT" : "POST";
+      const fd = new globalThis.FormData();
+
+      fd.append("userId", formData.userId || "");
+      fd.append("submissionTypeId", formData.submissionTypeId);
+      fd.append("startDate", startDateValue);
+      fd.append("endDate", endDateValue);
+      fd.append("reason", formData.reason);
+      fd.append("status", formData.status || "PENDING");
+
+      if (formData.id) {
+        fd.append("id", formData.id);
+      }
+
+      if (selectedFile) {
+        fd.append("file", selectedFile);
+      }
+
+      if (isProofRemoved && !selectedFile) {
+        fd.append("removeProof", "true");
+      }
+
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: fd,
       });
 
       if (!res.ok) {
@@ -155,6 +232,9 @@ export default function FormData({
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
+      setSelectedFile(null);
+      setPreviewUrl(initialData.proofUrl ?? null);
+      setIsProofRemoved(false);
       return;
     }
 
@@ -164,23 +244,39 @@ export default function FormData({
       startDate: "",
       endDate: "",
       reason: "",
+      proofUrl: null,
       status: "PENDING",
       approvedBy: null,
       approvedAt: null,
     });
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setIsProofRemoved(false);
   }, [initialData]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const isPdf =
+    previewUrl === "pdf" ||
+    (!selectedFile && formData.proofUrl?.toLowerCase().endsWith(".pdf"));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {formData.id ? "Edit Pengajuan Cuti" : "Tambah Pengajuan Cuti"}
+            {formData.id ? "Edit Pengajuan Ketidakhadiran" : "Tambah Pengajuan Ketidakhadiran"}
           </DialogTitle>
           <DialogDescription>
             {formData.id
-              ? "Perbarui detail pengajuan cuti yang sudah dibuat."
-              : "Lengkapi form untuk membuat pengajuan cuti baru."}
+              ? "Perbarui detail pengajuan ketidakhadiran yang sudah dibuat."
+              : "Lengkapi form untuk membuat pengajuan ketidakhadiran baru."}
           </DialogDescription>
         </DialogHeader>
 
@@ -284,6 +380,76 @@ export default function FormData({
               }
               placeholder="Masukkan alasan cuti"
             />
+          </div>
+
+          <div className="grid gap-3">
+            <Label htmlFor="submission-proof">Bukti Pengajuan</Label>
+
+            {!previewUrl ? (
+              <label className="flex h-40 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed">
+                <Upload className="h-6 w-6 text-gray-500" />
+                <p className="text-sm text-gray-500">
+                  JPG, PNG, PDF (Maks. 5MB)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  id="submission-proof"
+                  type="file"
+                  accept="image/jpeg,image/png,application/pdf"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </label>
+            ) : (
+              <div className="relative overflow-hidden rounded-2xl border">
+                {!isPdf ? (
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="max-h-64 w-full object-contain p-4"
+                  />
+                ) : (
+                  <div className="flex items-center gap-4 p-6">
+                    <FileText className="h-8 w-8 text-red-500" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold">
+                        {selectedFile?.name || "Dokumen PDF siap dikirim"}
+                      </p>
+                      {formData.proofUrl && !selectedFile ? (
+                        <a
+                          href={formData.proofUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+                        >
+                          Lihat file saat ini
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-between bg-gray-50 p-4 dark:bg-slate-900/40">
+                  <label className="cursor-pointer text-xs">
+                    Ganti File
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,application/pdf"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={removeProof}
+                    className="text-xs text-red-500"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Buttons */}

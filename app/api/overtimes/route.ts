@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
     const limit = Math.max(1, parseInt(searchParams.get("limit") || "10"));
     const search = (searchParams.get("search") || "").trim();
     const status = searchParams.get("status") || "";
+    const overtimeDate = (searchParams.get("overtimeDate") || "").trim();
+    const activeOnly = searchParams.get("activeOnly") === "true";
 
     const where: Prisma.OvertimeWhereInput = {};
     if (scopedTenantId) where.tenantId = scopedTenantId;
@@ -29,6 +31,15 @@ export async function GET(req: NextRequest) {
       ];
     }
     if (status) where.status = status;
+    if (overtimeDate) {
+      const dateValue = new Date(`${overtimeDate}T00:00:00`);
+      if (!Number.isNaN(dateValue.getTime())) {
+        where.overtimeDate = dateValue;
+      }
+    }
+    if (activeOnly) {
+      where.status = { in: ["DRAFT", "CHECKED_IN", "PENDING"] };
+    }
     if (search) {
       const currentAnd = Array.isArray(where.AND)
         ? where.AND
@@ -78,31 +89,46 @@ export async function POST(req: NextRequest) {
     const forbid = requirePermission(auth.user, "overtimes", "create");
     if (forbid) return forbid;
     const scopedTenantId = ensureTenantScope(auth.user);
-    const body = await req.json();
     const normalizedRole = auth.user.roleName.toLowerCase().replace(/\s/g, "");
     const isAdmin = ["superadmin", "admin"].includes(normalizedRole);
+    const body = await req.json();
+    const overtimeDate = String(body.overtimeDate || "").trim();
+    const description = String(body.description || "").trim();
+    const requestedUserId = String(body.userId || "").trim();
+    const finalUserId = isAdmin && requestedUserId ? requestedUserId : auth.user.id;
 
-    const required = ["userId", "overtimeDate", "startTime", "endTime", "requestedMinutes", "overtimeMinutes", "payMethod", "hourlyRate", "dailyRate", "payoutAmount"];
-    for (const key of required) {
-      if (body[key] === undefined || body[key] === null || body[key] === "") {
-        return NextResponse.json({ message: `${key} is required` }, { status: 400 });
-      }
-    }
-    if (!isAdmin && body.userId !== auth.user.id) {
-      return NextResponse.json({ message: "Anda hanya bisa mengajukan lembur untuk diri sendiri" }, { status: 403 });
+    if (!overtimeDate) {
+      return NextResponse.json({ message: "Tanggal lembur wajib diisi" }, { status: 400 });
     }
 
-    const startTime = new Date(body.startTime);
-    const endTime = new Date(body.endTime);
-    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
+    const overtimeDateValue = new Date(`${overtimeDate}T00:00:00`);
+    if (Number.isNaN(overtimeDateValue.getTime())) {
+      return NextResponse.json({ message: "Format tanggal lembur tidak valid" }, { status: 400 });
+    }
+
+    const existing = await prisma.overtime.findFirst({
+      where: {
+        userId: finalUserId,
+        ...(scopedTenantId ? { tenantId: scopedTenantId } : { tenantId: null }),
+        overtimeDate: overtimeDateValue,
+        status: { in: ["DRAFT", "CHECKED_IN", "PENDING"] },
+      },
+      select: { id: true },
+    });
+    if (existing) {
       return NextResponse.json(
-        { message: "Format jam lembur tidak valid" },
-        { status: 400 },
+        { message: "Sudah ada pengajuan lembur aktif pada tanggal tersebut" },
+        { status: 409 },
       );
     }
-    if (endTime <= startTime) {
+
+    const approverConfigs = await prisma.overtimeApproverConfig.findMany({
+      where: scopedTenantId ? { tenantId: scopedTenantId } : { tenantId: null },
+      select: { approverUserId: true },
+    });
+    if (!approverConfigs.length) {
       return NextResponse.json(
-        { message: "Jam selesai harus setelah jam mulai" },
+        { message: "Belum ada approver lembur yang dikonfigurasi" },
         { status: 400 },
       );
     }
@@ -110,28 +136,41 @@ export async function POST(req: NextRequest) {
     const overtime = await prisma.overtime.create({
       data: {
         tenantId: scopedTenantId,
-        userId: body.userId,
-        attendanceId: body.attendanceId || null,
-        overtimeDate: new Date(body.overtimeDate),
-        startTime,
-        endTime,
-        overtimeMinutes: Number(body.overtimeMinutes),
-        requestedMinutes: Number(body.requestedMinutes),
-        description: body.description || null,
-        payMethod: String(body.payMethod),
-        hourlyRate: Number(body.hourlyRate),
-        dailyRate: Number(body.dailyRate),
-        payoutAmount: Number(body.payoutAmount),
-        status: "PENDING",
+        userId: finalUserId,
+        attendanceId: null,
+        overtimeDate: overtimeDateValue,
+        startTime: null,
+        endTime: null,
+        overtimeMinutes: 0,
+        requestedMinutes: 0,
+        description: description || null,
+        payMethod: "PER_HOUR",
+        hourlyRate: 0,
+        dailyRate: 0,
+        payoutAmount: 0,
+        status: "DRAFT",
+        approvalDecisions: {
+          createMany: {
+            data: approverConfigs.map((item) => ({
+              approverUserId: item.approverUserId,
+              status: "PENDING",
+            })),
+          },
+        },
       },
       include: {
         user: { select: { id: true, name: true } },
         attendance: { select: { id: true, date: true, checkIn: true, checkOut: true } },
+        approvalDecisions: {
+          include: { approverUser: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 
     return NextResponse.json({ message: "Overtime created", data: overtime }, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("CREATE OVERTIME ERROR:", error);
     return NextResponse.json({ message: "Failed to create overtime" }, { status: 500 });
   }
 }

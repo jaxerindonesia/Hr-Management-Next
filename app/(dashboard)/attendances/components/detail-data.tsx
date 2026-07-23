@@ -17,12 +17,17 @@ export default function DetailData({
   const statusLabel: Record<string, string> = {
     "On Time": "Tepat Waktu",
     Present: "Hadir",
+    Lembur: "Lembur",
     Late: "Terlambat",
     "Late - Present": "Telat - Hadir",
     "Late - Half Day": "Telat - Setengah Hari",
     Absent: "Tidak Hadir",
     "Half Day": "Setengah Hari",
   };
+
+  const isOvertimeAttendance =
+    initialData.status === "Lembur" ||
+    initialData.notes?.toLowerCase().includes("from overtime");
 
   const cardDetail = (
     title: string,
@@ -180,6 +185,12 @@ export default function DetailData({
               </div>
             </div>
           </div>
+
+          {isOvertimeAttendance ? (
+            <div className="mt-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300">
+              Attendance ini berasal dari integrasi lembur.
+            </div>
+          ) : null}
 
           {cardDetail(
             "Riwayat Kehadiran",

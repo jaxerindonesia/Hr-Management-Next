@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { CheckCircle, Download, Edit, Filter, Plus, Settings, Trash2, X, XCircle } from "lucide-react";
+import { CheckCircle, Download, Edit, ExternalLink, Filter, Plus, Settings, Trash2, X, XCircle } from "lucide-react";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,6 +90,24 @@ export const columnFormats: DefaultColumnFormat<SubmissionDto>[] = [
     key: "reason",
     title: "Alasan Pengajuan",
     formatter: (value) => value || "-",
+  },
+  {
+    key: "proofUrl",
+    title: "Bukti Pengajuan",
+    formatter: (value) =>
+      value ? (
+        <a
+          href={String(value)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+        >
+          Lihat Bukti
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      ) : (
+        "-"
+      ),
   },
   {
     key: "approvalConfigDecisions",
