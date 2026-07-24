@@ -14,6 +14,9 @@ import { Label } from "@/components/ui/label";
 import type { OvertimeDto } from "@/lib/dto/overtime";
 import { toast } from "sonner";
 
+const MAX_PROOF_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_PROOF_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+
 export default function CheckoutModal({
   isOpen,
   overtime,
@@ -51,14 +54,15 @@ export default function CheckoutModal({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > MAX_PROOF_FILE_SIZE) {
       toast.error("Ukuran file maksimal 5MB");
+      event.target.value = "";
       return;
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-    if (!allowedTypes.includes(file.type)) {
+    if (!ALLOWED_PROOF_TYPES.includes(file.type)) {
       toast.error("Format file tidak didukung");
+      event.target.value = "";
       return;
     }
 
@@ -86,6 +90,14 @@ export default function CheckoutModal({
   };
 
   const isPdf = previewUrl === "pdf";
+  const handleSubmit = () => {
+    if (selectedFile && selectedFile.size > MAX_PROOF_FILE_SIZE) {
+      toast.error("Ukuran file maksimal 5MB");
+      return;
+    }
+
+    onSubmit(selectedFile);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -169,7 +181,7 @@ export default function CheckoutModal({
             <Button
               type="button"
               disabled={loading}
-              onClick={() => onSubmit(selectedFile)}
+              onClick={handleSubmit}
             >
               {loading ? "Memproses..." : "Lanjut Check Out"}
             </Button>
