@@ -5,6 +5,7 @@ import DynamicPage from "@/components/dynamic-page";
 import { PerformanceDto } from "@/lib/dto/performance";
 import { toast } from "sonner";
 import FormData from "./components/form-data";
+import SlipPerformanceModal from "./components/slip-performance-modal";
 import { usePermission } from "@/lib/helper/check-role";
 import { parseApiError } from "@/lib/helper/response-api";
 import {
@@ -39,6 +40,9 @@ export default function PerformancePage() {
   const [detailItem, setDetailItem] = useState<PerformanceDto | undefined>(
     undefined,
   );
+  const [printItem, setPrintItem] = useState<PerformanceDto | undefined>(undefined);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printLoading, setPrintLoading] = useState(false);
 
   const [filterPeriod, setFilterPeriod] = useState<string>("all");
   const [filterScore, setFilterScore] = useState<string>("all");
@@ -77,6 +81,12 @@ export default function PerformancePage() {
   const handleCloseModal = useCallback(() => {
     setShowModal(false);
     setDetailItem(undefined);
+  }, []);
+
+  const handleClosePrintModal = useCallback(() => {
+    setShowPrintModal(false);
+    setPrintItem(undefined);
+    setPrintLoading(false);
   }, []);
 
   const fetchPerformances = useCallback(async () => {
@@ -194,6 +204,31 @@ export default function PerformancePage() {
     }
   }, [debouncedSearchTerm, filterPeriod, filterScore]);
 
+  const handlePrint = useCallback(async (item: PerformanceDto) => {
+    if (!item.id) return;
+
+    try {
+      setShowPrintModal(true);
+      setPrintLoading(true);
+      const res = await fetch(`/api/performances/${item.id}`);
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil detail penilaian"),
+        );
+      }
+
+      const json = await res.json();
+      setPrintItem(json);
+    } catch (error) {
+      setShowPrintModal(false);
+      toast.error(
+        error instanceof Error ? error.message : "Gagal membuka slip penilaian",
+      );
+    } finally {
+      setPrintLoading(false);
+    }
+  }, []);
+
   const toolbar = useMemo(
     () =>
       headerToolbar({
@@ -264,6 +299,7 @@ export default function PerformancePage() {
             row,
             checkRole,
             onView,
+            onPrint: handlePrint,
             onDelete: handleDelete,
             deleteId,
             setDeleteId,
@@ -278,6 +314,13 @@ export default function PerformancePage() {
           onSuccess={fetchPerformances}
         />
       )}
+
+      <SlipPerformanceModal
+        open={showPrintModal}
+        detailItem={printItem}
+        loading={printLoading}
+        onClose={handleClosePrintModal}
+      />
     </>
   );
 }

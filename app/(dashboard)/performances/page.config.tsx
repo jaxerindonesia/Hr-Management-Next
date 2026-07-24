@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Edit, Filter, Plus, Trash2, X } from "lucide-react";
+import { Download, Edit, Filter, Plus, Printer, Trash2, X } from "lucide-react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
@@ -47,6 +47,7 @@ interface RenderActionsProps {
   row: PerformanceDto;
   checkRole: (module: string, action: string) => boolean;
   onView: (item: PerformanceDto) => void;
+  onPrint?: (item: PerformanceDto) => void;
   onDelete?: (id: string) => void;
   deleteId?: string | null;
   setDeleteId?: React.Dispatch<React.SetStateAction<string | null>>;
@@ -239,7 +240,7 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
               onChange={(event) =>
                 filters.setPeriod(event.target.value || "all")
               }
-              placeholder="Contoh: Q1 2024"
+              placeholder="Contoh: 2026-07"
               className="w-full rounded-lg border bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
@@ -271,19 +272,32 @@ export const renderActions = ({
   row,
   checkRole,
   onView,
+  onPrint,
   onDelete,
   deleteId,
   setDeleteId,
 }: RenderActionsProps) => (
   <div className="flex justify-end gap-2">
+    {checkRole(modelName, "get-by-id") && onPrint && (
+      <Button
+        onClick={() => onPrint(row)}
+        variant="ghost"
+        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" 
+        title="Cetak"
+      >
+        <Printer className="h-4 w-4" />
+      </Button>
+    )}
+
     {checkRole(modelName, "update") && (
-      <button
+      <Button
+        variant="ghost"
+        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
         onClick={() => onView(row)}
-        className="rounded-lg p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
         title="Edit"
       >
         <Edit className="h-4 w-4" />
-      </button>
+      </Button>
     )}
 
     {checkRole(modelName, "delete") && onDelete && (
@@ -292,9 +306,9 @@ export const renderActions = ({
         onOpenChange={(open) => setDeleteId?.(open ? row.id ?? null : null)}
       >
         <PopoverTrigger asChild>
-          <button className="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+          <Button variant="ghost" className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
             <Trash2 className="h-4 w-4" />
-          </button>
+          </Button>
         </PopoverTrigger>
 
         <PopoverContent className="w-56 space-y-3">

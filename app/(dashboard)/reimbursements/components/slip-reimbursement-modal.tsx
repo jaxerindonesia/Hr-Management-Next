@@ -16,6 +16,10 @@ type TenantConfig = {
   companyName?: string | null;
   companyUrl?: string | null;
   logoUrl?: string | null;
+  logoDarkUrl?: string | null;
+  tenantName?: string | null;
+  tenantLogoUrl?: string | null;
+  tenantLogoDarkUrl?: string | null;
 };
 
 export default function SlipReimbursementModal({
@@ -33,9 +37,10 @@ export default function SlipReimbursementModal({
 
       const parsed = JSON.parse(raw) as TenantConfig;
       setTenantConfig({
-        companyName: parsed.companyName ?? null,
+        companyName: parsed.companyName ?? parsed.tenantName ?? null,
         companyUrl: parsed.companyUrl ?? null,
-        logoUrl: parsed.logoUrl ?? null,
+        logoUrl: parsed.logoUrl ?? parsed.tenantLogoUrl ?? null,
+        logoDarkUrl: parsed.logoDarkUrl ?? parsed.tenantLogoDarkUrl ?? null,
       });
     } catch {
       setTenantConfig(null);
@@ -198,7 +203,12 @@ function SlipContent({
 
   const companyName = tenantConfig?.companyName?.trim() || "JAXER GRUP INDONESIA";
   const companyUrl = tenantConfig?.companyUrl?.trim() || "";
-  const companyLogo = tenantConfig?.logoUrl || "/logo22.png";
+  const companyLogo =
+    tenantConfig?.logoDarkUrl ||
+    tenantConfig?.logoUrl ||
+    tenantConfig?.tenantLogoDarkUrl ||
+    tenantConfig?.tenantLogoUrl ||
+    "/logo22.png";
 
   const statusConfig = isApproved
     ? { label: "Dokumen Disetujui", color: "bg-green-100 text-green-700", Icon: CheckCircle }
@@ -220,11 +230,11 @@ function SlipContent({
       >
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white/10 backdrop-blur-md">
+            <div className="flex h-12 items-center overflow-hidden">
               <img
                 src={companyLogo}
                 alt={`Logo ${companyName}`}
-                className="h-full w-full object-contain"
+                className="max-h-12 max-w-24 object-contain"
               />
             </div>
             <div>

@@ -17,6 +17,10 @@ type TenantConfig = {
     companyName?: string | null;
     companyUrl?: string | null;
     logoUrl?: string | null;
+    logoDarkUrl?: string | null;
+    tenantName?: string | null;
+    tenantLogoUrl?: string | null;
+    tenantLogoDarkUrl?: string | null;
 };
 
 export default function SlipGajiModal({
@@ -37,9 +41,10 @@ export default function SlipGajiModal({
 
             const parsed = JSON.parse(raw) as TenantConfig;
             setTenantConfig({
-                companyName: parsed.companyName ?? null,
+                companyName: parsed.companyName ?? parsed.tenantName ?? null,
                 companyUrl: parsed.companyUrl ?? null,
-                logoUrl: parsed.logoUrl ?? null,
+                logoUrl: parsed.logoUrl ?? parsed.tenantLogoUrl ?? null,
+                logoDarkUrl: parsed.logoDarkUrl ?? parsed.tenantLogoDarkUrl ?? null,
             });
         } catch {
             setTenantConfig(null);
@@ -184,7 +189,12 @@ function SlipContent({
     const takeHomePay = payroll.basicSalary + payroll.allowances - payroll.deductions;
     const companyName = tenantConfig?.companyName?.trim() || "JAXER GRUP INDONESIA";
     const companyUrl = tenantConfig?.companyUrl?.trim() || "";
-    const companyLogo = tenantConfig?.logoUrl || "/logo22.png";
+    const companyLogo =
+        tenantConfig?.logoDarkUrl ||
+        tenantConfig?.logoUrl ||
+        tenantConfig?.tenantLogoDarkUrl ||
+        tenantConfig?.tenantLogoUrl ||
+        "/logo22.png";
     const isPaid = payroll.status === "PAID";
     const generatedAtLabel = new Date().toLocaleString("id-ID", {
         day: "numeric",
@@ -222,11 +232,11 @@ function SlipContent({
             >
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center overflow-hidden">
+                        <div className="flex h-12 items-center overflow-hidden">
                             <img
                                 src={companyLogo}
                                 alt={`Logo ${companyName}`}
-                                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                style={{ maxWidth: "96px", maxHeight: "48px", objectFit: "contain" }}
                             />
                         </div>
 
