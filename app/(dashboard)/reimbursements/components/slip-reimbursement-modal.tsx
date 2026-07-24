@@ -70,15 +70,36 @@ export default function SlipReimbursementModal({
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           ${styles}
           <style>
+            @page {
+              size: A4 portrait;
+              margin: 10mm;
+            }
             html, body {
               margin: 0 !important;
               padding: 0 !important;
               background: white !important;
             }
+            body {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
             #reimburse-print-area {
-              width: 100% !important;
-              max-width: 100% !important;
+              width: 190mm !important;
+              max-width: 190mm !important;
+              margin: 0 auto !important;
               box-sizing: border-box !important;
+              page-break-inside: avoid !important;
+            }
+            #reimburse-print-area img {
+              max-width: 100% !important;
+              height: auto !important;
+            }
+            #reimburse-print-area table,
+            #reimburse-print-area tr,
+            #reimburse-print-area td,
+            #reimburse-print-area th,
+            #reimburse-print-area div {
+              page-break-inside: avoid !important;
             }
           </style>
         </head>
@@ -154,6 +175,19 @@ function SlipContent({
   reimbursement: ReimbursementDto;
   tenantConfig?: TenantConfig | null;
 }) {
+  const generatedAtLabel = new Date().toLocaleString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const referenceNumber =
+    reimbursement.referenceNumber ||
+    (reimbursement.createdAt
+      ? `RBM-${new Date(reimbursement.createdAt).getFullYear()}-${String(reimbursement.id || "").slice(0, 8).toUpperCase()}`
+      : `RBM-${String(reimbursement.id || "").slice(0, 8).toUpperCase()}`);
   const normalizedStatus = String(reimbursement.status || "").toUpperCase();
   const isApproved = normalizedStatus === "APPROVED";
   const isRejected = normalizedStatus === "REJECTED";
@@ -167,9 +201,9 @@ function SlipContent({
   const companyLogo = tenantConfig?.logoUrl || "/logo22.png";
 
   const statusConfig = isApproved
-    ? { label: "Disetujui", color: "bg-green-100 text-green-700", Icon: CheckCircle }
+    ? { label: "Dokumen Disetujui", color: "bg-green-100 text-green-700", Icon: CheckCircle }
     : isRejected
-      ? { label: "Ditolak", color: "bg-red-100 text-red-700", Icon: XCircle }
+      ? { label: "Dokumen Ditolak", color: "bg-red-100 text-red-700", Icon: XCircle }
       : { label: "Menunggu Persetujuan", color: "bg-yellow-100 text-yellow-700", Icon: Clock };
 
   const { label, color, Icon } = statusConfig;
@@ -213,36 +247,44 @@ function SlipContent({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 border-b border-blue-100 bg-blue-50 px-8 py-5">
-        <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Nama Karyawan</p>
-          <p className="text-base font-bold text-gray-900">{reimbursement.user?.name ?? "-"}</p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Jabatan / Departemen</p>
-          <p className="text-base font-semibold text-gray-800">
-            {reimbursement.user?.position ?? "-"} / {departmentLabel ?? "-"}
-          </p>
-        </div>
-        <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Status</p>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${color}`}>
-            <Icon className="h-3.5 w-3.5" />
-            {label}
-          </span>
-        </div>
-        {isApproved && reimbursement.approvedAt ? (
-          <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Tanggal Disetujui</p>
+        <div className="border-b border-blue-100 bg-blue-50 px-8 py-5">
+        <div className="flex items-start justify-between gap-6">
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Nama Karyawan</p>
+            <p className="text-base font-bold text-gray-900">{reimbursement.user?.name ?? "-"}</p>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Jabatan / Departemen</p>
             <p className="text-base font-semibold text-gray-800">
-              {new Date(reimbursement.approvedAt).toLocaleDateString("id-ID", {
+              {reimbursement.user?.position ?? "-"} / {departmentLabel ?? "-"}
+            </p>
+          </div>
+          <div className="min-w-0 flex-1 text-right">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${color}`}>
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </span>
+          </div>
+        </div>
+        <div className="mt-5 flex items-start justify-between gap-6">
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              {isApproved && reimbursement.approvedAt ? "Tanggal Disetujui" : "Tanggal Dokumen"}
+            </p>
+            <p className="text-base font-semibold text-gray-800">
+              {new Date(isApproved && reimbursement.approvedAt ? reimbursement.approvedAt : reimbursement.date).toLocaleDateString("id-ID", {
                 day: "numeric",
                 month: "long",
                 year: "numeric",
               })}
             </p>
           </div>
-        ) : null}
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Nomor Referensi</p>
+            <p className="text-base font-semibold text-gray-800">{referenceNumber}</p>
+          </div>
+          <div className="flex-1" />
+        </div>
       </div>
 
       <div className="px-8 py-5">
@@ -275,6 +317,18 @@ function SlipContent({
                   month: "long",
                   year: "numeric",
                 })}
+              </td>
+            </tr>
+            <tr>
+              <td className="py-3 text-sm text-gray-700">Bank Tujuan</td>
+              <td className="py-3 text-right text-sm font-medium text-gray-900">
+                {reimbursement.bankName || "-"}
+              </td>
+            </tr>
+            <tr>
+              <td className="py-3 text-sm text-gray-700">No. Rekening</td>
+              <td className="py-3 text-right text-sm font-medium text-gray-900">
+                {reimbursement.accountNumber || "-"}
               </td>
             </tr>
             {reimbursement.description ? (
@@ -316,32 +370,32 @@ function SlipContent({
             <img
               src={reimbursement.receiptUrl}
               alt="Struk pembayaran"
-              className="max-h-60 rounded-lg border border-gray-200 object-contain"
+              className="max-h-32 rounded-lg border border-gray-200 object-contain"
             />
           )}
         </div>
       ) : null}
 
       <div className="border-t border-gray-100 px-8 pb-8 pt-2">
-        <div className="mt-6 flex items-end justify-between">
-          <div className="text-center">
-            <p className="mb-16 text-xs text-gray-400">Pemohon,</p>
-            <div className="w-40 border-t border-gray-400 pt-1">
-              <p className="text-xs font-medium text-gray-600">{reimbursement.user?.name ?? "Karyawan"}</p>
-            </div>
-          </div>
-          <div className="text-center">
-            <p className="mb-16 text-xs text-gray-400">Menyetujui,</p>
-            <div className="w-40 border-t border-gray-400 pt-1">
-              <p className="text-xs font-medium text-gray-600">HRD Manager</p>
-            </div>
+        <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+            Validasi Dokumen
+          </p>
+          <div className="mt-2 grid gap-2 text-sm text-slate-700">
+            <p>
+              Dokumen ini valid berdasarkan status reimbursement di sistem:{" "}
+              <span className="font-semibold">{label}</span>.
+            </p>
+            <p>
+              Waktu slip dibuka/dicetak:{" "}
+              <span className="font-semibold">{generatedAtLabel}</span>.
+            </p>
           </div>
         </div>
 
         <p className="mt-6 text-center text-xs text-gray-400">
           Dokumen ini dibuat secara otomatis oleh sistem HR {companyName}.
           {companyUrl ? ` Informasi perusahaan: ${companyUrl}.` : ""}
-          Bukti reimbursement ini sah tanpa tanda tangan basah.
         </p>
       </div>
     </div>

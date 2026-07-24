@@ -1,10 +1,13 @@
 export interface ReimbursementDto {
     id?: string | null;
+    referenceNumber?: string | null;
     userId: string;
     title: string;
     category: string;
     amount: number;
     date: string;
+    bankName?: string | null;
+    accountNumber?: string | null;
     description?: string | null;
     receiptUrl?: string | null;
     status: string;

@@ -183,8 +183,29 @@ function SlipContent({
 }) {
     const takeHomePay = payroll.basicSalary + payroll.allowances - payroll.deductions;
     const companyName = tenantConfig?.companyName?.trim() || "JAXER GRUP INDONESIA";
+    const companyUrl = tenantConfig?.companyUrl?.trim() || "";
     const companyLogo = tenantConfig?.logoUrl || "/logo22.png";
     const isPaid = payroll.status === "PAID";
+    const generatedAtLabel = new Date().toLocaleString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    });
+    const referenceNumber =
+        payroll.referenceNumber ||
+        (payroll.createdAt
+            ? `PYR-${new Date(payroll.createdAt).getFullYear()}-${String(payroll.id || "").slice(0, 8).toUpperCase()}`
+            : `PYR-${String(payroll.id || "").slice(0, 8).toUpperCase()}`);
+    const paymentStatusLabel = isPaid ? "Slip Sudah Dibayar" : "Slip Menunggu Pembayaran";
+    const earningComponents = (payroll.componentValues || []).filter(
+        (item) => item.typeSnapshot === "EARNING",
+    );
+    const deductionComponents = (payroll.componentValues || []).filter(
+        (item) => item.typeSnapshot === "DEDUCTION",
+    );
 
     return (
         <div
@@ -224,53 +245,38 @@ function SlipContent({
             </div>
 
             {/* ---- Employee Info ---- */}
-            <div className="px-8 py-5 bg-blue-50 border-b border-blue-100 grid grid-cols-2 gap-4">
-                <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">
-                        Nama Karyawan
-                    </p>
-                    <p className="text-base font-bold text-gray-900">
-                        {payroll.user?.name ?? "-"}
-                    </p>
-                </div>
-                <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">
-                        Status Pembayaran
-                    </p>
-                    <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isPaid
-                            ? "bg-green-100 text-green-700"
-                            : "bg-yellow-100 text-yellow-700"
-                            }`}
-                    >
-                        {isPaid ? (
-                            <CheckCircle className="w-3.5 h-3.5" />
-                        ) : (
-                            <Clock className="w-3.5 h-3.5" />
-                        )}
-                        {isPaid ? "Sudah Dibayar" : "Menunggu Pembayaran"}
-                    </span>
-                </div>
-                <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">
-                        Periode
-                    </p>
-                    <p className="text-base font-semibold text-gray-800">{periodLabel}</p>
-                </div>
-                {payroll.paidAt && isPaid && (
-                    <div>
+            <div className="px-8 py-5 bg-blue-50 border-b border-blue-100">
+                <div className="flex items-start justify-between gap-6">
+                    <div className="min-w-0 flex-1">
                         <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">
-                            Tanggal Dibayar
+                            Nama Karyawan
                         </p>
-                        <p className="text-base font-semibold text-gray-800">
-                            {new Date(payroll.paidAt).toLocaleDateString("id-ID", {
-                                day: "numeric",
-                                month: "long",
-                                year: "numeric",
-                            })}
+                        <p className="text-base font-bold text-gray-900">
+                            {payroll.user?.name ?? "-"}
                         </p>
                     </div>
-                )}
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">
+                            Nomor Referensi
+                        </p>
+                        <p className="text-base font-semibold text-gray-800">{referenceNumber}</p>
+                    </div>
+                    <div className="min-w-0 flex-1 text-right">
+                        <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isPaid
+                                ? "bg-green-100 text-green-700"
+                                : "bg-yellow-100 text-yellow-700"
+                                }`}
+                        >
+                            {isPaid ? (
+                                <CheckCircle className="w-3.5 h-3.5" />
+                            ) : (
+                                <Clock className="w-3.5 h-3.5" />
+                            )}
+                            {isPaid ? "Sudah Dibayar" : "Menunggu Pembayaran"}
+                        </span>
+                    </div>
+                </div>
             </div>
 
             {/* ---- Salary Breakdown ---- */}
@@ -307,6 +313,14 @@ function SlipContent({
                                 + {formatCurrency(payroll.allowances)}
                             </td>
                         </tr>
+                        {earningComponents.map((item) => (
+                            <tr key={item.id || item.nameSnapshot}>
+                                <td className="py-2 pl-8 text-sm text-gray-600">{item.nameSnapshot}</td>
+                                <td className="py-2 text-right text-sm text-gray-700">
+                                    + {formatCurrency(item.amount)}
+                                </td>
+                            </tr>
+                        ))}
 
                         {/* Potongan */}
                         <tr>
@@ -322,6 +336,14 @@ function SlipContent({
                                 - {formatCurrency(payroll.deductions)}
                             </td>
                         </tr>
+                        {deductionComponents.map((item) => (
+                            <tr key={item.id || item.nameSnapshot}>
+                                <td className="py-2 pl-8 text-sm text-gray-600">{item.nameSnapshot}</td>
+                                <td className="py-2 text-right text-sm text-gray-700">
+                                    - {formatCurrency(item.amount)}
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
 
@@ -341,26 +363,25 @@ function SlipContent({
 
             {/* ---- Footer / Signature ---- */}
             <div className="px-8 pb-8 pt-2 border-t border-gray-100">
-                <div className="flex justify-between items-end mt-6">
-                    <div className="text-center">
-                        <p className="text-xs text-gray-400 mb-16">Penerima Gaji,</p>
-                        <div className="border-t border-gray-400 pt-1 w-40">
-                            <p className="text-xs text-gray-600 font-medium">
-                                {payroll.user?.name ?? "Karyawan"}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-xs text-gray-400 mb-16">Mengetahui,</p>
-                        <div className="border-t border-gray-400 pt-1 w-40">
-                            <p className="text-xs text-gray-600 font-medium">HRD Manager</p>
-                        </div>
+                <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                        Validasi Dokumen
+                    </p>
+                    <div className="mt-2 grid gap-2 text-sm text-slate-700">
+                        <p>
+                            Dokumen ini valid berdasarkan status payroll di sistem:{" "}
+                            <span className="font-semibold">{paymentStatusLabel}</span>.
+                        </p>
+                        <p>
+                            Waktu slip dibuka/dicetak:{" "}
+                            <span className="font-semibold">{generatedAtLabel}</span>.
+                        </p>
                     </div>
                 </div>
 
                 <p className="text-center text-xs text-gray-400 mt-6">
                     Dokumen ini dibuat secara otomatis oleh sistem HR {companyName}.
-                    Slip gaji ini sah tanpa tanda tangan basah.
+                    {companyUrl ? ` Informasi perusahaan: ${companyUrl}.` : ""}
                 </p>
             </div>
         </div>

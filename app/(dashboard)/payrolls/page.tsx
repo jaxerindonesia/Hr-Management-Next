@@ -6,6 +6,7 @@ import { PayrollDto } from "@/lib/dto/payroll";
 import { toast } from "sonner";
 import FormData from "./components/form-data";
 import SlipGajiModal from "./components/slip-gaji-modal";
+import PayrollComponentConfigModal from "./components/payroll-component-config-modal";
 import { usePermission } from "@/lib/helper/check-role";
 import { months } from "@/lib/helper/date";
 import { ITEMS_PER_PAGE, columnFormats, headerToolbar, renderActions } from "./page.config";
@@ -33,6 +34,7 @@ export default function Page() {
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const currentYear = new Date().getFullYear();
@@ -140,6 +142,7 @@ export default function Page() {
 
       const rows = allData.map((emp) => ({
         "Nama Karyawan": emp.user?.name ?? "-",
+        "Nomor Referensi": emp.referenceNumber ?? "-",
         Periode: `${months.find((m) => m.value === emp.month)?.label ?? emp.month} ${emp.year}`,
         "Gaji Pokok": emp.basicSalary,
         Tunjangan: emp.allowances,
@@ -170,6 +173,7 @@ export default function Page() {
       actions: {
         onAdd,
         onExport,
+        onOpenConfig: () => setShowConfigModal(true),
         checkRole,
         isExporting,
       },
@@ -312,6 +316,11 @@ export default function Page() {
           setDetailItem(undefined);
         }}
         loading={loading}
+      />
+
+      <PayrollComponentConfigModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
       />
     </>
   );

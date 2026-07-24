@@ -5,6 +5,38 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { AUTO_OVERTIME_COMPONENT_NAME } from "@/lib/constants/payroll";
+import {
+  getApprovedOvertimePayoutSummary,
+} from "@/lib/helper/payroll-overtime";
+
+function normalizeComponentValues(items: unknown[], basicSalary: number) {
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const row = item as Record<string, unknown>;
+    const inputTypeSnapshot = String(row.inputTypeSnapshot || row.inputType || "MANUAL").toUpperCase();
+    const baseValue =
+      inputTypeSnapshot === "PERCENTAGE"
+        ? Number(row.baseValue ?? row.amount ?? 0)
+        : null;
+    const amount =
+      inputTypeSnapshot === "PERCENTAGE"
+        ? (basicSalary * Number(row.baseValue ?? row.amount ?? 0)) / 100
+        : Number(row.amount || 0);
+
+    return {
+      componentConfigId: row.componentConfigId ? String(row.componentConfigId) : null,
+      nameSnapshot: String(row.nameSnapshot || row.name || "").trim(),
+      typeSnapshot: String(row.typeSnapshot || row.type || "").toUpperCase(),
+      inputTypeSnapshot,
+      amount: Number.isFinite(amount) ? amount : 0,
+      baseValue: baseValue !== null && Number.isFinite(baseValue) ? baseValue : null,
+    };
+  }).filter((item) =>
+    item.nameSnapshot &&
+    item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME &&
+    ["EARNING", "DEDUCTION"].includes(item.typeSnapshot),
+  );
+}
 
 type Params = {
   params: {
@@ -24,6 +56,9 @@ export async function GET(_: Request, { params }: Params) {
     const item = await prisma.payroll.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
       include: {
+        componentValues: {
+          orderBy: { createdAt: "asc" },
+        },
         user: {
           select: { id: true, name: true, position: true, department: true },
         },
@@ -57,33 +92,85 @@ export async function PUT(req: Request, { params }: Params) {
 
     const existing = await prisma.payroll.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
-      select: { id: true },
+      select: { id: true, userId: true, month: true, year: true, tenantId: true },
     });
     if (!existing) return NextResponse.json({ message: "Payroll not found" }, { status: 404 });
 
     const body = await req.json();
 
     const updateData: any = {};
+    const basicSalary = Number(body.basicSalary ?? 0);
+    const componentValues = normalizeComponentValues(body.componentValues, basicSalary);
+    const targetUserId = String(body.userId || existing.userId);
+    const targetMonth = Number(body.month ?? existing.month);
+    const targetYear = Number(body.year ?? existing.year);
+    const targetTenantId = scopedTenantId ?? existing.tenantId ?? null;
+    const overtimeSummary = await getApprovedOvertimePayoutSummary({
+      tenantId: targetTenantId,
+      userId: targetUserId,
+      month: targetMonth,
+      year: targetYear,
+    });
+    if (overtimeSummary.totalAmount > 0) {
+      componentValues.push({
+        componentConfigId: null,
+        nameSnapshot: AUTO_OVERTIME_COMPONENT_NAME,
+        typeSnapshot: "EARNING",
+        inputTypeSnapshot: "FIXED",
+        amount: overtimeSummary.totalAmount,
+        baseValue: null,
+      });
+    }
+    const allowances = componentValues
+      .filter((item) => item.typeSnapshot === "EARNING")
+      .reduce((sum, item) => sum + item.amount, 0);
+    const deductions = componentValues
+      .filter((item) => item.typeSnapshot === "DEDUCTION")
+      .reduce((sum, item) => sum + item.amount, 0);
+    const totalSalary = basicSalary + allowances - deductions;
 
-    const totalSalary = body.basicSalary + body.allowances - body.deductions;
     updateData.totalSalary = totalSalary;
 
-    if (body.month) updateData.month = body.month;
-    if (body.year) updateData.year = body.year;
-    if (body.basicSalary) updateData.basicSalary = body.basicSalary;
-    if (body.allowances) updateData.allowances = body.allowances;
-    if (body.deductions) updateData.deductions = body.deductions;
-    if (body.status) updateData.status = body.status;
+    if (body.month !== undefined) updateData.month = body.month;
+    if (body.year !== undefined) updateData.year = body.year;
+    if (body.userId !== undefined) updateData.userId = targetUserId;
+    if (body.basicSalary !== undefined) updateData.basicSalary = basicSalary;
+    updateData.allowances = allowances;
+    updateData.deductions = deductions;
+    if (body.status !== undefined) updateData.status = body.status;
     if (body.paidAt) updateData.paidAt = new Date(body.paidAt);
 
-    const payroll = await prisma.payroll.update({
-      where: { id: p.id },
-      data: updateData,
-    });
+    const [payroll] = await prisma.$transaction([
+      prisma.payroll.update({
+        where: { id: p.id },
+        data: updateData,
+      }),
+      prisma.payrollComponentValue.deleteMany({
+        where: { payrollId: p.id },
+      }),
+      ...(componentValues.length > 0
+        ? [
+            prisma.payrollComponentValue.createMany({
+              data: componentValues.map((item) => ({
+                payrollId: p.id,
+                componentConfigId: item.componentConfigId,
+                nameSnapshot: item.nameSnapshot,
+                typeSnapshot: item.typeSnapshot,
+                inputTypeSnapshot: item.inputTypeSnapshot,
+                amount: item.amount,
+                baseValue: item.baseValue,
+              })),
+            }),
+          ]
+        : []),
+    ]);
 
     return NextResponse.json({
       message: "Payroll successfully updated",
-      data: payroll,
+      data: {
+        ...payroll,
+        componentValues,
+      },
     });
   } catch (error) {
     return NextResponse.json(

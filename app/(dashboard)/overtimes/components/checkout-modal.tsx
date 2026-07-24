@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import type { OvertimeDto } from "@/lib/dto/overtime";
 import { toast } from "sonner";
 
-const MAX_PROOF_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_PROOF_FILE_SIZE = 3 * 1024 * 1024;
 const ALLOWED_PROOF_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 export default function CheckoutModal({
@@ -33,11 +33,16 @@ export default function CheckoutModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileError, setFileError] = useState("");
 
   useEffect(() => {
     if (!isOpen) {
       setSelectedFile(null);
       setPreviewUrl(null);
+      setFileError("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       return;
     }
   }, [isOpen]);
@@ -55,13 +60,17 @@ export default function CheckoutModal({
     if (!file) return;
 
     if (file.size > MAX_PROOF_FILE_SIZE) {
-      toast.error("Ukuran file maksimal 5MB");
+      const message = "Ukuran file bukti maksimal 3MB";
+      setFileError(message);
+      toast.error(message);
       event.target.value = "";
       return;
     }
 
     if (!ALLOWED_PROOF_TYPES.includes(file.type)) {
-      toast.error("Format file tidak didukung");
+      const message = "Format file tidak didukung";
+      setFileError(message);
+      toast.error(message);
       event.target.value = "";
       return;
     }
@@ -71,11 +80,19 @@ export default function CheckoutModal({
     }
 
     setSelectedFile(file);
+    setFileError("");
     if (file.type.startsWith("image/")) {
       setPreviewUrl(URL.createObjectURL(file));
       return;
     }
     setPreviewUrl("pdf");
+  };
+
+  const openFilePicker = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
   };
 
   const removeFile = () => {
@@ -84,6 +101,7 @@ export default function CheckoutModal({
     }
     setSelectedFile(null);
     setPreviewUrl(null);
+    setFileError("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -92,7 +110,9 @@ export default function CheckoutModal({
   const isPdf = previewUrl === "pdf";
   const handleSubmit = () => {
     if (selectedFile && selectedFile.size > MAX_PROOF_FILE_SIZE) {
-      toast.error("Ukuran file maksimal 5MB");
+      const message = "Ukuran file bukti maksimal 3MB";
+      setFileError(message);
+      toast.error(message);
       return;
     }
 
@@ -110,6 +130,14 @@ export default function CheckoutModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,application/pdf"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
           <div className="rounded-lg border bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200">
             <p className="font-medium">{overtime?.description || "Pengajuan lembur"}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -121,19 +149,19 @@ export default function CheckoutModal({
             <Label>Bukti Lembur</Label>
 
             {!previewUrl ? (
-              <label className="flex h-40 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed">
+              <button
+                type="button"
+                onClick={openFilePicker}
+                className="flex h-40 w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed"
+              >
                 <Upload className="h-6 w-6 text-gray-500" />
                 <p className="text-sm text-gray-500">
-                  JPG, PNG, PDF (Maks. 5MB)
+                  JPG, PNG, PDF (Maks. 3MB)
                 </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,application/pdf"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </label>
+                <p className="text-center text-xs text-gray-400">
+                  Upload foto saat lembur atau lampirkan file hasil pekerjaan lembur.
+                </p>
+              </button>
             ) : (
               <div className="relative overflow-hidden rounded-2xl border">
                 {!isPdf ? (
@@ -152,15 +180,13 @@ export default function CheckoutModal({
                 )}
 
                 <div className="flex justify-between bg-gray-50 p-4 dark:bg-slate-900/40">
-                  <label className="cursor-pointer text-xs">
+                  <button
+                    type="button"
+                    onClick={openFilePicker}
+                    className="text-xs"
+                  >
                     Ganti File
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,application/pdf"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-                  </label>
+                  </button>
 
                   <button
                     type="button"
@@ -172,6 +198,10 @@ export default function CheckoutModal({
                 </div>
               </div>
             )}
+
+            {fileError ? (
+              <p className="text-sm font-medium text-red-500">{fileError}</p>
+            ) : null}
           </div>
 
           <div className="flex justify-end gap-3 border-t pt-6">

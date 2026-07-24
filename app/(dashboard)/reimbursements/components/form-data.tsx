@@ -53,6 +53,7 @@ export default function ReimbursementFormData({
     initialData?.receiptUrl ?? null,
   );
   const [isReceiptRemoved, setIsReceiptRemoved] = useState(false);
+  const [fileError, setFileError] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,6 +64,8 @@ export default function ReimbursementFormData({
       category: "",
       amount: 0,
       date: "",
+      bankName: "",
+      accountNumber: "",
       description: "",
       receiptUrl: null,
       status: "PENDING",
@@ -91,7 +94,10 @@ export default function ReimbursementFormData({
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Ukuran file maksimal 5MB");
+      const message = "Ukuran file maksimal 5MB";
+      setFileError(message);
+      toast.error(message);
+      e.target.value = "";
       return;
     }
 
@@ -103,7 +109,10 @@ export default function ReimbursementFormData({
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      toast.error("Format file tidak didukung");
+      const message = "Format file tidak didukung";
+      setFileError(message);
+      toast.error(message);
+      e.target.value = "";
       return;
     }
 
@@ -114,6 +123,7 @@ export default function ReimbursementFormData({
 
     setSelectedFile(file);
     setIsReceiptRemoved(false);
+    setFileError("");
 
     if (file.type.startsWith("image/")) {
       setPreviewUrl(URL.createObjectURL(file));
@@ -130,6 +140,7 @@ export default function ReimbursementFormData({
     setSelectedFile(null);
     setPreviewUrl(null);
     setIsReceiptRemoved(true);
+    setFileError("");
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -141,6 +152,13 @@ export default function ReimbursementFormData({
     setLoading(true);
 
     try {
+      if (selectedFile && selectedFile.size > 5 * 1024 * 1024) {
+        const message = "Ukuran file maksimal 5MB";
+        setFileError(message);
+        toast.error(message);
+        return;
+      }
+
       const fd = new FormData();
 
       fd.append("userId", formData.userId || "");
@@ -148,6 +166,8 @@ export default function ReimbursementFormData({
       fd.append("category", formData.category);
       fd.append("amount", String(formData.amount));
       fd.append("date", formData.date);
+      fd.append("bankName", formData.bankName || "");
+      fd.append("accountNumber", formData.accountNumber || "");
       fd.append("description", formData.description || "");
       fd.append("status", formData.status || "PENDING");
 
@@ -205,6 +225,7 @@ export default function ReimbursementFormData({
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
+      setFileError("");
       return;
     }
 
@@ -214,10 +235,13 @@ export default function ReimbursementFormData({
       category: "",
       amount: 0,
       date: "",
+      bankName: "",
+      accountNumber: "",
       description: "",
       receiptUrl: null,
       status: "PENDING",
     });
+    setFileError("");
   }, [initialData]);
 
   const isPdf =
@@ -340,6 +364,36 @@ export default function ReimbursementFormData({
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Bank Tujuan</Label>
+                <Input
+                  placeholder="Contoh: BCA"
+                  value={formData.bankName ?? ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bankName: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>No. Rekening</Label>
+                <Input
+                  placeholder="Contoh: 1234567890"
+                  value={formData.accountNumber ?? ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      accountNumber: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
             {/* Keterangan */}
             <div className="grid gap-2">
               <Label>Keterangan (opsional)</Label>
@@ -412,6 +466,10 @@ export default function ReimbursementFormData({
                   </div>
                 </div>
               )}
+
+              {fileError ? (
+                <p className="text-sm font-medium text-red-500">{fileError}</p>
+              ) : null}
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Edit, Filter, Plus, Printer, Trash2, X } from "lucide-react";
+import { Download, Edit, Filter, Plus, Printer, Settings, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,6 +19,7 @@ interface HeaderToolbarProps {
   actions: {
     onAdd: () => void;
     onExport?: () => void;
+    onOpenConfig?: () => void;
     checkRole: (module: string, action: string) => boolean;
     isExporting: boolean;
   };
@@ -74,6 +75,12 @@ export const columnFormats: DefaultColumnFormat<PayrollDto>[] = [
     formatter: (_value, row) => `${months.find((m) => m.value === row.month)?.label ?? row.month} ${row.year}`,
   },
   {
+    key: "referenceNumber",
+    title: "Nomor Referensi",
+    textClassName: "font-medium text-slate-700 dark:text-slate-200",
+    formatter: (_value, row) => row.referenceNumber || "-",
+  },
+  {
     key: "basicSalary",
     title: "Gaji Pokok",
     textClassName: "text-slate-700 dark:text-slate-200",
@@ -114,6 +121,17 @@ export const columnFormats: DefaultColumnFormat<PayrollDto>[] = [
 export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
   <div>
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+      {actions.checkRole(modelName, "set-config") && (
+        <Button
+          onClick={actions.onOpenConfig}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <Settings className="h-4 w-4" />
+          Kelola Komponen Payroll
+        </Button>
+      )}
+
       {actions.checkRole(modelName, "create") && (
         <Button
           onClick={actions.onAdd}
@@ -175,7 +193,7 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
               type="text"
               value={filters.searchTerm}
               onChange={(e) => filters.setSearchTerm(e.target.value)}
-              placeholder="Nama karyawan..."
+              placeholder="Nama karyawan atau nomor referensi..."
               className="w-full rounded-lg border bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>

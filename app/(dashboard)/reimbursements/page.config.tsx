@@ -85,6 +85,12 @@ export const columnFormats: DefaultColumnFormat<ReimbursementDto>[] = [
     formatter: (_value, row) => row.title || "-",
   },
   {
+    key: "referenceNumber",
+    title: "Nomor Referensi",
+    textClassName: "font-medium text-slate-700 dark:text-slate-200",
+    formatter: (_value, row) => row.referenceNumber || "-",
+  },
+  {
     key: "category",
     title: "Kategori",
     textClassName: "text-slate-700 dark:text-slate-200",
@@ -106,6 +112,18 @@ export const columnFormats: DefaultColumnFormat<ReimbursementDto>[] = [
     title: "Nominal Klaim",
     textClassName: "text-slate-700 dark:text-slate-200 font-semibold",
     formatter: (_value, row) => `Rp ${row.amount.toLocaleString("id-ID") ?? "-"}`,
+  },
+  {
+    key: "bankName",
+    title: "Bank Tujuan",
+    textClassName: "text-slate-700 dark:text-slate-200",
+    formatter: (_value, row) => row.bankName || "-",
+  },
+  {
+    key: "accountNumber",
+    title: "No. Rekening",
+    textClassName: "text-slate-700 dark:text-slate-200",
+    formatter: (_value, row) => row.accountNumber || "-",
   },
   {
     key: "receiptUrl",
@@ -208,7 +226,7 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
               type="text"
               value={filters.searchTerm}
               onChange={(e) => filters.setSearchTerm(e.target.value)}
-              placeholder="Karyawan atau tujuan..."
+              placeholder="Nama karyawan, judul klaim, atau nomor referensi..."
               className="w-full rounded-lg border bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
