@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/security/audit-log";
@@ -50,7 +50,14 @@ export async function getSessionUser(): Promise<SessionValidationResult> {
   let decodedUserId: string | null = null;
 
   try {
-    token = (await cookies()).get("token")?.value || "";
+    const cookieStore = await cookies();
+    const headerStore = await headers();
+    const authHeader = headerStore.get("authorization") || "";
+    const bearerToken = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+
+    token = cookieStore.get("token")?.value || bearerToken;
     if (!token) {
       return {
         ok: false,

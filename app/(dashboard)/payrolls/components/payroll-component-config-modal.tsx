@@ -132,32 +132,32 @@ export default function PayrollComponentConfigModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!w-[calc(100vw-6rem)] !max-w-[1200px] max-h-[90vh] overflow-y-auto px-8">
+      <DialogContent className="!w-[calc(100vw-6rem)] !max-w-[1200px] max-h-[90vh] overflow-y-auto border-slate-200 px-8 dark:border-slate-800 dark:bg-slate-950">
         <DialogHeader>
           <DialogTitle>Kelola Komponen Payroll</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2 rounded-lg border bg-slate-50 p-4 text-sm text-slate-600">
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/90 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300">
             <p>
-              Atur komponen payroll yang akan otomatis muncul saat proses gaji. Komponen bisa bertipe <span className="font-medium text-slate-900">penghasilan</span> atau <span className="font-medium text-slate-900">potongan</span>.
+              Atur komponen payroll yang akan otomatis muncul saat proses gaji. Komponen bisa bertipe <span className="font-medium text-slate-900 dark:text-slate-100">penghasilan</span> atau <span className="font-medium text-slate-900 dark:text-slate-100">potongan</span>.
             </p>
             <p>
-              <span className="font-medium text-slate-900"> * Manual</span>:
+              <span className="font-medium text-slate-900 dark:text-slate-100"> * Manual</span>:
               nilai komponen diisi langsung saat membuat payroll, sehingga nominalnya bisa berbeda tiap karyawan atau periode.
             </p>
             <p>
-              <span className="font-medium text-slate-900">* Nominal Tetap</span>:
+              <span className="font-medium text-slate-900 dark:text-slate-100">* Nominal Tetap</span>:
               sistem otomatis mengisi nominal tetap dari konfigurasi ini ke payroll.
             </p>
             <p>
-              <span className="font-medium text-slate-900">* Persentase</span>:
+              <span className="font-medium text-slate-900 dark:text-slate-100">* Persentase</span>:
               sistem menghitung nominal otomatis berdasarkan persentase dari gaji pokok.
             </p>
           </div>
 
           {loading ? (
-            <div className="py-10 text-center text-sm text-slate-500">
+            <div className="py-10 text-center text-sm text-slate-500 dark:text-slate-400">
               Memuat komponen payroll...
             </div>
           ) : (
@@ -165,7 +165,7 @@ export default function PayrollComponentConfigModal({
               {items.map((item, index) => (
                 <div
                   key={item.id || `component-${index}`}
-                  className="grid gap-4 rounded-xl border p-4 md:grid-cols-[minmax(360px,3.4fr)_140px_180px_180px_56px] md:items-end"
+                  className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(360px,3.4fr)_140px_180px_180px_56px] md:items-end dark:border-slate-800 dark:bg-slate-900/50"
                 >
                   <div className="grid min-w-0 gap-2">
                     <Label>Nama Komponen</Label>
@@ -237,7 +237,7 @@ export default function PayrollComponentConfigModal({
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full text-red-600"
+                      className="w-full border-slate-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-slate-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                       onClick={() => removeItem(index)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -253,7 +253,7 @@ export default function PayrollComponentConfigModal({
             Tambah Komponen
           </Button>
 
-          <div className="flex justify-end gap-3 border-t pt-6">
+          <div className="flex justify-end gap-3 border-t border-slate-200 pt-6 dark:border-slate-800">
             <Button type="button" variant="outline" onClick={onClose}>
               Batal
             </Button>

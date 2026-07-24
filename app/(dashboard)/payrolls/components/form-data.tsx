@@ -409,10 +409,10 @@ export default function FormData({
             </div>
 
             {componentConfigs.length > 0 && (
-              <div className="space-y-4 rounded-xl border p-4">
+              <div className="space-y-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-900/40">
                 <div>
-                  <h3 className="font-semibold text-slate-900">Komponen Payroll</h3>
-                  <p className="text-sm text-slate-500">
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">Komponen Payroll</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     Komponen ini mengikuti konfigurasi payroll dan otomatis masuk ke perhitungan total gaji.
                   </p>
                 </div>
@@ -426,7 +426,7 @@ export default function FormData({
 
                     return (
                       <div key={type} className="space-y-3">
-                        <div className="text-sm font-medium text-slate-700">
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
                           {type === "EARNING" ? "Penghasilan Tambahan" : "Potongan"}
                         </div>
                         {sectionItems.map((item, index) => {
@@ -525,16 +525,16 @@ export default function FormData({
             </div>
 
             {/* Total Preview */}
-            <div className="mt-2 py-2 px-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-600 mb-1">Total Gaji:</p>
-              <p className="text-md font-bold text-blue-600">
+            <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 dark:border-blue-900/50 dark:bg-blue-950/20">
+              <p className="mb-1 text-sm text-blue-600 dark:text-blue-300">Total Gaji:</p>
+              <p className="text-md font-bold text-blue-600 dark:text-blue-200">
                 {formatCurrency(
                   (formData.basicSalary || 0) +
-                  computedAllowances -
-                  computedDeductions,
+                    computedAllowances -
+                    computedDeductions,
                 )}
               </p>
-              <p className="mt-1 text-xs text-blue-500">
+              <p className="mt-1 text-xs text-blue-500 dark:text-blue-300/80">
                 Penghasilan tambahan: {formatCurrency(computedAllowances)} | Potongan: {formatCurrency(computedDeductions)}
               </p>
             </div>

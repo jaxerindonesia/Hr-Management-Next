@@ -20,7 +20,11 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
 
-  const token = request.cookies.get("token")?.value;
+  const authHeader = request.headers.get("authorization") || "";
+  const bearerToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : "";
+  const token = request.cookies.get("token")?.value || bearerToken;
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/api/cron")) {
@@ -74,15 +78,19 @@ export async function proxy(request: NextRequest) {
   if (!token || !isValidSession) {
     if (isApiRoute) {
       const response = NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      response.cookies.set("token", "", getExpiredAuthCookieOptions());
-      response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
+      if (request.cookies.get("token")?.value) {
+        response.cookies.set("token", "", getExpiredAuthCookieOptions());
+        response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
+      }
       applyCspHeaders(response, nonce);
       return response;
     }
 
     const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.set("token", "", getExpiredAuthCookieOptions());
-    response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
+    if (request.cookies.get("token")?.value) {
+      response.cookies.set("token", "", getExpiredAuthCookieOptions());
+      response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
+    }
     applyCspHeaders(response, nonce);
     return response;
   }
