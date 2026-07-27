@@ -40,3 +40,32 @@ export function isWorkedAttendanceStatus(status?: string | null) {
 export function normalizeAttendanceStatus(status?: string | null) {
   return normalizeStatus(status);
 }
+
+export function formatAttendanceStatusLabel(status?: string | null) {
+  const normalized = normalizeStatus(status);
+
+  switch (normalized) {
+    case "":
+      return "Belum Absen";
+    case "on time":
+      return "Tepat Waktu"
+    case "present":
+      return "Hadir";
+    case "half day":
+      return "Setengah Hari";
+    case "late":
+      return "Terlambat";
+    case "late - present":
+      return "Terlambat - Hadir";
+    case "late - half day":
+      return "Terlambat - Setengah Hari";
+    case "absent":
+    case "alpha":
+    case "tidak hadir":
+      return "Tidak Hadir";
+    case "lembur":
+      return "Lembur";
+    default:
+      return status ?? "Belum Absen";
+  }
+}
