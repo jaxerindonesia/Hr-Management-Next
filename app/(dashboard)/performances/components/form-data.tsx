@@ -22,10 +22,10 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { PerformanceDto } from "@/lib/dto/performance";
 import { toast } from "sonner";
-import { UserDto } from "@/lib/dto/user";
 import { parseApiError } from "@/lib/helper/response-api";
 import { months } from "@/lib/helper/date";
 import { formatCurrency } from "@/lib/helper/format-currency";
+import EmployeeSearchSelect from "@/components/employee-search-select";
 import {
   AlertCircle,
   BriefcaseBusiness,
@@ -173,7 +173,6 @@ export default function FormData({
 }) {
   const [loading, setLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [employees, setEmployees] = useState<UserDto[]>([]);
   const [kpiPreview, setKpiPreview] = useState<KpiPreview | null>(null);
   const [formData, setFormData] = useState<PerformanceDto>(
     initialData || createDefaultFormData(),
@@ -184,23 +183,6 @@ export default function FormData({
     () => `${periodState.year}-${String(Number(periodState.month || 1)).padStart(2, "0")}`,
     [periodState.month, periodState.year],
   );
-
-  const fetchEmployees = async () => {
-    try {
-      const res = await fetch("/api/users");
-      if (!res.ok) {
-        throw new Error(
-          await parseApiError(res, "Gagal mengambil data karyawan"),
-        );
-      }
-      const json = await res.json();
-      setEmployees(json.data || []);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Gagal memuat data karyawan",
-      );
-    }
-  };
 
   const fetchKpiPreview = async (params: { userId: string; period: string }) => {
     if (!params.userId || !params.period) {
@@ -333,10 +315,6 @@ export default function FormData({
   };
 
   useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  useEffect(() => {
     setFormData((current) => ({
       ...current,
       period: currentPeriod,
@@ -368,29 +346,13 @@ export default function FormData({
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label className="dark:text-gray-300">Nama Karyawan</Label>
-              <Select
+              <EmployeeSearchSelect
                 value={formData.userId || ""}
-                onValueChange={(value) =>
+                onChange={(value) =>
                   setFormData({ ...formData, userId: value })
                 }
-                required
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={"Pilih Karyawan"} />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem
-                      key={emp.id}
-                      value={emp.id || ""}
-                      className="dark:text-gray-100 dark:focus:bg-gray-600"
-                    >
-                      {emp.name} {emp.position ? `- ${emp.position}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Pilih Karyawan"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

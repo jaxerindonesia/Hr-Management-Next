@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserDto } from "@/lib/dto/user";
 import { parseApiError } from "@/lib/helper/response-api";
+import EmployeeSearchSelect from "@/components/employee-search-select";
 
 const CATEGORIES = [
   "Operasional",
@@ -59,30 +59,7 @@ export default function PettyCashFormData({
   onSuccess: () => void;
 }) {
   const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState<UserDto[]>([]);
-
   const [formData, setFormData] = useState<PettyCashDto>(createDefaultFormData());
-
-  const fetchEmployees = async () => {
-    try {
-      const res = await fetch("/api/users");
-      if (!res.ok) {
-        throw new Error(
-          await parseApiError(res, "Gagal mengambil data karyawan"),
-        );
-      }
-      const json = await res.json();
-      setEmployees(json.data || []);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Gagal memuat data karyawan",
-      );
-    }
-  };
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -139,22 +116,12 @@ export default function PettyCashFormData({
           {/* Karyawan */}
           <div className="space-y-2">
             <Label htmlFor="userId">Karyawan Penerima</Label>
-            <Select
+            <EmployeeSearchSelect
               value={formData.userId}
-              onValueChange={(val) => setFormData({ ...formData, userId: val })}
+              onChange={(val) => setFormData({ ...formData, userId: val })}
               disabled={!!formData.id}
-            >
-              <SelectTrigger id="userId" className="w-full">
-                <SelectValue placeholder="Pilih Karyawan" />
-              </SelectTrigger>
-              <SelectContent>
-                {employees.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id || ""}>
-                    {emp.name} {emp.position ? `(${emp.position})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Pilih Karyawan"
+            />
           </div>
 
           {/* Tujuan */}

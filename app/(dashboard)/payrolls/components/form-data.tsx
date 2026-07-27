@@ -9,13 +9,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import EmployeeSearchSelect from "@/components/employee-search-select";
 
 import { PayrollDto } from "@/lib/dto/payroll";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { months } from "@/lib/helper/date";
-import { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { parseApiError } from "@/lib/helper/response-api";
 import type { PayrollComponentConfigDto, PayrollComponentValueDto } from "@/lib/dto/payroll-component";
@@ -44,7 +44,6 @@ export default function FormData({
   onSuccess?: () => void;
 }) {
   const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState<UserDto[]>([]);
   const [componentConfigs, setComponentConfigs] = useState<PayrollComponentConfigDto[]>([]);
   const [overtimeAmount, setOvertimeAmount] = useState(0);
   const [formData, setFormData] = useState<PayrollDto>(createDefaultFormData);
@@ -189,20 +188,23 @@ export default function FormData({
     }
   };
 
-  const fetchEmployees = async () => {
+  const fetchEmployeeSalary = async (userId: string) => {
+    if (!userId) return 0;
+
     try {
-      const res = await fetch("/api/users");
+      const res = await fetch(`/api/users/${userId}`, {
+        cache: "no-store",
+      });
       if (!res.ok) {
-        throw new Error(
-          await parseApiError(res, "Gagal mengambil data karyawan"),
-        );
+        throw new Error(await parseApiError(res, "Gagal mengambil data karyawan"));
       }
-      const json = await res.json();
-      setEmployees(json.data || []);
+      const user = await res.json();
+      return Number(user?.salary || 0);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Gagal memuat data karyawan",
       );
+      return 0;
     }
   };
 
@@ -252,10 +254,6 @@ export default function FormData({
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -310,32 +308,22 @@ export default function FormData({
             {/* Employee Name */}
             <div className="grid gap-2">
               <Label htmlFor="employeeName">Nama Karyawan</Label>
-              <Select
+              <EmployeeSearchSelect
                 value={formData.userId || ""}
-                onValueChange={(val) => {
-                  const selectedEmployee = employees.find((emp) => emp.id === val);
-                  const basicSalary = selectedEmployee?.salary || 0;
-                  void fetchOvertimeSummary({
-                    userId: val,
-                    month: Number(formData.month || createDefaultFormData().month),
-                    year: Number(formData.year || createDefaultFormData().year),
-                    basicSalary,
-                    sourceValues: formData.componentValues,
-                  });
+                onChange={(val) => {
+                  void (async () => {
+                    const basicSalary = await fetchEmployeeSalary(val);
+                    await fetchOvertimeSummary({
+                      userId: val,
+                      month: Number(formData.month || createDefaultFormData().month),
+                      year: Number(formData.year || createDefaultFormData().year),
+                      basicSalary,
+                      sourceValues: formData.componentValues,
+                    });
+                  })();
                 }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={"Pilih Karyawan"} />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id || ""}>
-                      {emp.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Pilih Karyawan"
+              />
             </div>
 
             {/* Period */}

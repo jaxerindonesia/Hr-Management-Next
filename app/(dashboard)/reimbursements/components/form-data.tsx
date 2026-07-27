@@ -20,9 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserDto } from "@/lib/dto/user";
 import { Upload, FileText } from "lucide-react";
 import { parseApiError } from "@/lib/helper/response-api";
+import EmployeeSearchSelect from "@/components/employee-search-select";
 
 const CATEGORIES = [
   "Transportasi",
@@ -47,7 +47,6 @@ export default function ReimbursementFormData({
 }) {
   const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState({ id: "", role: "" });
-  const [employees, setEmployees] = useState<UserDto[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     initialData?.receiptUrl ?? null,
@@ -71,23 +70,6 @@ export default function ReimbursementFormData({
       status: "PENDING",
     },
   );
-
-  const fetchEmployees = async () => {
-    try {
-      const res = await fetch("/api/users");
-      if (!res.ok) {
-        throw new Error(
-          await parseApiError(res, "Gagal mengambil data karyawan"),
-        );
-      }
-      const json = await res.json();
-      setEmployees(json.data || []);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Gagal memuat data karyawan",
-      );
-    }
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -208,7 +190,6 @@ export default function ReimbursementFormData({
   };
 
   useEffect(() => {
-    fetchEmployees();
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
   }, []);
@@ -263,27 +244,16 @@ export default function ReimbursementFormData({
             {userData.role !== "Karyawan" && (
               <div className="grid gap-2">
                 <Label>Nama Karyawan</Label>
-                <Select
+                <EmployeeSearchSelect
                   value={formData.userId}
-                  onValueChange={(val) => {
+                  onChange={(val) => {
                     setFormData({
                       ...formData,
                       userId: val,
                     });
                   }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={"Pilih Karyawan"} />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {employees.map((emp) => (
-                      <SelectItem key={emp.id} value={emp.id || ""}>
-                        {emp.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Pilih Karyawan"
+                />
               </div>
             )}
 
