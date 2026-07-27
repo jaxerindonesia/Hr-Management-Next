@@ -8,6 +8,7 @@ import {
 } from "@/lib/helper/response-api";
 
 const SESSION_CHECK_INTERVAL_MS = 10000;
+const SESSION_REHYDRATE_RELOAD_KEY = "hr_session_rehydrated";
 
 export default function AuthSessionGuard() {
   const [isAuthorized, setIsAuthorized] = useState(true);
@@ -44,6 +45,19 @@ export default function AuthSessionGuard() {
               "hr_user_role",
               JSON.stringify(sessionUser.permissions ?? []),
             );
+
+            const hasReloadedAfterRehydrate =
+              sessionStorage.getItem(SESSION_REHYDRATE_RELOAD_KEY) === "true";
+
+            if (!hasReloadedAfterRehydrate) {
+              sessionStorage.setItem(SESSION_REHYDRATE_RELOAD_KEY, "true");
+              window.location.reload();
+              return;
+            }
+          } else if (
+            sessionStorage.getItem(SESSION_REHYDRATE_RELOAD_KEY) === "true"
+          ) {
+            sessionStorage.removeItem(SESSION_REHYDRATE_RELOAD_KEY);
           }
         }
 
