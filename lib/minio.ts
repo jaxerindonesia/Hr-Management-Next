@@ -15,7 +15,7 @@ const minioClient = new Client({
 export const BUCKET_AVATARS = process.env.MINIO_BUCKET_AVATARS || "hr-manage-system";
 
 // Public base URL (tanpa trailing slash)
-const PUBLIC_URL = (process.env.MINIO_PUBLIC_URL || "http://103.31.204.110:1608").replace(/\/$/, "");
+const PUBLIC_URL = (process.env.MINIO_PUBLIC_URL || "https://s3.jahris.id").replace(/\/$/, "");
 
 function normalizeObjectSegment(value: string) {
   return value

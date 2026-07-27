@@ -13,7 +13,7 @@ import { writeAuditLog } from "@/lib/security/audit-log";
 async function deleteOldAvatar(avatarUrl: string | null) {
   if (!avatarUrl) return;
   // Hanya hapus jika URL dari MinIO kita
-  const minioBase = process.env.MINIO_PUBLIC_URL || "http://103.31.204.110:1608";
+  const minioBase = process.env.MINIO_PUBLIC_URL || "https://s3.jahris.id";
   if (!avatarUrl.startsWith(minioBase)) return;
   await deleteFromMinio(avatarUrl);
 }
