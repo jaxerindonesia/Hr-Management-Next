@@ -12,8 +12,16 @@ export async function GET() {
     message: "OK",
     data: {
       id: auth.user.id,
+      email: auth.user.email,
+      name: auth.user.name,
+      role: auth.user.roleName,
       roleName: auth.user.roleName,
       tenantId: auth.user.tenantId,
+      tenantName: auth.user.tenantName,
+      tenantLogoUrl: auth.user.tenantLogoUrl,
+      departmentId: auth.user.departmentId,
+      avatarUrl: auth.user.avatarUrl,
+      permissions: auth.user.permissions,
     },
   });
 }

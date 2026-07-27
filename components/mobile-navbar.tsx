@@ -240,8 +240,8 @@ export default function MobileNavbar() {
           <Link href="/dashboard" className="flex items-center">
             {/* Logo Light */}
             <Image
-              src="/logo21.png"
-              alt="HR System Logo"
+              src="/logo_jahris_colored.png"
+              alt="Jahris Logo"
               width={80}
               height={16}
               priority
@@ -250,12 +250,12 @@ export default function MobileNavbar() {
 
             {/* Logo Dark */}
             <Image
-              src="/logo22.png"
-              alt="HR System Logo"
-              width={155}
+              src="/logo_jahris_white.png"
+              alt="Jahris Logo"
+              width={80}
               height={16}
               priority
-              className="object-contain hidden dark:block ml-[-1.5rem]"
+              className="object-contain hidden dark:block"
             />
           </Link>
 
@@ -382,13 +382,13 @@ export default function MobileNavbar() {
           </nav>
 
           {/* ===== WATERMARK BOTTOM ===== */}
-          <div className="px-6 pb-2 mt-auto">
+          <div className="px-6 pb-5 mt-auto">
             <div
               onClick={handleLogoClick}
               className="flex items-center justify-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity text-gray-500 dark:text-gray-400 select-none cursor-pointer"
             >
               <Image
-                src="/logo21.png"
+                src="/logo_jaxer_colored.png"
                 alt="Jaxer Watermark"
                 width={65}
                 height={14}
@@ -396,9 +396,9 @@ export default function MobileNavbar() {
                 unoptimized
               />
               <Image
-                src="/logo22.png"
+                src="/logo_jaxer_white.png"
                 alt="Jaxer Watermark"
-                width={95}
+                width={65}
                 height={14}
                 className="object-contain hidden dark:block mt-0.5"
                 unoptimized

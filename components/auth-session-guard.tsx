@@ -29,6 +29,24 @@ export default function AuthSessionGuard() {
           return;
         }
 
+        if (!res.ok) {
+          return;
+        }
+
+        const json = await res.json().catch(() => null);
+        const sessionUser = json?.data;
+        if (sessionUser) {
+          const rawUserData = localStorage.getItem("hr_user_data");
+          const rawUserRole = localStorage.getItem("hr_user_role");
+          if (!rawUserData || !rawUserRole) {
+            localStorage.setItem("hr_user_data", JSON.stringify(sessionUser));
+            localStorage.setItem(
+              "hr_user_role",
+              JSON.stringify(sessionUser.permissions ?? []),
+            );
+          }
+        }
+
         if (isMounted) setIsAuthorized(true);
       } catch {
         // Ignore temporary network failures and keep current UI state.

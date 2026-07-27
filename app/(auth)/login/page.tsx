@@ -152,14 +152,14 @@ export default function LoginPage() {
               <div className="space-y-3 text-center sm:space-y-4">
                 <div className="mb-3 flex justify-center transition-transform duration-300 hover:scale-105 sm:mb-6">
                   <div className="relative">
-                    <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full" />
+                    <div className="absolute inset-0 bg-blue-900/50 blur-2xl rounded-full" />
                     <Image
-                      src="/logo22.png"
-                      alt="HR System Logo"
-                      width={380}
+                      src="/icon_jahris_white.png"
+                      alt="Jahris Logo"
+                      width={80}
                       height={60}
                       priority
-                      className="relative z-10 h-auto w-[210px] object-contain sm:w-[300px] lg:w-[340px]"
+                      className="relative z-10 h-auto w-[80px] object-contain sm:w-[80px] lg:w-[80px] my-3"
                     />
                   </div>
                 </div>
@@ -215,7 +215,7 @@ export default function LoginPage() {
                       placeholder-gray-500
                       focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white/10
                       transition-all duration-300"
-                      placeholder="nama@jaxergrup.com"
+                      placeholder="nama@domain.com"
                     />
                   </div>
                 </div>
@@ -316,7 +316,7 @@ export default function LoginPage() {
                     </div>
                   ) : (
                     <>
-                      <span>Masuk ke Dashboard</span>
+                      <span className="text-[16px]">Masuk ke Dashboard</span>
                       <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
@@ -331,9 +331,9 @@ export default function LoginPage() {
 
             >
               <Image
-                src="/logo22.png"
+                src="/logo_jaxer_white.png"
                 alt="Jaxer Watermark"
-                width={80}
+                width={60}
                 height={14}
                 className="object-contain"
                 unoptimized
@@ -488,7 +488,7 @@ export default function LoginPage() {
 
       {/* Footer - Transparant tanpa background */}
       <footer className="relative z-10 px-4 py-3 text-center text-[11px] text-gray-400 sm:py-4 sm:text-xs">
-        &copy; {new Date().getFullYear()} Jaxer Teknologi Indonesia.
+        &copy;{new Date().getFullYear()} Jahris {process.env.NEXT_PUBLIC_APP_VERSION} • Jaxer Grup Indonesia.
       </footer>
 
       {/* ===== CREDITS MODAL (EASTER EGG) ===== */}
