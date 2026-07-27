@@ -12,7 +12,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { UserDto } from "@/lib/dto/user";
 import { Label } from "@/components/ui/label";
 import { parseApiError } from "@/lib/helper/response-api";
 import {
@@ -25,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Upload } from "lucide-react";
+import EmployeeSearchSelect from "@/components/employee-search-select";
 
 function toInputDate(value?: string | null) {
   if (!value) return "";
@@ -47,7 +47,6 @@ export default function FormData({
   const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState({ id: "", role: "" });
   const [submissionType, setSubmissionType] = useState<SubmissionTypeDto[]>([]);
-  const [employees, setEmployees] = useState<UserDto[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     initialData?.proofUrl ?? null,
@@ -85,23 +84,6 @@ export default function FormData({
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Gagal memuat tipe pengajuan",
-      );
-    }
-  };
-
-  const fetchEmployees = async () => {
-    try {
-      const res = await fetch("/api/users");
-      if (!res.ok) {
-        throw new Error(
-          await parseApiError(res, "Gagal mengambil data karyawan"),
-        );
-      }
-      const json = await res.json();
-      setEmployees(json.data || []);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Gagal memuat data karyawan",
       );
     }
   };
@@ -215,7 +197,6 @@ export default function FormData({
 
   useEffect(() => {
     fetchSubmissionTypes();
-    fetchEmployees();
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
   }, []);
@@ -284,27 +265,16 @@ export default function FormData({
           {userData.role !== "Karyawan" && (
             <div className="grid min-w-0 gap-2">
               <Label htmlFor="employeeName">Nama Karyawan</Label>
-              <Select
+              <EmployeeSearchSelect
                 value={formData.userId}
-                onValueChange={(val) => {
+                onChange={(val) => {
                   setFormData({
                     ...formData,
                     userId: val,
                   });
                 }}
-              >
-                <SelectTrigger className="min-w-0 w-full">
-                  <SelectValue placeholder={"Pilih Karyawan"} />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id || ""}>
-                      {emp.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Pilih Karyawan"
+              />
             </div>
           )}
 
