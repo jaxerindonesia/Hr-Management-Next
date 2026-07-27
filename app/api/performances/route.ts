@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { buildPerformanceKpi } from "@/lib/helper/performance-kpi";
 
 export async function GET(req: NextRequest) {
   try {
@@ -80,28 +81,11 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    const {
-      userId,
-      period,
-      productivity,
-      quality,
-      teamwork,
-      discipline,
-      notes,
-      evaluatedBy,
-    } = body;
+    const { userId, period, notes, evaluatedBy } = body;
 
-    if (
-      !userId ||
-      !period ||
-      !productivity ||
-      !quality ||
-      !teamwork ||
-      !discipline ||
-      !evaluatedBy
-    ) {
+    if (!userId || !period || !evaluatedBy) {
       return NextResponse.json(
-        { message: "All performance fields are required fields" },
+        { message: "User, periode, dan evaluator wajib diisi" },
         { status: 400 },
       );
     }
@@ -120,23 +104,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const totalScore =
-      (Number(productivity) +
-        Number(quality) +
-        Number(teamwork) +
-        Number(discipline)) /
-      4;
+    const generatedKpi = await buildPerformanceKpi({
+      tenantId: finalTenantId,
+      userId,
+      period,
+    });
 
     const performance = await prisma.performance.create({
       data: {
         tenantId: finalTenantId,
         userId,
-        period,
-        productivity: Number(productivity),
-        quality: Number(quality),
-        teamwork: Number(teamwork),
-        discipline: Number(discipline),
-        totalScore,
+        period: generatedKpi.period,
+        productivity: generatedKpi.productivity,
+        quality: generatedKpi.quality,
+        teamwork: generatedKpi.teamwork,
+        discipline: generatedKpi.discipline,
+        totalScore: generatedKpi.totalScore,
         notes,
         evaluatedBy,
         evaluatedAt: new Date(),
@@ -146,7 +129,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         message: "Performance successfully created.",
-        data: performance,
+        data: {
+          ...performance,
+          kpiBreakdown: generatedKpi.kpiBreakdown,
+        },
       },
       { status: 201 },
     );

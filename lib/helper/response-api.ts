@@ -45,6 +45,10 @@ export async function parseApiError(res: Response, fallback: string) {
     handleUnauthorizedClient();
   }
 
+  if (res.status === 413) {
+    return "Ukuran file terlalu besar. Maksimal 5MB.";
+  }
+
   try {
     const json = await res.json();
     return json?.message || json?.detail || fallback;

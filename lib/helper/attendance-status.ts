@@ -2,6 +2,7 @@ const PRESENT_STATUSES = new Set([
   "on time",
   "present",
   "half day",
+  "lembur",
 ]);
 
 const ABSENT_STATUSES = new Set([

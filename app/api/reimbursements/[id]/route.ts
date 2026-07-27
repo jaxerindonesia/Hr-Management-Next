@@ -78,6 +78,8 @@ export async function PUT(req: Request, { params }: Params) {
       const category = formData.get("category");
       const amount = formData.get("amount");
       const date = formData.get("date");
+      const bankName = formData.get("bankName");
+      const accountNumber = formData.get("accountNumber");
       const description = formData.get("description");
       const status = formData.get("status");
       const approvedAt = formData.get("approvedAt");
@@ -88,6 +90,9 @@ export async function PUT(req: Request, { params }: Params) {
       if (category !== null) updateData.category = category;
       if (amount !== null) updateData.amount = Number(amount);
       if (date !== null) updateData.date = new Date(date as string);
+      if (bankName !== null) updateData.bankName = String(bankName).trim() || null;
+      if (accountNumber !== null)
+        updateData.accountNumber = String(accountNumber).trim() || null;
       if (description !== null) updateData.description = description;
       if (status !== null) updateData.status = status;
       if (approvedAt !== null)
@@ -102,6 +107,10 @@ export async function PUT(req: Request, { params }: Params) {
       if (parsedBody.category !== undefined) updateData.category = parsedBody.category;
       if (parsedBody.amount !== undefined) updateData.amount = Number(parsedBody.amount);
       if (parsedBody.date !== undefined) updateData.date = new Date(parsedBody.date);
+      if (parsedBody.bankName !== undefined)
+        updateData.bankName = String(parsedBody.bankName).trim() || null;
+      if (parsedBody.accountNumber !== undefined)
+        updateData.accountNumber = String(parsedBody.accountNumber).trim() || null;
       if (parsedBody.description !== undefined)
         updateData.description = parsedBody.description;
       if (parsedBody.status !== undefined) updateData.status = parsedBody.status;

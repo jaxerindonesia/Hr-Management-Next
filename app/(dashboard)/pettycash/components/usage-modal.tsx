@@ -114,7 +114,7 @@ export default function PettyCashUsageModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Lapor Penggunaan Petty Cash</DialogTitle>
         </DialogHeader>
@@ -164,7 +164,7 @@ export default function PettyCashUsageModal({
           <div className="space-y-2">
             <Label>Bukti Pengeluaran (Nota / Struk)</Label>
             {!previewUrl ? (
-              <label className="flex flex-col items-center justify-center gap-3 w-full h-32 border-2 border-dashed rounded-xl cursor-pointer hover:bg-gray-50/50">
+              <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-4 text-center hover:bg-gray-50/50">
                 <Upload className="w-5 h-5 text-gray-400" />
                 <span className="text-xs text-gray-500">
                   JPG, PNG, WebP, PDF (Maks. 5MB)
@@ -193,7 +193,7 @@ export default function PettyCashUsageModal({
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between p-2 bg-gray-50 border-t">
+                <div className="flex flex-col gap-2 border-t bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <label className="text-xs font-medium text-blue-600 cursor-pointer">
                     Ganti File
                     <input
@@ -216,11 +216,11 @@ export default function PettyCashUsageModal({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
               Batal
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? "Mengirim..." : "Kirim Laporan"}
             </Button>
           </div>

@@ -29,7 +29,7 @@ export const MASTER_PERMISSIONS = [
   },
   {
     model: "payrolls",
-    actions: ["get-all", "get-by-id", "create", "update", "delete", "export"],
+    actions: ["get-all", "get-by-id", "create", "update", "set-config", "delete", "export"],
   },
   {
     model: "performances",

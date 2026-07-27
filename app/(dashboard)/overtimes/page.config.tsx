@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, Download, Edit, Filter, Plus, Settings, Trash2, X, XCircle } from "lucide-react";
+import { CheckCircle, Download, Edit, ExternalLink, Filter, LogIn, LogOut, Plus, Settings, Trash2, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,6 +12,27 @@ import type React from "react";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { formatTimeId } from "@/lib/helper/date";
 
+function getTodayJakartaDate() {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date());
+}
+
+function formatJakartaDate(value?: string | null) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(date);
+}
+
 export const itemsPerPageOptions = [5, 10, 25, 50, 100];
 export const ITEMS_PER_PAGE = 10;
 const modelName = "overtimes";
@@ -21,8 +42,13 @@ interface HeaderToolbarProps {
         onAdd: () => void;
         onExport?: () => void;
         onOpenConfig: () => void;
+        onCheckIn?: () => void;
+        onCheckOut?: () => void;
         checkRole: (module: string, action: string) => boolean;
         isExporting: boolean;
+    };
+    overtime: {
+        currentOvertime: OvertimeDto | null;
     };
     filters: {
         show: boolean;
@@ -49,12 +75,16 @@ interface RenderActionsProps {
 }
 
 export const STATUS_LABEL: Record<string, string> = {
+    DRAFT: "Draft",
+    CHECKED_IN: "Sedang Lembur",
     PENDING: "Menunggu",
     APPROVED: "Disetujui",
     REJECTED: "Ditolak",
 };
 
 export const STATUS_COLOR: Record<string, string> = {
+    DRAFT: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    CHECKED_IN: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
     PENDING: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
     APPROVED: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     REJECTED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
@@ -64,12 +94,12 @@ export const INITIAL_FORM_DATA: OvertimeDto = {
     id: "",
     userId: "",
     overtimeDate: "",
-    startTime: "",
-    endTime: "",
+    startTime: null,
+    endTime: null,
     overtimeMinutes: 0,
     requestedMinutes: 0,
     payMethod: "PER_HOUR",
-    status: "PENDING",
+    status: "DRAFT",
     approvalDecisions: [],
     hourlyRate: 0,
     dailyRate: 0,
@@ -98,15 +128,15 @@ export const columnFormats: DefaultColumnFormat<OvertimeDto>[] = [
     },
     {
         key: "startTime",
-        title: "Jam Mulai",
+        title: "Check In",
         textClassName: "text-slate-700 dark:text-slate-200",
-        formatter: (_value, row) => formatTimeId(row.startTime),
+        formatter: (_value, row) => row.startTime ? formatTimeId(row.startTime) : "-",
     },
     {
         key: "endTime",
-        title: "Jam Selesai",
+        title: "Check Out",
         textClassName: "text-slate-700 dark:text-slate-200",
-        formatter: (_value, row) => formatTimeId(row.endTime),
+        formatter: (_value, row) => row.endTime ? formatTimeId(row.endTime) : "-",
     },
     {
         key: "description",
@@ -118,13 +148,37 @@ export const columnFormats: DefaultColumnFormat<OvertimeDto>[] = [
         key: "overtimeMinutes",
         title: "Durasi",
         textClassName: "font-semibold text-slate-700 dark:text-slate-200",
-        formatter: (value) => `${Math.floor(Number(value || 0) / 60)} jam`,
+        formatter: (value) => {
+            const totalMinutes = Number(value || 0);
+            if (!totalMinutes) return "-";
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            return minutes ? `${hours} jam ${minutes} menit` : `${hours} jam`;
+        },
     },
     {
         key: "payoutAmount",
         title: "Nominal",
         textClassName: "text-slate-700 dark:text-slate-200",
         formatter: (value) => formatCurrency(Number(value || 0)),
+    },
+    {
+        key: "proofUrl",
+        title: "Bukti Lembur",
+        formatter: (value) =>
+            value ? (
+                <a
+                    href={String(value)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
+                    Lihat Bukti
+                    <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+            ) : (
+                "-"
+            ),
     },
     {
         key: "approvalDecisions",
@@ -166,7 +220,7 @@ export const columnFormats: DefaultColumnFormat<OvertimeDto>[] = [
     },
 ];
 
-export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
+export const headerToolbar = ({ actions, overtime, filters }: HeaderToolbarProps) => (
     <div>
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             {actions.checkRole(modelName, "set-config") && (
@@ -180,13 +234,41 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
             )}
 
             {actions.checkRole(modelName, "create") && (
-                <Button
-                    onClick={actions.onAdd}
-                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-                >
-                    <Plus className="h-4 w-4" />
-                    Tambah
-                </Button>
+                <>
+                    {!overtime.currentOvertime ? (
+                        <Button
+                            onClick={actions.onAdd}
+                            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Tambah
+                        </Button>
+                    ) : overtime.currentOvertime.status === "DRAFT" && formatJakartaDate(overtime.currentOvertime.overtimeDate) === getTodayJakartaDate() ? (
+                        <Button
+                            onClick={actions.onCheckIn}
+                            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
+                        >
+                            <LogIn className="h-4 w-4" />
+                            Check In
+                        </Button>
+                    ) : overtime.currentOvertime.status === "DRAFT" ? (
+                        <Button disabled className="cursor-not-allowed bg-gray-400 text-white">
+                            Draft Lewat Tanggal
+                        </Button>
+                    ) : overtime.currentOvertime.status === "CHECKED_IN" ? (
+                        <Button
+                            onClick={actions.onCheckOut}
+                            className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
+                        >
+                            <LogOut className="h-4 w-4" />
+                            Check Out
+                        </Button>
+                    ) : overtime.currentOvertime.status === "PENDING" ? (
+                        <Button disabled className="cursor-not-allowed bg-gray-400 text-white">
+                            Menunggu Approval
+                        </Button>
+                    ) : null}
+                </>
             )}
 
             <div className="flex-1" />
@@ -252,6 +334,8 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="DRAFT">Draft</SelectItem>
+                                <SelectItem value="CHECKED_IN">Sedang Lembur</SelectItem>
                                 <SelectItem value="PENDING">Menunggu</SelectItem>
                                 <SelectItem value="APPROVED">Disetujui</SelectItem>
                                 <SelectItem value="REJECTED">Ditolak</SelectItem>
@@ -275,10 +359,13 @@ export const renderActions = ({
     deleteId,
     setDeleteId,
 }: RenderActionsProps) => {
-    const user: any = localStorage.getItem("hr_user_data");
+    const currentUser =
+        typeof window !== "undefined"
+            ? JSON.parse(localStorage.getItem("hr_user_data") || "{}")
+            : {};
 
     const isApprover = row.approvalDecisions?.some(
-        (config) => config.approverUserId === JSON.parse(user)?.id && config.status == "PENDING"
+        (config) => config.approverUserId === currentUser?.id && config.status == "PENDING"
     );
 
     return (
@@ -310,7 +397,7 @@ export const renderActions = ({
                 </>
             )}
 
-            {row.status === "PENDING" && checkRole(modelName, "update") && onView && (
+            {row.status === "DRAFT" && checkRole(modelName, "update") && onView && (
                 <Button
                     variant="ghost"
                     className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20"

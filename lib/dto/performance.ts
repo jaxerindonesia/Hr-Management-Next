@@ -16,5 +16,27 @@ export interface PerformanceDto {
     user?: {
         id: string;
         name: string;
+        position?: string | null;
+        department?: { id: string; name: string } | null;
+    } | null;
+    kpiBreakdown?: {
+        hasSufficientData?: boolean;
+        attendanceCount: number;
+        presentCount: number;
+        lateCount: number;
+        absentCount: number;
+        autoCheckoutCount: number;
+        approvedSubmissionCount: number;
+        assignedTaskCount: number;
+        completedTaskCount: number;
+        overdueTaskCount: number;
+        collaborativeTaskCount: number;
+        approvedOvertimeCount: number;
+        approvedOvertimeMinutes: number;
+        approvedOvertimeAmount: number;
+        productivityScore: number;
+        qualityScore: number;
+        teamworkScore: number;
+        disciplineScore: number;
     } | null;
 }

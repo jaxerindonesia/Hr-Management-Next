@@ -351,9 +351,9 @@ export default function DesktopSidebar() {
                     <>
                       {/* Logo Jaxer Default - Light */}
                       <Image
-                        src="/logo21.png"
-                        alt="HR System Logo"
-                        width={100}
+                        src="/logo_jahris_colored.png"
+                        alt="Jahris Logo"
+                        width={120}
                         height={20}
                         priority
                         className="object-contain dark:hidden"
@@ -361,12 +361,12 @@ export default function DesktopSidebar() {
 
                       {/* Logo Jaxer Default - Dark */}
                       <Image
-                        src="/logo22.png"
-                        alt="HR System Logo"
-                        width={155}
+                        src="/logo_jahris_white.png"
+                        alt="Jahris Logo"
+                        width={120}
                         height={20}
                         priority
-                        className="ml-[-1.5rem] hidden object-contain dark:block"
+                        className="hidden object-contain dark:block"
                       />
                     </>
                   );
@@ -537,7 +537,7 @@ export default function DesktopSidebar() {
         </SidebarContent>
 
         {/* ===== WATERMARK BOTTOM ===== */}
-        <div className={`pb-3 pt-4 transition-opacity duration-300 ${sidebarOpen ? "px-4 opacity-100" : "hidden opacity-0"}`}>
+        <div className={`py-4 transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "hidden opacity-0"}`}>
           <div
             onClick={handleLogoClick}
             className="flex cursor-pointer items-center justify-end gap-1.5 text-slate-500 opacity-70 transition-opacity hover:opacity-100 select-none dark:text-white/55"
@@ -545,7 +545,7 @@ export default function DesktopSidebar() {
           >
             {/* Saat Terang -> Logo Berwarna */}
             <Image
-              src="/logo21.png"
+              src="/logo_jaxer_colored.png"
               alt="Jaxer Watermark"
               width={65}
               height={14}
@@ -554,9 +554,9 @@ export default function DesktopSidebar() {
             />
             {/* Saat Gelap -> Logo Putih */}
             <Image
-              src="/logo22.png"
+              src="/logo_jaxer_white.png"
               alt="Jaxer Watermark"
-              width={95}
+              width={65}
               height={14}
               className="mt-0.5 hidden object-contain dark:block"
               unoptimized

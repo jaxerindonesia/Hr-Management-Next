@@ -5,30 +5,10 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { BUCKET_AVATARS, deleteFromMinio } from "@/lib/minio";
 import { writeAuditLog } from "@/lib/security/audit-log";
 
 type Params = { params: { id: string } };
-
-async function hasOverlappingOvertime(params: {
-  userId: string;
-  tenantId: string | null;
-  startTime: Date;
-  endTime: Date;
-  excludeId?: string;
-}) {
-  const overlapping = await prisma.overtime.findFirst({
-    where: {
-      userId: params.userId,
-      ...(params.tenantId ? { tenantId: params.tenantId } : { tenantId: null }),
-      ...(params.excludeId ? { NOT: { id: params.excludeId } } : {}),
-      startTime: { lt: params.endTime },
-      endTime: { gt: params.startTime },
-    },
-    select: { id: true },
-  });
-
-  return Boolean(overlapping);
-}
 
 export async function GET(_: Request, { params }: Params) {
   const p = await params;
@@ -81,16 +61,8 @@ export async function PUT(req: Request, { params }: Params) {
     }
     const updateData: Prisma.OvertimeUncheckedUpdateInput = {};
 
-    const buildDateTime = (date: string, time: string) => new Date(`${date}T${time}:00`);
-
     const nextOvertimeDate = body.overtimeDate !== undefined
       ? String(body.overtimeDate || "").trim()
-      : "";
-    const nextStartTime = body.startTime !== undefined
-      ? String(body.startTime || "").trim()
-      : "";
-    const nextEndTime = body.endTime !== undefined
-      ? String(body.endTime || "").trim()
       : "";
 
     if (body.userId !== undefined) {
@@ -100,71 +72,28 @@ export async function PUT(req: Request, { params }: Params) {
       updateData.userId = String(body.userId || "").trim();
     }
 
-    const hasScheduleUpdate = nextOvertimeDate || nextStartTime || nextEndTime;
-    if (hasScheduleUpdate) {
-      if (existing.status !== "PENDING") {
-        return NextResponse.json({ message: "Tanggal dan jam lembur hanya bisa diubah saat masih menunggu approval" }, { status: 400 });
-      }
-
-      const overtimeDateValue = nextOvertimeDate || existing.overtimeDate.toISOString().split("T")[0];
-      const startTimeValue = nextStartTime
-        ? nextStartTime.slice(11, 16) || nextStartTime.slice(0, 5)
-        : existing.startTime.toTimeString().slice(0, 5);
-      const endTimeValue = nextEndTime
-        ? nextEndTime.slice(11, 16) || nextEndTime.slice(0, 5)
-        : existing.endTime.toTimeString().slice(0, 5);
-
-      const startTime = buildDateTime(overtimeDateValue, startTimeValue);
-      const endTime = buildDateTime(overtimeDateValue, endTimeValue);
-
-      if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
-        return NextResponse.json({ message: "Format tanggal atau jam lembur tidak valid" }, { status: 400 });
-      }
-
-      if (endTime <= startTime) {
+    if (nextOvertimeDate) {
+      if (existing.status !== "DRAFT") {
         return NextResponse.json(
-          { message: "Jam selesai harus setelah jam mulai" },
+          { message: "Tanggal lembur hanya bisa diubah sebelum check in" },
           { status: 400 },
         );
       }
 
-      const overtimeMinutes = Math.max(
-        0,
-        Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60)),
-      );
-
-      if (overtimeMinutes <= 0) {
-        return NextResponse.json({ message: "Durasi lembur harus lebih dari 0 menit" }, { status: 400 });
-      }
-
-      const nextUserId =
-        typeof updateData.userId === "string" && updateData.userId.trim()
-          ? updateData.userId.trim()
-          : existing.userId;
-      const overlapping = await hasOverlappingOvertime({
-        userId: nextUserId,
-        tenantId: scopedTenantId ?? null,
-        startTime,
-        endTime,
-        excludeId: p.id,
-      });
-      if (overlapping) {
+      const overtimeDateValue = new Date(`${nextOvertimeDate}T00:00:00`);
+      if (Number.isNaN(overtimeDateValue.getTime())) {
         return NextResponse.json(
-          { message: "Sudah ada pengajuan lembur lain yang tumpang tindih pada rentang waktu tersebut" },
-          { status: 409 },
+          { message: "Format tanggal lembur tidak valid" },
+          { status: 400 },
         );
       }
 
-      updateData.overtimeDate = startTime;
-      updateData.startTime = startTime;
-      updateData.endTime = endTime;
-      updateData.overtimeMinutes = overtimeMinutes;
-      updateData.requestedMinutes = overtimeMinutes;
+      updateData.overtimeDate = overtimeDateValue;
     }
 
     if (body.description !== undefined) {
-      if (!isAdmin && existing.status !== "PENDING") {
-        return NextResponse.json({ message: "Keterangan hanya bisa diubah saat overtime masih menunggu approval" }, { status: 400 });
+      if (!isAdmin && existing.status !== "DRAFT") {
+        return NextResponse.json({ message: "Keterangan hanya bisa diubah sebelum check in lembur" }, { status: 400 });
       }
       updateData.description = body.description;
     }
@@ -178,6 +107,12 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.approvalAction) {
       const approverUserId = auth.user.id;
       if (!isApprover) return NextResponse.json({ message: "Anda tidak memiliki akses approval overtime" }, { status: 403 });
+      if (existing.status !== "PENDING") {
+        return NextResponse.json(
+          { message: "Approval hanya bisa dilakukan setelah lembur selesai checkout" },
+          { status: 409 },
+        );
+      }
       const action = String(body.approvalAction).toUpperCase();
       const nextStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
       const rejectReason = nextStatus === "REJECTED" ? String(body.rejectionReason || "").trim() : null;
@@ -279,10 +214,28 @@ export async function DELETE(_: Request, { params }: Params) {
       return NextResponse.json({ message: "Anda tidak memiliki akses menghapus overtime" }, { status: 403 });
     }
 
-    const existing = await prisma.overtime.findFirst({ where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) }, select: { id: true } });
-    if (!existing) return NextResponse.json({ message: "Overtime not found" }, { status: 404 });
+    const item = await prisma.overtime.findFirst({
+      where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      select: {
+        id: true,
+        proofUrl: true,
+        checkInFaceImage: true,
+        checkOutFaceImage: true,
+      },
+    });
+    if (!item) return NextResponse.json({ message: "Overtime not found" }, { status: 404 });
 
     await prisma.overtime.delete({ where: { id: p.id } });
+    const evidenceUrls = [item.proofUrl, item.checkInFaceImage, item.checkOutFaceImage].filter(
+      (value): value is string => Boolean(value),
+    );
+    await Promise.all(
+      evidenceUrls.map(async (url) => {
+        if (url.includes(BUCKET_AVATARS)) {
+          await deleteFromMinio(url);
+        }
+      }),
+    );
     writeAuditLog({
       action: "overtimes.delete",
       status: "success",

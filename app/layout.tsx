@@ -2,18 +2,35 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Providers } from "@/components/providers";
+import { getSessionUser } from "@/lib/auth/session";
 
-export const metadata: Metadata = {
-  title: "HR Management System",
-  description: "Human Resource Management System",
-  icons: {
-    icon: "/favicon..ico",
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-      { url: "/apple-touch-icon-precomposed.png", sizes: "180x180", type: "image/png" },
-    ],
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await getSessionUser();
+  const tenantName =
+    session.ok && session.user.tenantName?.trim()
+      ? session.user.tenantName.trim()
+      : null;
+
+  const brandTitle = `${tenantName || 'Jahris'} - HR Management System`;
+  const brandDescription = tenantName
+    ? `${tenantName} Human Resource Management System`
+    : "Jahris Human Resource Management System";
+
+  return {
+    title: brandTitle,
+    description: brandDescription,
+    icons: {
+      icon: [
+        { url: "/favicon.ico", sizes: "any" },
+        { url: "/icon_jahris_colored.png", sizes: "32x32", type: "image/png" },
+      ],
+      shortcut: "/favicon.ico",
+      apple: [
+        { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      ],
+    },
+  };
+}
 
 export default async function RootLayout({
   children,

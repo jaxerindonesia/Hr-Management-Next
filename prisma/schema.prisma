@@ -33,6 +33,7 @@ model Tenant {
   overtimeConfigs   OvertimeConfig[]
   overtimeApproverConfigs OvertimeApproverConfig[]
   overtimes         Overtime[]
+  payrollComponentConfigs PayrollComponentConfig[]
   departments       Department[]
   leaveConfigs      LeaveConfig[]
   payrolls          Payroll[]
@@ -181,6 +182,7 @@ model Submission {
   startDate         DateTime                     @map("start_date")
   endDate           DateTime                     @map("end_date")
   reason            String
+  proofUrl          String?                      @map("proof_url")
   status            String                       @default("pending")
   approvedBy        String?                      @map("approved_by")
   approvedAt        DateTime?                    @map("approved_at")
@@ -293,11 +295,16 @@ model Overtime {
   userId           String    @map("user_id") @db.Uuid
   attendanceId     String?   @map("attendance_id") @db.Uuid
   overtimeDate     DateTime  @map("overtime_date")
-  startTime        DateTime  @map("start_time")
-  endTime          DateTime  @map("end_time")
-  overtimeMinutes  Int       @map("overtime_minutes")
-  requestedMinutes  Int      @map("requested_minutes")
+  startTime        DateTime? @map("start_time")
+  endTime          DateTime? @map("end_time")
+  overtimeMinutes  Int       @map("overtime_minutes") @default(0)
+  requestedMinutes Int       @map("requested_minutes") @default(0)
   description      String?
+  proofUrl         String?   @map("proof_url")
+  checkInLocation  Json?     @map("check_in_location")
+  checkOutLocation Json?     @map("check_out_location")
+  checkInFaceImage String?   @map("check_in_face_image")
+  checkOutFaceImage String?  @map("check_out_face_image")
   rejectReason     String?   @map("reject_reason")
   payMethod        String    @map("pay_method")
   hourlyRate       Float     @map("hourly_rate")
@@ -339,6 +346,7 @@ model OvertimeApprovalDecision {
 model Payroll {
   id          String    @id @default(uuid()) @db.Uuid
   userId      String    @map("user_id") @db.Uuid
+  referenceNumber String? @map("reference_number")
   month       Int
   year        Int
   basicSalary Float     @map("basic_salary")
@@ -351,11 +359,52 @@ model Payroll {
   updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
   tenantId    String?   @map("tenant_id") @db.Uuid
+  componentValues PayrollComponentValue[]
   tenant      Tenant?   @relation(fields: [tenantId], references: [id])
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+  @@index([referenceNumber])
   @@map("payrolls")
+}
+
+model PayrollComponentConfig {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String?  @map("tenant_id") @db.Uuid
+  name         String
+  type         String
+  inputType    String   @map("input_type")
+  defaultValue Float    @default(0) @map("default_value")
+  isActive     Boolean  @default(true) @map("is_active")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  componentValues PayrollComponentValue[]
+
+  @@index([tenantId])
+  @@index([type])
+  @@map("payroll_component_configs")
+}
+
+model PayrollComponentValue {
+  id                String   @id @default(uuid()) @db.Uuid
+  payrollId         String   @map("payroll_id") @db.Uuid
+  componentConfigId String?  @map("component_config_id") @db.Uuid
+  nameSnapshot      String   @map("name_snapshot")
+  typeSnapshot      String   @map("type_snapshot")
+  inputTypeSnapshot String   @map("input_type_snapshot")
+  amount            Float
+  baseValue         Float?   @map("base_value")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  componentConfig   PayrollComponentConfig? @relation(fields: [componentConfigId], references: [id], onDelete: SetNull)
+  payroll           Payroll  @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@index([payrollId])
+  @@index([componentConfigId])
+  @@index([typeSnapshot])
+  @@map("payroll_component_values")
 }
 
 model Performance {
@@ -384,10 +433,13 @@ model Performance {
 model Reimbursement {
   id          String    @id @default(uuid()) @db.Uuid
   userId      String    @map("user_id") @db.Uuid
+  referenceNumber String? @map("reference_number")
   title       String
   category    String
   amount      Float
   date        DateTime
+  bankName    String?   @map("bank_name")
+  accountNumber String? @map("account_number")
   description String?
   receiptUrl  String?   @map("receipt_url")
   status      String    @default("pending")
@@ -401,6 +453,7 @@ model Reimbursement {
 
   @@index([tenantId])
   @@index([userId])
+  @@index([referenceNumber])
   @@map("reimbursements")
 }
 

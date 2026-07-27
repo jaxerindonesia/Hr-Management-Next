@@ -5,6 +5,42 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { AUTO_OVERTIME_COMPONENT_NAME } from "@/lib/constants/payroll";
+import {
+  getApprovedOvertimePayoutSummary,
+} from "@/lib/helper/payroll-overtime";
+
+function buildPayrollReferenceNumber(id: string, createdAt: Date) {
+  return `PYR-${createdAt.getFullYear()}-${id.slice(0, 8).toUpperCase()}`;
+}
+
+function normalizeComponentValues(items: unknown[], basicSalary: number) {
+  return (Array.isArray(items) ? items : []).map((item) => {
+    const row = item as Record<string, unknown>;
+    const inputTypeSnapshot = String(row.inputTypeSnapshot || row.inputType || "MANUAL").toUpperCase();
+    const baseValue =
+      inputTypeSnapshot === "PERCENTAGE"
+        ? Number(row.baseValue ?? row.amount ?? 0)
+        : null;
+    const amount =
+      inputTypeSnapshot === "PERCENTAGE"
+        ? (basicSalary * Number(row.baseValue ?? row.amount ?? 0)) / 100
+        : Number(row.amount || 0);
+
+    return {
+      componentConfigId: row.componentConfigId ? String(row.componentConfigId) : null,
+      nameSnapshot: String(row.nameSnapshot || row.name || "").trim(),
+      typeSnapshot: String(row.typeSnapshot || row.type || "").toUpperCase(),
+      inputTypeSnapshot,
+      amount: Number.isFinite(amount) ? amount : 0,
+      baseValue: baseValue !== null && Number.isFinite(baseValue) ? baseValue : null,
+    };
+  }).filter((item) =>
+    item.nameSnapshot &&
+    item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME &&
+    ["EARNING", "DEDUCTION"].includes(item.typeSnapshot),
+  );
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,9 +62,10 @@ export async function GET(req: NextRequest) {
     if (scopedTenantId) where.tenantId = scopedTenantId;
 
     if (search) {
-      where.user = {
-        name: { contains: search, mode: "insensitive" },
-      };
+      where.OR = [
+        { user: { name: { contains: search, mode: "insensitive" } } },
+        { referenceNumber: { contains: search, mode: "insensitive" } },
+      ];
     }
 
     if (month) {
@@ -87,10 +124,9 @@ export async function POST(req: NextRequest) {
       month,
       year,
       basicSalary,
-      allowances,
-      deductions,
       status,
       paidAt,
+      componentValues,
     } = body;
 
     if (!userId || !month || !year || !basicSalary || !status) {
@@ -114,14 +150,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const totalSalary = basicSalary + allowances - deductions;
+    const normalizedBasicSalary = Number(basicSalary || 0);
+    const normalizedComponentValues = normalizeComponentValues(componentValues, normalizedBasicSalary);
+    const overtimeSummary = await getApprovedOvertimePayoutSummary({
+      tenantId: finalTenantId,
+      userId,
+      month: Number(month),
+      year: Number(year),
+    });
+    if (overtimeSummary.totalAmount > 0) {
+      normalizedComponentValues.push({
+        componentConfigId: null,
+        nameSnapshot: AUTO_OVERTIME_COMPONENT_NAME,
+        typeSnapshot: "EARNING",
+        inputTypeSnapshot: "FIXED",
+        amount: overtimeSummary.totalAmount,
+        baseValue: null,
+      });
+    }
+    const allowances = normalizedComponentValues
+      .filter((item) => item.typeSnapshot === "EARNING")
+      .reduce((sum, item) => sum + item.amount, 0);
+    const deductions = normalizedComponentValues
+      .filter((item) => item.typeSnapshot === "DEDUCTION")
+      .reduce((sum, item) => sum + item.amount, 0);
+    const totalSalary = normalizedBasicSalary + allowances - deductions;
     const payroll = await prisma.payroll.create({
       data: {
         tenantId: finalTenantId,
         userId,
         month,
         year,
-        basicSalary,
+        basicSalary: normalizedBasicSalary,
         allowances,
         deductions,
         totalSalary,
@@ -129,11 +189,36 @@ export async function POST(req: NextRequest) {
         paidAt: paidAt ? new Date(paidAt) : null,
       },
     });
+    const referenceNumber = buildPayrollReferenceNumber(
+      payroll.id,
+      payroll.createdAt,
+    );
+    const payrollWithReference = await prisma.payroll.update({
+      where: { id: payroll.id },
+      data: { referenceNumber },
+    });
+
+    if (normalizedComponentValues.length > 0) {
+      await prisma.payrollComponentValue.createMany({
+        data: normalizedComponentValues.map((item) => ({
+          payrollId: payroll.id,
+          componentConfigId: item.componentConfigId,
+          nameSnapshot: item.nameSnapshot,
+          typeSnapshot: item.typeSnapshot,
+          inputTypeSnapshot: item.inputTypeSnapshot,
+          amount: item.amount,
+          baseValue: item.baseValue,
+        })),
+      });
+    }
 
     return NextResponse.json(
       {
         message: "Payroll successfully created.",
-        data: payroll,
+        data: {
+          ...payrollWithReference,
+          componentValues: normalizedComponentValues,
+        },
       },
       { status: 201 },
     );

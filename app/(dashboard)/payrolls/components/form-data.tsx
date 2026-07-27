@@ -18,6 +18,8 @@ import { months } from "@/lib/helper/date";
 import { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { parseApiError } from "@/lib/helper/response-api";
+import type { PayrollComponentConfigDto, PayrollComponentValueDto } from "@/lib/dto/payroll-component";
+import { AUTO_OVERTIME_COMPONENT_NAME } from "@/lib/constants/payroll";
 
 const createDefaultFormData = (): PayrollDto => ({
   userId: "",
@@ -35,81 +37,266 @@ export default function FormData({
   initialData,
   onClose,
   onSuccess,
-} : {
+}: {
   isOpen: boolean;
   initialData?: PayrollDto;
   onClose: () => void;
   onSuccess?: () => void;
 }) {
- const [loading, setLoading] = useState(false);
- const [employees, setEmployees] = useState<UserDto[]>([]);
- const [formData, setFormData] = useState<PayrollDto>(createDefaultFormData);
+  const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<UserDto[]>([]);
+  const [componentConfigs, setComponentConfigs] = useState<PayrollComponentConfigDto[]>([]);
+  const [overtimeAmount, setOvertimeAmount] = useState(0);
+  const [formData, setFormData] = useState<PayrollDto>(createDefaultFormData);
 
- const fetchEmployees = async () => {
-   try {
-     const res = await fetch("/api/users");
-        if (!res.ok) {
-          throw new Error(
-            await parseApiError(res, "Gagal mengambil data karyawan"),
+  const computedAllowances = (formData.componentValues || [])
+    .filter((item) => item.typeSnapshot === "EARNING")
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const computedDeductions = (formData.componentValues || [])
+    .filter((item) => item.typeSnapshot === "DEDUCTION")
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  const buildComponentValues = (
+    configs: PayrollComponentConfigDto[],
+    basicSalary: number,
+    existingValues?: PayrollComponentValueDto[],
+    overtimeTotal = 0,
+  ) =>
+    [
+      ...configs
+        .filter((item) => item.isActive !== false)
+        .map((config) => {
+          const existing = existingValues?.find(
+            (value) =>
+              value.componentConfigId === config.id ||
+              value.nameSnapshot === config.name,
           );
-        }
-        const json = await res.json();
-        setEmployees(json.data || []);
-    } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "Gagal memuat data karyawan",
-        );
+          const inputTypeSnapshot = config.inputType;
+          const baseValue =
+            inputTypeSnapshot === "PERCENTAGE"
+              ? Number(existing?.baseValue ?? config.defaultValue ?? 0)
+              : null;
+          const amount =
+            inputTypeSnapshot === "PERCENTAGE"
+              ? (basicSalary * Number(baseValue || 0)) / 100
+              : existing?.amount !== undefined
+                ? Number(existing.amount || 0)
+                : Number(config.defaultValue || 0);
+
+          return {
+            id: existing?.id ?? null,
+            payrollId: existing?.payrollId ?? null,
+            componentConfigId: config.id ?? null,
+            nameSnapshot: config.name,
+            typeSnapshot: config.type,
+            inputTypeSnapshot,
+            baseValue,
+            amount,
+          } satisfies PayrollComponentValueDto;
+        }),
+      ...(overtimeTotal > 0
+        ? [{
+          id: null,
+          payrollId: null,
+          componentConfigId: null,
+          nameSnapshot: AUTO_OVERTIME_COMPONENT_NAME,
+          typeSnapshot: "EARNING",
+          inputTypeSnapshot: "FIXED",
+          baseValue: null,
+          amount: overtimeTotal,
+        } satisfies PayrollComponentValueDto]
+        : []),
+    ];
+
+  const rebuildComponentValues = (
+    basicSalary: number,
+    sourceValues?: PayrollComponentValueDto[],
+    overtimeTotal = overtimeAmount,
+  ) => {
+    const manualValues = (sourceValues ?? formData.componentValues ?? []).filter(
+      (item) => item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME,
+    );
+    return buildComponentValues(
+      componentConfigs,
+      basicSalary,
+      manualValues,
+      overtimeTotal,
+    );
+  };
+
+  const fetchOvertimeSummary = async (params: {
+    userId: string;
+    month: number;
+    year: number;
+    basicSalary: number;
+    sourceValues?: PayrollComponentValueDto[];
+  }) => {
+    const { userId, month, year, basicSalary, sourceValues } = params;
+
+    if (!userId || !month || !year) {
+      setOvertimeAmount(0);
+      setFormData((current) => ({
+        ...current,
+        userId,
+        month,
+        year,
+        basicSalary,
+        componentValues: rebuildComponentValues(basicSalary, sourceValues, 0),
+      }));
+      return;
     }
- };
 
- const handleSubmit = async (e: React.FormEvent) => {
-   e.preventDefault();
-   setLoading(true); 
-   try {
-     const url = formData.id ? `/api/payrolls/${formData.id}` : "/api/payrolls"; 
-     const method = formData.id ? "PUT" : "POST";    
-     const res = await fetch(url, {
-       method,
-       headers: { "Content-Type": "application/json" },
-       body: JSON.stringify(formData),
-     });
+    try {
+      const searchParams = new URLSearchParams({
+        userId,
+        month: String(month),
+        year: String(year),
+      });
+      const res = await fetch(`/api/payrolls/overtime-summary?${searchParams.toString()}`);
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil ringkasan lembur"),
+        );
+      }
+      const json = await res.json();
+      const totalAmount = Number(json?.data?.totalAmount || 0);
+      setOvertimeAmount(totalAmount);
+      setFormData((current) => ({
+        ...current,
+        userId,
+        month,
+        year,
+        basicSalary,
+        componentValues: rebuildComponentValues(
+          basicSalary,
+          sourceValues ?? current.componentValues,
+          totalAmount,
+        ),
+      }));
+    } catch (error) {
+      setOvertimeAmount(0);
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat ringkasan lembur",
+      );
+      setFormData((current) => ({
+        ...current,
+        userId,
+        month,
+        year,
+        basicSalary,
+        componentValues: rebuildComponentValues(basicSalary, sourceValues, 0),
+      }));
+    }
+  };
 
-     if (!res.ok) throw new Error(await parseApiError(res, "Gagal menyimpan data"));   
-     toast.success(
-       `Data gaji berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
-     );
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch("/api/users");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil data karyawan"),
+        );
+      }
+      const json = await res.json();
+      setEmployees(json.data || []);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat data karyawan",
+      );
+    }
+  };
 
-     onSuccess && onSuccess();
-     onClose();
-   } catch (error) {
-     toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
-   } finally {
-     setLoading(false);
-   }
- };
+  const fetchComponentConfigs = async () => {
+    try {
+      const res = await fetch("/api/payroll-component-config");
+      if (!res.ok) {
+        throw new Error(
+          await parseApiError(res, "Gagal mengambil komponen payroll"),
+        );
+      }
+      const json = await res.json();
+      setComponentConfigs(json.data || []);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal memuat komponen payroll",
+      );
+    }
+  };
 
- useEffect(() => {
-   fetchEmployees();
- }, []);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const url = formData.id ? `/api/payrolls/${formData.id}` : "/api/payrolls";
+      const method = formData.id ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          allowances: computedAllowances,
+          deductions: computedDeductions,
+        }),
+      });
 
- useEffect(() => {
-   if (!isOpen) return;
+      if (!res.ok) throw new Error(await parseApiError(res, "Gagal menyimpan data"));
+      toast.success(
+        `Data gaji berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
+      );
 
-   if (initialData) {
-     setFormData({
-       ...createDefaultFormData(),
-       ...initialData,
-       userId: initialData.userId || initialData.user?.id || "",
-     });
-     return;
-   }
+      onSuccess && onSuccess();
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-   setFormData(createDefaultFormData());
- }, [initialData, isOpen]);
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
 
- return (
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchComponentConfigs();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (initialData) {
+      const baseSalary = Number(initialData.basicSalary || 0);
+      const sourceValues = (initialData.componentValues || []).filter(
+        (item) => item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME,
+      );
+      setFormData({
+        ...createDefaultFormData(),
+        ...initialData,
+        userId: initialData.userId || initialData.user?.id || "",
+        componentValues: rebuildComponentValues(baseSalary, sourceValues, 0),
+      });
+      void fetchOvertimeSummary({
+        userId: initialData.userId || initialData.user?.id || "",
+        month: Number(initialData.month || createDefaultFormData().month),
+        year: Number(initialData.year || createDefaultFormData().year),
+        basicSalary: baseSalary,
+        sourceValues,
+      });
+      return;
+    }
+
+    const defaultData = createDefaultFormData();
+    setOvertimeAmount(0);
+    setFormData({
+      ...defaultData,
+      componentValues: rebuildComponentValues(defaultData.basicSalary, [], 0),
+    });
+  }, [componentConfigs, initialData, isOpen]);
+
+  return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="!w-[calc(100vw-4rem)] !max-w-[1200px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Payroll" : "Tambah Payroll Baru"}
@@ -127,11 +314,13 @@ export default function FormData({
                 value={formData.userId || ""}
                 onValueChange={(val) => {
                   const selectedEmployee = employees.find((emp) => emp.id === val);
-                
-                  setFormData({
-                    ...formData,
+                  const basicSalary = selectedEmployee?.salary || 0;
+                  void fetchOvertimeSummary({
                     userId: val,
-                    basicSalary: selectedEmployee?.salary || 0,
+                    month: Number(formData.month || createDefaultFormData().month),
+                    year: Number(formData.year || createDefaultFormData().year),
+                    basicSalary,
+                    sourceValues: formData.componentValues,
                   });
                 }}
               >
@@ -156,9 +345,12 @@ export default function FormData({
                 <Select
                   value={String(formData.month)}
                   onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
+                    void fetchOvertimeSummary({
+                      userId: formData.userId || "",
                       month: Number(value),
+                      year: Number(formData.year || createDefaultFormData().year),
+                      basicSalary: Number(formData.basicSalary || 0),
+                      sourceValues: formData.componentValues,
                     })
                   }
                 >
@@ -182,9 +374,12 @@ export default function FormData({
                   type="number"
                   value={formData.year}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
+                    void fetchOvertimeSummary({
+                      userId: formData.userId || "",
+                      month: Number(formData.month || createDefaultFormData().month),
                       year: parseInt(e.target.value),
+                      basicSalary: Number(formData.basicSalary || 0),
+                      sourceValues: formData.componentValues,
                     })
                   }
                   required
@@ -200,51 +395,115 @@ export default function FormData({
                 type="text"
                 value={formData.basicSalary ? formData.basicSalary.toLocaleString("id-ID") : ""}
                 onChange={(e) => {
-                    const numericValue = e.target.value.replace(/\D/g, "");
-                    setFormData({
-                        ...formData,
-                        basicSalary: numericValue ? Number(numericValue) : 0,
-                    });
+                  const numericValue = e.target.value.replace(/\D/g, "");
+                  const basicSalary = numericValue ? Number(numericValue) : 0;
+                  setFormData({
+                    ...formData,
+                    basicSalary,
+                    componentValues: rebuildComponentValues(basicSalary),
+                  });
                 }}
                 placeholder="0"
                 required
               />
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="allowances">Tunjangan</Label>
-              <Input
-                id="allowances"
-                type="text"
-                value={formData.allowances ? formData.allowances.toLocaleString("id-ID") : ""}
-                onChange={(e) => {
-                    const numericValue = e.target.value.replace(/\D/g, "");
-                    setFormData({ 
-                        ...formData, 
-                        allowances: numericValue ? Number(numericValue) : 0 
-                    })
-                }}
-                placeholder="0"
-              />
-            </div>
+            {componentConfigs.length > 0 && (
+              <div className="space-y-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                <div>
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">Komponen Payroll</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Komponen ini mengikuti konfigurasi payroll dan otomatis masuk ke perhitungan total gaji.
+                  </p>
+                </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="deductions">Potongan</Label>
-              <Input
-                id="deductions"
-                type="text"
-                value={formData.deductions ? formData.deductions.toLocaleString("id-ID") : ""}
-                onChange={(e) => {
-                    const numericValue = e.target.value.replace(/\D/g, "");
-                    setFormData({ 
-                        ...formData, 
-                        deductions: numericValue ? Number(numericValue) : 0 
-                    })
-                }
-                }
-                placeholder="0"
-              />
-            </div>
+                <div className="space-y-4">
+                  {["EARNING", "DEDUCTION"].map((type) => {
+                    const sectionItems = (formData.componentValues || []).filter(
+                      (item) => item.typeSnapshot === type,
+                    );
+                    if (sectionItems.length === 0) return null;
+
+                    return (
+                      <div key={type} className="space-y-3">
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          {type === "EARNING" ? "Penghasilan Tambahan" : "Potongan"}
+                        </div>
+                        {sectionItems.map((item, index) => {
+                          const currentIndex = (formData.componentValues || []).findIndex(
+                            (value) =>
+                              value.componentConfigId === item.componentConfigId &&
+                              value.nameSnapshot === item.nameSnapshot,
+                          );
+                          const displayValue =
+                            item.inputTypeSnapshot === "PERCENTAGE"
+                              ? String(item.baseValue ?? 0)
+                              : item.amount
+                                ? item.amount.toLocaleString("id-ID")
+                                : "";
+
+                          return (
+                            <div key={`${item.componentConfigId || item.nameSnapshot}-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-12">
+                              <div className="grid gap-2 md:col-span-5">
+                                <Label>{item.nameSnapshot}
+                                  <span className="italic">
+                                    {item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME && (
+                                      <p className="text-xs text-slate-500">
+                                        Otomatis dari lembur yang disetujui pada periode ini.
+                                      </p>
+                                    )}
+                                  </span>
+                                </Label>
+                                <Input value={item.nameSnapshot} disabled />
+                              </div>
+                              <div className="grid gap-2 md:col-span-3">
+                                <Label>{item.inputTypeSnapshot === "PERCENTAGE" ? "Persentase (%)" : "Nominal"}</Label>
+                                <Input
+                                  type={item.inputTypeSnapshot === "PERCENTAGE" ? "number" : "text"}
+                                  value={displayValue}
+                                  disabled={item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME}
+                                  onChange={(e) => {
+                                    const nextValues = [...(formData.componentValues || [])];
+                                    if (currentIndex < 0) return;
+
+                                    if (item.inputTypeSnapshot === "PERCENTAGE") {
+                                      const nextBaseValue = Number(e.target.value || 0);
+                                      nextValues[currentIndex] = {
+                                        ...item,
+                                        baseValue: nextBaseValue,
+                                        amount: (Number(formData.basicSalary || 0) * nextBaseValue) / 100,
+                                      };
+                                    } else {
+                                      const numericValue = e.target.value.replace(/\D/g, "");
+                                      nextValues[currentIndex] = {
+                                        ...item,
+                                        amount: numericValue ? Number(numericValue) : 0,
+                                      };
+                                    }
+
+                                    setFormData({
+                                      ...formData,
+                                      componentValues: nextValues,
+                                    });
+                                  }}
+                                />
+                              </div>
+                              <div className="grid gap-2 md:col-span-4">
+                                <Label>Nilai Terhitung</Label>
+                                <Input
+                                  value={formatCurrency(Number(item.amount || 0))}
+                                  disabled
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Status */}
             <div className="grid gap-2">
@@ -264,16 +523,19 @@ export default function FormData({
                 </SelectContent>
               </Select>
             </div>
-            
+
             {/* Total Preview */}
-            <div className="mt-2 py-2 px-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-600 mb-1">Total Gaji:</p>
-              <p className="text-md font-bold text-blue-600">
+            <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 dark:border-blue-900/50 dark:bg-blue-950/20">
+              <p className="mb-1 text-sm text-blue-600 dark:text-blue-300">Total Gaji:</p>
+              <p className="text-md font-bold text-blue-600 dark:text-blue-200">
                 {formatCurrency(
                   (formData.basicSalary || 0) +
-                    (formData.allowances || 0) -
-                    (formData.deductions || 0),
+                    computedAllowances -
+                    computedDeductions,
                 )}
+              </p>
+              <p className="mt-1 text-xs text-blue-500 dark:text-blue-300/80">
+                Penghasilan tambahan: {formatCurrency(computedAllowances)} | Potongan: {formatCurrency(computedDeductions)}
               </p>
             </div>
           </div>
@@ -291,5 +553,5 @@ export default function FormData({
         </form>
       </DialogContent>
     </Dialog>
- );
+  );
 }

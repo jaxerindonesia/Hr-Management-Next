@@ -5,7 +5,10 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { hasPermission, requirePermission } from "@/lib/auth/permission";
+import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { syncSubmissionAttendanceForRange } from "@/lib/helper/submission-attendance";
+import { uploadBufferToMinio, BUCKET_AVATARS } from "@/lib/minio";
+import { validateAttachmentBuffer } from "@/lib/security/file-validation";
 
 export async function GET(req: NextRequest) {
   try {
@@ -75,12 +78,19 @@ export async function POST(req: NextRequest) {
     if (auth.error) return auth.error;
     const forbid = requirePermission(auth.user, "submissions", "create");
     if (forbid) return forbid;
-    const body = await req.json();
     const scopedTenantId = ensureTenantScope(auth.user);
-    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
     const canManageSubmissions = hasPermission(auth.user, "submissions", "update");
+    const formData = await req.formData();
+    const userId = String(formData.get("userId") || "");
+    const submissionTypeId = String(formData.get("submissionTypeId") || "");
+    const startDate = String(formData.get("startDate") || "");
+    const endDate = String(formData.get("endDate") || "");
+    const reason = String(formData.get("reason") || "");
+    const status = String(formData.get("status") || "PENDING");
+    const file = formData.get("file") as File | null;
+    const tenantIdFromForm = String(formData.get("tenantId") || "");
+    const finalTenantId = scopedTenantId ?? (tenantIdFromForm || null);
 
-    const { userId, submissionTypeId, startDate, endDate, reason, status } = body;
     if (!userId || !status || !submissionTypeId || !startDate || !endDate || !reason) {
       return NextResponse.json({ message: "All submission fields are required fields" }, { status: 400 });
     }
@@ -166,6 +176,39 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    let proofUrl: string | null = null;
+
+    if (file && file.size > 0) {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const validation = validateAttachmentBuffer(
+        file.name || "",
+        file.type || "application/octet-stream",
+        buffer,
+      );
+      if (!validation.ok) {
+        return NextResponse.json({ message: validation.message }, { status: 415 });
+      }
+
+      const fileName = await buildTenantStorageObjectName(
+        finalTenantId,
+        "submissions",
+        `proof-${submission.id}-${Date.now()}-${file.name.replace(/\s+/g, "_")}`,
+      );
+
+      proofUrl = await uploadBufferToMinio(
+        buffer,
+        fileName,
+        BUCKET_AVATARS,
+        validation.contentType,
+      );
+
+      await prisma.submission.update({
+        where: { id: submission.id },
+        data: { proofUrl },
+      });
+    }
+
     if (submission.status === "APPROVED") {
       await syncSubmissionAttendanceForRange({
         userId: submission.userId,
@@ -175,7 +218,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ message: "Submission successfully created.", data: submission }, { status: 201 });
+    return NextResponse.json({
+      message: "Submission successfully created.",
+      data: {
+        ...submission,
+        proofUrl,
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error("POST SUBMISSION ERROR:", error);
     return NextResponse.json({ message: "Failed to create submission" }, { status: 500 });

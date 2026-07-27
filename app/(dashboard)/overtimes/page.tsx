@@ -8,15 +8,23 @@ import type { OvertimeConfigDto, OvertimeDto } from "@/lib/dto/overtime";
 import type { UserDto } from "@/lib/dto/user";
 import type { ApiResponse } from "@/lib/utils";
 import { parseApiError } from "@/lib/helper/response-api";
+import FaceRecognitionModal from "../attendances/components/face-recognition-modal";
 import ConfigModal from "./components/config-modal";
+import CheckoutModal from "./components/checkout-modal";
 import FormData from "./components/form-data";
-import { DEFAULT_CONFIG, ITEMS_PER_PAGE, columnFormats, headerToolbar, renderActions } from "./page.config";
+import { DEFAULT_CONFIG, ITEMS_PER_PAGE, STATUS_LABEL, columnFormats, headerToolbar, renderActions } from "./page.config";
 import LastApproveModal from "./components/last-approve-modal";
 import RejectModal from "./components/reject-modal";
 import { formatTimeId } from "@/lib/helper/date";
 
+const LOCATION_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  timeout: 10000,
+  maximumAge: 0,
+};
+
 export default function Page() {
-  const { checkRole } = usePermission();
+  const { checkRole, permissions } = usePermission();
   const [data, setData] = useState<OvertimeDto[]>([]);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,6 +39,7 @@ export default function Page() {
 
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -42,8 +51,19 @@ export default function Page() {
   const [savedApproverUserIds, setSavedApproverUserIds] = useState<string[]>([]);
   const [draftApproverUserIds, setDraftApproverUserIds] = useState<string[]>([]);
   const [userId, setUserId] = useState("");
+  const [userAvatarUrl, setUserAvatarUrl] = useState("");
+  const [currentOvertime, setCurrentOvertime] = useState<OvertimeDto | null>(null);
   const [approvingItem, setApprovingItem] = useState<OvertimeDto | null>(null);
   const [approvePayMethod, setApprovePayMethod] = useState<"PER_HOUR" | "PER_DAY">("PER_HOUR");
+  const [pendingCheckAction, setPendingCheckAction] = useState<{
+    overtimeId: string;
+    type: "check-in" | "check-out";
+    proofFile?: File | null;
+  } | null>(null);
+  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+  const [faceModalMode, setFaceModalMode] = useState<"check-in" | "check-out">("check-in");
+  const [checkoutItem, setCheckoutItem] = useState<OvertimeDto | undefined>(undefined);
+  const [checkingAction, setCheckingAction] = useState(false);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / ITEMS_PER_PAGE)), [total]);
 
@@ -53,6 +73,14 @@ export default function Page() {
     if (filterStatus !== "all") count++;
     return count;
   }, [searchTerm, filterStatus]);
+  const hasOvertimeConfigPermission = useMemo(
+    () =>
+      permissions.some(
+        (permission) =>
+          permission.model === "overtimes" && permission.action === "set-config",
+      ),
+    [permissions],
+  );
 
   const clearFilters = useCallback(() => {
     setSearchTerm("");
@@ -62,6 +90,33 @@ export default function Page() {
   const onAdd = useCallback(() => {
     setDetailItem(undefined);
     setShowFormModal(true);
+  }, []);
+
+  const getCurrentPosition = useCallback(async () => {
+    if (!navigator.geolocation) {
+      throw new Error("Perangkat ini tidak mendukung akses lokasi");
+    }
+
+    const permissionName = "geolocation" as PermissionName;
+    if (navigator.permissions?.query) {
+      const perm = await navigator.permissions.query({ name: permissionName });
+      if (perm.state === "denied") {
+        throw new Error("Lokasi masih nonaktif. Aktifkan GPS dan izinkan akses lokasi terlebih dahulu.");
+      }
+    }
+
+    const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, LOCATION_OPTIONS),
+    );
+    const { latitude, longitude, accuracy } = position.coords;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new Error("Lokasi tidak valid. Pastikan GPS aktif lalu coba lagi.");
+    }
+    if (accuracy > 1500) {
+      throw new Error("Akurasi lokasi terlalu rendah. Nyalakan GPS presisi tinggi lalu coba lagi.");
+    }
+
+    return { latitude, longitude, accuracy };
   }, []);
 
   const onExport = useCallback(async () => {
@@ -81,12 +136,13 @@ export default function Page() {
       const rows = allData.map((item) => ({
         Karyawan: item.user?.name ?? "-",
         Tanggal: item.overtimeDate ? new Date(item.overtimeDate).toLocaleDateString("id-ID") : "-",
-        "Jam Mulai": item.startTime ? formatTimeId(item.startTime) : "-",
-        "Jam Selesai": item.endTime ? formatTimeId(item.endTime) : "-",
-        Durasi: `${Math.floor((item.overtimeMinutes || 0) / 60)} jam`,
+        "Check In": item.startTime ? formatTimeId(item.startTime) : "-",
+        "Check Out": item.endTime ? formatTimeId(item.endTime) : "-",
+        Durasi: item.overtimeMinutes ? `${Math.floor((item.overtimeMinutes || 0) / 60)} jam` : "-",
         Nominal: item.payoutAmount || 0,
-        Status: item.status || "-",
+        Status: STATUS_LABEL[item.status] || item.status || "-",
         Keterangan: item.description || "-",
+        "Bukti Lembur": item.proofUrl || "-",
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -101,12 +157,42 @@ export default function Page() {
     }
   }, [debouncedSearchTerm, filterStatus]);
 
+  const onView = async (id: string) => {
+    await fetchDetail(id);
+    setShowFormModal(true);
+  };
+
+  const handleCheckIn = useCallback((id: string) => {
+    setPendingCheckAction({ overtimeId: id, type: "check-in" });
+    setFaceModalMode("check-in");
+    setIsFaceModalOpen(true);
+  }, []);
+
+  const handleCheckOut = useCallback((id: string) => {
+    const item = data.find((row) => row.id === id);
+    setCheckoutItem(item);
+    setPendingCheckAction({ overtimeId: id, type: "check-out", proofFile: null });
+    setShowCheckoutModal(true);
+  }, [data]);
+
+  const submitCheckout = useCallback((file: File | null) => {
+    if (!pendingCheckAction?.overtimeId) return;
+    setPendingCheckAction((current) =>
+      current ? { ...current, type: "check-out", proofFile: file } : current,
+    );
+    setShowCheckoutModal(false);
+    setFaceModalMode("check-out");
+    setIsFaceModalOpen(true);
+  }, [pendingCheckAction]);
+
   const toolbar = useMemo(
     () =>
       headerToolbar({
         actions: {
           onAdd,
           onExport,
+          onCheckIn: currentOvertime?.id ? () => handleCheckIn(currentOvertime.id!) : undefined,
+          onCheckOut: currentOvertime?.id ? () => handleCheckOut(currentOvertime.id!) : undefined,
           onOpenConfig: () => {
             setDraftConfig(savedConfig);
             setDraftApproverUserIds(savedApproverUserIds);
@@ -114,6 +200,9 @@ export default function Page() {
           },
           checkRole,
           isExporting,
+        },
+        overtime: {
+          currentOvertime,
         },
         filters: {
           show: showFilterPanel,
@@ -126,13 +215,8 @@ export default function Page() {
           setStatus: setFilterStatus,
         },
       }),
-    [activeFilterCount, checkRole, clearFilters, filterStatus, isExporting, onAdd, onExport, savedApproverUserIds, savedConfig, searchTerm, showFilterPanel],
+    [activeFilterCount, checkRole, clearFilters, currentOvertime, filterStatus, handleCheckIn, handleCheckOut, isExporting, onAdd, onExport, savedApproverUserIds, savedConfig, searchTerm, showFilterPanel],
   );
-
-  const onView = async (id: string) => {
-    await fetchDetail(id);
-    setShowFormModal(true);
-  };
 
   const onDelete = async (id: string) => {
     try {
@@ -225,9 +309,17 @@ export default function Page() {
       const json = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(json.message || "Gagal menyimpan konfigurasi lembur");
 
+      const nextConfig = json.data || DEFAULT_CONFIG;
+      const nextApproverUserIds = (nextConfig.approverConfigs || []).map(
+        (item: NonNullable<OvertimeConfigDto["approverConfigs"]>[number]) => item.approverUserId,
+      );
+      setSavedConfig(nextConfig);
+      setDraftConfig(nextConfig);
+      setSavedApproverUserIds(nextApproverUserIds);
+      setDraftApproverUserIds(nextApproverUserIds);
+
       toast.success("Konfigurasi lembur berhasil disimpan");
       setShowConfigModal(false);
-      fetchConfig();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal menyimpan konfigurasi lembur");
     }
@@ -361,14 +453,59 @@ export default function Page() {
     }
   }, []);
 
+  const fetchCurrentOvertime = useCallback(async (currentUserId: string) => {
+    try {
+      if (!currentUserId) {
+        setCurrentOvertime(null);
+        return;
+      }
+
+      const today = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      const params = new URLSearchParams();
+      params.set("limit", "1");
+      params.set("activeOnly", "true");
+      params.set("overtimeDate", today);
+
+      const response = await fetch(`/api/overtimes?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Gagal memuat status lembur hari ini"));
+      }
+
+      const json = await response.json();
+      const items: OvertimeDto[] = json.data || [];
+      const currentItem = items.find((item) => item.userId === currentUserId) || null;
+      setCurrentOvertime(currentItem);
+    } catch (error) {
+      setCurrentOvertime(null);
+      toast.error(error instanceof Error ? error.message : "Gagal memuat status lembur hari ini");
+    }
+  }, []);
+
+  const handleOvertimeFormSuccess = useCallback(async () => {
+    await fetchData();
+    if (userId) {
+      await fetchCurrentOvertime(userId);
+    }
+  }, [fetchCurrentOvertime, fetchData, userId]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   useEffect(() => {
-    if (checkRole("overtimes", "set-config")) fetchConfig();
+    if (permissions.length === 0) return;
+
+    if (hasOvertimeConfigPermission) {
+      fetchConfig();
+    }
+
     fetchApproverUsers();
-  }, [fetchApproverUsers, fetchConfig]);
+  }, [fetchApproverUsers, fetchConfig, hasOvertimeConfigPermission, permissions.length]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -385,7 +522,69 @@ export default function Page() {
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserId(userData.id || "");
-  }, []);
+    setUserAvatarUrl(userData.avatarUrl || userData.avatar_url || "");
+    if (userData.id) {
+      fetchCurrentOvertime(userData.id);
+    }
+  }, [fetchCurrentOvertime]);
+
+  const handleFaceModalSuccess = useCallback(async (captureDataUrl: string) => {
+    if (!pendingCheckAction) return;
+
+    setCheckingAction(true);
+    try {
+      const location = await getCurrentPosition();
+
+      if (pendingCheckAction.type === "check-in") {
+        const response = await fetch("/api/overtimes/check-in", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            overtimeId: pendingCheckAction.overtimeId,
+            userId,
+            faceCaptureBase64: captureDataUrl,
+            checkInLocation: location,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(await parseApiError(response, "Gagal check in lembur"));
+        }
+
+        toast.success("Check in lembur berhasil");
+      } else {
+        const fd = new globalThis.FormData();
+        fd.append("overtimeId", pendingCheckAction.overtimeId);
+        fd.append("userId", userId);
+        fd.append("faceCaptureBase64", captureDataUrl);
+        fd.append("checkOutLocation", JSON.stringify(location));
+        if (pendingCheckAction.proofFile) {
+          fd.append("file", pendingCheckAction.proofFile);
+        }
+
+        const response = await fetch("/api/overtimes/check-out", {
+          method: "POST",
+          body: fd,
+        });
+
+        if (!response.ok) {
+          throw new Error(await parseApiError(response, "Gagal check out lembur"));
+        }
+
+        toast.success("Check out lembur berhasil");
+      }
+
+      setIsFaceModalOpen(false);
+      setPendingCheckAction(null);
+      setCheckoutItem(undefined);
+      fetchData();
+      fetchCurrentOvertime(userId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memproses lembur");
+    } finally {
+      setCheckingAction(false);
+    }
+  }, [fetchCurrentOvertime, fetchData, getCurrentPosition, pendingCheckAction, userId]);
 
   return (
     <>
@@ -418,7 +617,19 @@ export default function Page() {
         isOpen={showFormModal}
         initialData={detailItem}
         onClose={() => setShowFormModal(false)}
-        onSuccess={fetchData}
+        onSuccess={handleOvertimeFormSuccess}
+      />
+
+      <CheckoutModal
+        isOpen={showCheckoutModal}
+        overtime={checkoutItem}
+        loading={checkingAction}
+        onClose={() => {
+          setShowCheckoutModal(false);
+          setCheckoutItem(undefined);
+          setPendingCheckAction(null);
+        }}
+        onSubmit={submitCheckout}
       />
 
       <ConfigModal
@@ -461,6 +672,18 @@ export default function Page() {
         }}
         onApprove={() => approvingItem?.id && onApprove(approvingItem.id, approvePayMethod)}
         onApprovePayMethodChange={setApprovePayMethod}
+      />
+
+      <FaceRecognitionModal
+        isOpen={isFaceModalOpen}
+        mode={faceModalMode}
+        referenceImageUrl={userAvatarUrl || null}
+        onSuccess={handleFaceModalSuccess}
+        onClose={() => {
+          setIsFaceModalOpen(false);
+          setCheckingAction(false);
+          setPendingCheckAction(null);
+        }}
       />
     </>
   );

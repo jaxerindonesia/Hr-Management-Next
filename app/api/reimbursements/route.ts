@@ -9,6 +9,10 @@ import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { uploadBufferToMinio, BUCKET_AVATARS } from "@/lib/minio";
 import { validateAttachmentBuffer } from "@/lib/security/file-validation";
 
+function buildReimbursementReferenceNumber(id: string, createdAt: Date) {
+  return `RBM-${createdAt.getFullYear()}-${id.slice(0, 8).toUpperCase()}`;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireSessionUser();
@@ -34,6 +38,7 @@ export async function GET(req: NextRequest) {
     if (search) {
       where.OR = [
         { title: { contains: search, mode: "insensitive" } },
+        { referenceNumber: { contains: search, mode: "insensitive" } },
         { user: { name: { contains: search, mode: "insensitive" } } },
       ];
     }
@@ -90,6 +95,8 @@ export async function POST(req: NextRequest) {
     const category = formData.get("category") as string;
     const amount = formData.get("amount") as string;
     const date = formData.get("date") as string;
+    const bankName = formData.get("bankName") as string;
+    const accountNumber = formData.get("accountNumber") as string;
     const description = formData.get("description") as string;
     const file = formData.get("file") as File | null;
 
@@ -135,9 +142,19 @@ export async function POST(req: NextRequest) {
         category,
         amount: Number(amount),
         date: new Date(date),
+        bankName: bankName?.trim() || null,
+        accountNumber: accountNumber?.trim() || null,
         description: description || null,
         status: "PENDING",
       },
+    });
+    const referenceNumber = buildReimbursementReferenceNumber(
+      reimbursement.id,
+      reimbursement.createdAt,
+    );
+    const reimbursementWithReference = await prisma.reimbursement.update({
+      where: { id: reimbursement.id },
+      data: { referenceNumber },
     });
 
     let receiptUrl: string | null = null;
@@ -177,7 +194,7 @@ export async function POST(req: NextRequest) {
       {
         message: "Reimbursement berhasil dibuat",
         data: {
-          ...reimbursement,
+          ...reimbursementWithReference,
           receiptUrl,
         },
       },

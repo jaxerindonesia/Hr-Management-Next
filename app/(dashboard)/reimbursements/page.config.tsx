@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, Download, Edit, Filter, Info, Plus, Printer, Receipt, Trash2, X, XCircle } from "lucide-react";
+import { CheckCircle, Download, Edit, ExternalLink, Filter, Info, Plus, Printer, Receipt, Trash2, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DefaultColumnFormat } from "@/components/dynamic-page";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -85,6 +85,12 @@ export const columnFormats: DefaultColumnFormat<ReimbursementDto>[] = [
     formatter: (_value, row) => row.title || "-",
   },
   {
+    key: "referenceNumber",
+    title: "Nomor Referensi",
+    textClassName: "font-medium text-slate-700 dark:text-slate-200",
+    formatter: (_value, row) => row.referenceNumber || "-",
+  },
+  {
     key: "category",
     title: "Kategori",
     textClassName: "text-slate-700 dark:text-slate-200",
@@ -106,6 +112,36 @@ export const columnFormats: DefaultColumnFormat<ReimbursementDto>[] = [
     title: "Nominal Klaim",
     textClassName: "text-slate-700 dark:text-slate-200 font-semibold",
     formatter: (_value, row) => `Rp ${row.amount.toLocaleString("id-ID") ?? "-"}`,
+  },
+  {
+    key: "bankName",
+    title: "Bank Tujuan",
+    textClassName: "text-slate-700 dark:text-slate-200",
+    formatter: (_value, row) => row.bankName || "-",
+  },
+  {
+    key: "accountNumber",
+    title: "No. Rekening",
+    textClassName: "text-slate-700 dark:text-slate-200",
+    formatter: (_value, row) => row.accountNumber || "-",
+  },
+  {
+    key: "receiptUrl",
+    title: "Bukti Pembayaran",
+    formatter: (value) =>
+      value ? (
+        <a
+          href={String(value)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+        >
+          Lihat Bukti
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      ) : (
+        "-"
+      ),
   },
   {
     key: "status",
@@ -190,7 +226,7 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
               type="text"
               value={filters.searchTerm}
               onChange={(e) => filters.setSearchTerm(e.target.value)}
-              placeholder="Karyawan atau tujuan..."
+              placeholder="Nama karyawan, judul klaim, atau nomor referensi..."
               className="w-full rounded-lg border bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>

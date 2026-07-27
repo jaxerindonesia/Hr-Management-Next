@@ -408,6 +408,11 @@ export default function Page() {
           "Durasi Break": record.breakDuration ?? "-",
           "Jam Kerja": record.workHours ?? "-",
           Status: STATUS_LABEL[record.status] || record.status,
+          Sumber: record.status === "Lembur" || record.notes?.includes("from overtime")
+            ? "Lembur"
+            : record.notes?.includes("approved submission")
+              ? "Submission"
+              : "Attendance",
           "Bukti Check In": record.checkInFaceImage ?? "-",
           "Bukti Check Out": record.checkOutFaceImage ?? "-",
         };

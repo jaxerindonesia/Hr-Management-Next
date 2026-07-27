@@ -51,7 +51,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 's3-jaxer.tetrabit.my.id',
+        hostname: 's3.jahris.id',
       },
     ],
   },

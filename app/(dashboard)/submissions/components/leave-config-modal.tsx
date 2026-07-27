@@ -56,6 +56,7 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
   const [form, setForm] = useState<FormState>(defaultForm);
   const [loading, setLoading] = useState(false);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [submissionTypeError, setSubmissionTypeError] = useState("");
 
   const fetchConfigs = async () => {
     try {
@@ -99,6 +100,7 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
   const openAdd = () => {
     setEditingId(null);
     setForm(defaultForm);
+    setSubmissionTypeError("");
     setShowForm(true);
   };
 
@@ -110,6 +112,7 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
       description: cfg.description || "",
       submissionTypeIds: cfg.submissionTypes.map((t) => t.id),
     });
+    setSubmissionTypeError("");
     setShowForm(true);
   };
 
@@ -117,9 +120,14 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
     if (!form.name.trim()) return toast.error("Nama konfigurasi wajib diisi");
     if (!form.maxDays || isNaN(Number(form.maxDays)) || Number(form.maxDays) <= 0)
       return toast.error("Maksimal hari harus angka positif");
+    if (form.submissionTypeIds.length === 0) {
+      setSubmissionTypeError("Harap memilih minimal 1 jenis cuti pada batas cuti.");
+      return;
+    }
 
     setLoading(true);
     try {
+      setSubmissionTypeError("");
       const url = editingId ? `/api/leave-configs/${editingId}` : "/api/leave-configs";
       const method = editingId ? "PUT" : "POST";
       const res = await fetch(url, {
@@ -174,6 +182,7 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
         ? prev.submissionTypeIds.filter((id) => id !== typeId)
         : [...prev.submissionTypeIds, typeId],
     }));
+    setSubmissionTypeError("");
   };
 
   return (
@@ -248,7 +257,7 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Pilih satu atau beberapa jenis cuti. Klik untuk memilih/batal pilih.
               </p>
-              <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+              <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded-lg border bg-white p-2 dark:border-gray-700 dark:bg-gray-800">
                 {submissionTypes.length === 0 && (
                   <span className="text-sm text-gray-400">Belum ada jenis pengajuan</span>
                 )}
@@ -282,6 +291,11 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
                   );
                 })}
               </div>
+              {submissionTypeError && (
+                <p className="text-xs font-medium text-red-500">
+                  {submissionTypeError}
+                </p>
+              )}
               {form.submissionTypeIds.length > 0 && (
                 <p className="text-xs text-blue-600 dark:text-blue-400">
                   {form.submissionTypeIds.length} jenis cuti dipilih
@@ -294,7 +308,7 @@ export default function LeaveConfigModal({ isOpen, onClose }: { isOpen: boolean,
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => { setShowForm(false); setEditingId(null); setForm(defaultForm); }}
+                onClick={() => { setShowForm(false); setEditingId(null); setForm(defaultForm); setSubmissionTypeError(""); }}
               >
                 <X className="w-3.5 h-3.5 mr-1" /> Batal
               </Button>

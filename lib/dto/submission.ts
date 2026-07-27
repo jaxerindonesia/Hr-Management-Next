@@ -5,6 +5,7 @@ export interface SubmissionDto {
     startDate: string;
     endDate: string;
     reason: string;
+    proofUrl?: string | null;
     status: string;
     approvedBy?: string | null;
     approvedAt?: string | null;

@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { buildPerformanceKpi } from "@/lib/helper/performance-kpi";
 
 type Params = {
   params: {
@@ -23,6 +24,21 @@ export async function GET(_: Request, { params }: Params) {
 
     const performance = await prisma.performance.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            position: true,
+            department: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!performance) {
@@ -32,7 +48,16 @@ export async function GET(_: Request, { params }: Params) {
       );
     }
 
-    return NextResponse.json(performance);
+    const kpi = await buildPerformanceKpi({
+      tenantId: performance.tenantId,
+      userId: performance.userId,
+      period: performance.period,
+    });
+
+    return NextResponse.json({
+      ...performance,
+      kpiBreakdown: kpi.kpiBreakdown,
+    });
   } catch (error) {
     return NextResponse.json(
       { message: "Failed to retrieve performance" },
@@ -63,49 +88,52 @@ export async function PUT(req: Request, { params }: Params) {
       );
     }
 
-    const updateData: any = {};
+    const nextUserId = body.userId || existing.userId;
+    const nextPeriod = body.period || existing.period;
+    const nextTenantId = existing.tenantId ?? scopedTenantId ?? null;
 
-    if (body.period) updateData.period = body.period;
-    if (body.notes !== undefined) updateData.notes = body.notes;
-    if (body.evaluatedBy) updateData.evaluatedBy = body.evaluatedBy;
-
-    // Handle score updates
-    const productivity =
-      body.productivity !== undefined
-        ? Number(body.productivity)
-        : existing.productivity;
-
-    const quality =
-      body.quality !== undefined
-        ? Number(body.quality)
-        : existing.quality;
-
-    const teamwork =
-      body.teamwork !== undefined
-        ? Number(body.teamwork)
-        : existing.teamwork;
-
-    const discipline =
-      body.discipline !== undefined
-        ? Number(body.discipline)
-        : existing.discipline;
-
-    if (
-      body.productivity !== undefined ||
-      body.quality !== undefined ||
-      body.teamwork !== undefined ||
-      body.discipline !== undefined
-    ) {
-      updateData.productivity = productivity;
-      updateData.quality = quality;
-      updateData.teamwork = teamwork;
-      updateData.discipline = discipline;
-
-      updateData.totalScore =
-        (productivity + quality + teamwork + discipline) / 4;
+    if (!nextUserId || !nextPeriod) {
+      return NextResponse.json(
+        { message: "User dan periode wajib diisi" },
+        { status: 400 },
+      );
     }
 
-    updateData.evaluatedAt = new Date();
+    const duplicate = await prisma.performance.findFirst({
+      where: {
+        id: { not: p.id },
+        userId: nextUserId,
+        period: nextPeriod,
+        ...(nextTenantId ? { tenantId: nextTenantId } : { tenantId: null }),
+      },
+      select: { id: true },
+    });
+
+    if (duplicate) {
+      return NextResponse.json(
+        { message: "Performance already exists for this user" },
+        { status: 409 },
+      );
+    }
+
+    const generatedKpi = await buildPerformanceKpi({
+      tenantId: nextTenantId,
+      userId: nextUserId,
+      period: nextPeriod,
+    });
+
+    const updateData = {
+      userId: nextUserId,
+      period: generatedKpi.period,
+      productivity: generatedKpi.productivity,
+      quality: generatedKpi.quality,
+      teamwork: generatedKpi.teamwork,
+      discipline: generatedKpi.discipline,
+      totalScore: generatedKpi.totalScore,
+      notes: body.notes ?? existing.notes,
+      evaluatedBy: body.evaluatedBy || existing.evaluatedBy,
+      evaluatedAt: new Date(),
+    };
 
     const performance = await prisma.performance.update({
       where: { id: p.id },
@@ -114,7 +142,10 @@ export async function PUT(req: Request, { params }: Params) {
 
     return NextResponse.json({
       message: "Performance successfully updated",
-      data: performance,
+      data: {
+        ...performance,
+        kpiBreakdown: generatedKpi.kpiBreakdown,
+      },
     });
   } catch (error) {
     console.error(error);

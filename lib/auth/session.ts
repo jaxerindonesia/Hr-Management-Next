@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/security/audit-log";
@@ -22,9 +22,14 @@ type SessionFailureReason =
 
 export type SessionUser = {
   id: string;
+  email: string;
+  name: string;
   roleName: string;
   tenantId: string | null;
+  tenantName: string | null;
+  tenantLogoUrl: string | null;
   departmentId: string | null;
+  avatarUrl: string;
   permissions: Array<{
     model: string;
     action: string;
@@ -50,7 +55,14 @@ export async function getSessionUser(): Promise<SessionValidationResult> {
   let decodedUserId: string | null = null;
 
   try {
-    token = (await cookies()).get("token")?.value || "";
+    const cookieStore = await cookies();
+    const headerStore = await headers();
+    const authHeader = headerStore.get("authorization") || "";
+    const bearerToken = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+
+    token = cookieStore.get("token")?.value || bearerToken;
     if (!token) {
       return {
         ok: false,
@@ -90,6 +102,8 @@ export async function getSessionUser(): Promise<SessionValidationResult> {
           select: {
             isActive: true,
             subscriptionEnd: true,
+            companyName: true,
+            logoUrl: true,
           },
         },
       },
@@ -149,9 +163,14 @@ export async function getSessionUser(): Promise<SessionValidationResult> {
       token,
       user: {
         id: user.id,
+        email: user.email,
+        name: user.name,
         roleName: user.role.name,
         tenantId: user.tenantId ?? null,
+        tenantName: user.tenant?.companyName ?? null,
+        tenantLogoUrl: user.tenant?.logoUrl ?? null,
         departmentId: user.departmentId ?? null,
+        avatarUrl: user.avatarUrl ?? "",
         permissions: Array.isArray(user.role.permission)
           ? (user.role.permission as Array<{ model: string; action: string }>)
           : [],

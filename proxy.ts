@@ -5,7 +5,7 @@ import { getExpiredAuthCookieOptions } from "@/lib/auth/cookie";
 import { isStateChangingRequest, isTrustedOrigin } from "@/lib/security/origin";
 
 const cspBase =
-  "default-src 'self'; img-src 'self' data: blob: http://103.31.204.110:1608 https://s3-jaxer.tetrabit.my.id; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' http://103.31.204.110:1608 https://s3-jaxer.tetrabit.my.id; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  "default-src 'self'; img-src 'self' data: blob: http://103.31.204.110:1608 https://s3-jaxer.tetrabit.my.id https://s3.jahris.id; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' http://103.31.204.110:1608 https://s3-jaxer.tetrabit.my.id https://s3.jahris.id; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
 const createNonce = () => crypto.randomUUID().replace(/-/g, "");
 
@@ -20,7 +20,11 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
 
-  const token = request.cookies.get("token")?.value;
+  const authHeader = request.headers.get("authorization") || "";
+  const bearerToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : "";
+  const token = request.cookies.get("token")?.value || bearerToken;
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/api/cron")) {
@@ -74,15 +78,19 @@ export async function proxy(request: NextRequest) {
   if (!token || !isValidSession) {
     if (isApiRoute) {
       const response = NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      response.cookies.set("token", "", getExpiredAuthCookieOptions());
-      response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
+      if (request.cookies.get("token")?.value) {
+        response.cookies.set("token", "", getExpiredAuthCookieOptions());
+        response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
+      }
       applyCspHeaders(response, nonce);
       return response;
     }
 
     const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.set("token", "", getExpiredAuthCookieOptions());
-    response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
+    if (request.cookies.get("token")?.value) {
+      response.cookies.set("token", "", getExpiredAuthCookieOptions());
+      response.cookies.set("remember_me", "", getExpiredAuthCookieOptions());
+    }
     applyCspHeaders(response, nonce);
     return response;
   }

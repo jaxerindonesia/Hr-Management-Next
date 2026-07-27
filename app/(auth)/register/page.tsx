@@ -593,7 +593,7 @@ export default function RegisterPage() {
 
       {/* Footer */}
       <footer className="relative z-10 py-4 text-center text-xs text-gray-400">
-        &copy; {new Date().getFullYear()} Jaxer Teknologi Indonesia.
+        &copy;{new Date().getFullYear()} Jahris {process.env.NEXT_PUBLIC_APP_VERSION} • Jaxer Grup Indonesia.
       </footer>
     </div>
   );

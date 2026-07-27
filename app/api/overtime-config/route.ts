@@ -20,7 +20,7 @@ export async function GET() {
     const scopedTenantId = ensureTenantScope(auth.user);
 
     const cfg = await prisma.overtimeConfig.findFirst({
-      where: scopedTenantId ? { tenantId: scopedTenantId } : {},
+      where: scopedTenantId ? { tenantId: scopedTenantId } : { tenantId: null },
       orderBy: { updatedAt: "desc" },
     });
     const approverConfigs = await prisma.overtimeApproverConfig.findMany({
@@ -52,7 +52,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ message: "Nominal lembur harus angka >= 0" }, { status: 400 });
     }
     const existing = await prisma.overtimeConfig.findFirst({
-      where: scopedTenantId ? { tenantId: scopedTenantId } : {},
+      where: scopedTenantId ? { tenantId: scopedTenantId } : { tenantId: null },
       orderBy: { updatedAt: "desc" },
     });
 
@@ -87,8 +87,22 @@ export async function PUT(req: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({ message: "Overtime config updated", data: saved });
-  } catch {
+    const approverConfigs = await prisma.overtimeApproverConfig.findMany({
+      where: scopedTenantId ? { tenantId: scopedTenantId } : { tenantId: null },
+      orderBy: { createdAt: "asc" },
+      include: { approverUser: { select: { id: true, name: true, email: true } } },
+    });
+
+    return NextResponse.json({
+      message: "Overtime config updated",
+      data: {
+        ...saved,
+        approverConfigs,
+      },
+      isDefault: false,
+    });
+  } catch (error) {
+    console.error("OVERTIME CONFIG UPDATE ERROR:", error);
     return NextResponse.json({ message: "Failed to update overtime config" }, { status: 500 });
   }
 }

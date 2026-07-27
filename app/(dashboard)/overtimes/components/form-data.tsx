@@ -14,8 +14,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { OvertimeDto } from "@/lib/dto/overtime";
-import { formatDateInputValue, formatTimeInputValue } from "@/lib/helper/date";
+import { formatDateInputValue } from "@/lib/helper/date";
 import { INITIAL_FORM_DATA } from "../page.config";
+
+function getTodayJakartaDate() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 export default function FormData({
   isOpen,
@@ -26,35 +35,22 @@ export default function FormData({
   isOpen: boolean;
   initialData?: OvertimeDto;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: () => Promise<void> | void;
 }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<OvertimeDto>(INITIAL_FORM_DATA);
-  const hasInvalidTimeRange =
-    !!formData.startTime &&
-    !!formData.endTime &&
-    formData.endTime <= formData.startTime;
+  const minOvertimeDate = getTodayJakartaDate();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (hasInvalidTimeRange) {
-      toast.error("Jam selesai harus setelah jam mulai");
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const dateValue = formData.overtimeDate;
-      const startTimeValue = formData.startTime;
-      const endTimeValue = formData.endTime;
-
       const payload = {
-        ...formData,
-        overtimeDate: dateValue,
-        startTime: startTimeValue,
-        endTime: endTimeValue,
+        userId: formData.userId,
+        overtimeDate: formData.overtimeDate,
+        description: formData.description,
       };
 
       const url = formData.id
@@ -76,7 +72,7 @@ export default function FormData({
         `Data lembur berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
 
-      onSuccess?.();
+      await onSuccess?.();
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
@@ -93,12 +89,10 @@ export default function FormData({
       return;
     }
 
-    setFormData({
+      setFormData({
       ...INITIAL_FORM_DATA,
       ...initialData,
       overtimeDate: formatDateInputValue(initialData.overtimeDate),
-      startTime: formatTimeInputValue(initialData.startTime),
-      endTime: formatTimeInputValue(initialData.endTime),
       description: initialData.description ?? "",
       approvalDecisions: initialData.approvalDecisions ?? [],
     });
@@ -106,14 +100,14 @@ export default function FormData({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-2xl overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Pengajuan Lembur" : "Tambah Pengajuan Lembur"}
           </DialogTitle>
           <DialogDescription>
             {formData.id
-              ? "Perbarui detail pengajuan lembur yang masih dapat diubah."
+              ? "Perbarui detail pengajuan lembur sebelum proses check in dimulai."
               : "Lengkapi form untuk membuat pengajuan lembur baru."}
           </DialogDescription>
         </DialogHeader>
@@ -125,6 +119,7 @@ export default function FormData({
               <Input
                 type="date"
                 value={formData.overtimeDate}
+                min={minOvertimeDate}
                 onChange={(event) =>
                   setFormData((current) => ({
                     ...current,
@@ -133,43 +128,6 @@ export default function FormData({
                 }
                 required
               />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>Jam Mulai</Label>
-                <Input
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(event) => 
-                    setFormData((current) => ({
-                      ...current,
-                      startTime: event.target.value,
-                    }))
-                  }
-                  required
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Jam Selesai</Label>
-                <Input
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      endTime: event.target.value,
-                    }))
-                  }
-                  required
-                />
-                {hasInvalidTimeRange ? (
-                  <p className="text-sm text-red-500">
-                    Jam selesai harus setelah jam mulai.
-                  </p>
-                ) : null}
-              </div>
             </div>
 
             <div className="grid gap-2">
@@ -182,17 +140,17 @@ export default function FormData({
                     description: event.target.value,
                   }))
                 }
-                placeholder="Tuliskan alasan lembur"
+                placeholder="Tuliskan kegiatan atau alasan lembur"
                 rows={4}
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 border-t pt-6">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
               Batal
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? "Menyimpan..." : formData.id ? "Update" : "Simpan"}
             </Button>
           </div>

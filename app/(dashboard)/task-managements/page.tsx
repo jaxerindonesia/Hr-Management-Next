@@ -1421,7 +1421,7 @@ export default function TaskManagementPage() {
 
         {board && (
           <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <div className="flex items-center justify-between gap-3 border-b border-gray-100 p-4 dark:border-gray-800">
+            <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Filter Task</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -1430,12 +1430,12 @@ export default function TaskManagementPage() {
                     : "Disembunyikan sampai dibuka"}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setTaskFiltersOpen((prev) => !prev)}
-                  className="h-9 rounded-lg"
+                  className="h-9 w-full rounded-lg"
                 >
                   {taskFiltersOpen ? "Sembunyikan" : "Tampilkan"} Filter
                 </Button>
@@ -1443,7 +1443,7 @@ export default function TaskManagementPage() {
                   type="button"
                   variant="destructive"
                   onClick={clearTaskFilters}
-                  className="h-9 rounded-lg"
+                  className="h-9 w-full rounded-lg"
                 >
                   Reset Filter
                 </Button>

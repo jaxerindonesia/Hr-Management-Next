@@ -193,6 +193,8 @@ export default function Page() {
         "Nama Karyawan": r.user?.name ?? "-",
         "Judul Klaim": r.title ?? "-",
         Kategori: r.category ?? "-",
+        "Bank Tujuan": r.bankName ?? "-",
+        "No. Rekening": r.accountNumber ?? "-",
         Tanggal: r.date
           ? new Date(r.date).toLocaleDateString("id-ID", {
             day: "numeric",

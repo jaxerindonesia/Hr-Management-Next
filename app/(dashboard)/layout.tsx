@@ -40,7 +40,7 @@ export default function DashboardLayout({
 
           {/* Footer - Only visible on desktop */}
           <footer className="hidden lg:block border-t border-slate-200/80 py-3 text-center text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
-            &copy; {new Date().getFullYear()} Jaxer Teknologi Indonesia.
+            &copy;{new Date().getFullYear()} Jahris {process.env.NEXT_PUBLIC_APP_VERSION} • Jaxer Grup Indonesia.
           </footer>
         </main>
         <Toaster position="top-right" richColors />

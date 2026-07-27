@@ -1,6 +1,9 @@
+import type { PayrollComponentValueDto } from "@/lib/dto/payroll-component";
+
 export interface PayrollDto {
     id?: string | null;
     userId: string;
+    referenceNumber?: string | null;
     month: number;
     year: number;
     basicSalary: number;
@@ -12,6 +15,7 @@ export interface PayrollDto {
     createdAt?: Date | null;
     updatedAt?: Date | null;
     deletedAt?: Date | null;
+    componentValues?: PayrollComponentValueDto[];
     user?: {
         id: string;
         name: string;
