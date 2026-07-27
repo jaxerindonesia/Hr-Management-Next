@@ -5,6 +5,7 @@ import { getOrSetRedisJsonCache } from "@/lib/cache/redis";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import {
+  formatAttendanceStatusLabel,
   isAbsentAttendanceStatus,
   isWorkedAttendanceStatus,
 } from "@/lib/helper/attendance-status";
@@ -511,7 +512,7 @@ export async function GET() {
             isAbsentAttendanceStatus(attendance.status),
           ).length;
 
-          const todayStatus = todayAttendance?.status ?? "Belum Absen";
+          const todayStatus = formatAttendanceStatusLabel(todayAttendance?.status);
 
           return {
             roleName: auth.user.roleName,
@@ -541,7 +542,7 @@ export async function GET() {
             recentAttendances: recentAttendancesRaw.map((attendance) => ({
               id: attendance.id,
               date: attendance.date.toISOString(),
-              status: attendance.status,
+              status: formatAttendanceStatusLabel(attendance.status),
               checkIn: attendance.checkIn?.toISOString() ?? null,
               checkOut: attendance.checkOut?.toISOString() ?? null,
               workHours: attendance.workHours ?? null,
