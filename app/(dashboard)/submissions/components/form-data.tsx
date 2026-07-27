@@ -268,7 +268,7 @@ export default function FormData({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-2xl overflow-x-hidden overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Pengajuan Ketidakhadiran" : "Tambah Pengajuan Ketidakhadiran"}
@@ -280,37 +280,35 @@ export default function FormData({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="employeeName">Nama Karyawan</Label>
-            <Select
-              value={
-                formData.userId ||
-                (userData.role === "Karyawan" ? userData.id : "")
-              }
-              onValueChange={(val) => {
-                setFormData({
-                  ...formData,
-                  userId: val,
-                });
-              }}
-              disabled={userData.role === "Karyawan"}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={"Pilih Karyawan"} />
-              </SelectTrigger>
+        <form onSubmit={handleSubmit} className="min-w-0 space-y-4">
+          {userData.role !== "Karyawan" && (
+            <div className="grid min-w-0 gap-2">
+              <Label htmlFor="employeeName">Nama Karyawan</Label>
+              <Select
+                value={formData.userId}
+                onValueChange={(val) => {
+                  setFormData({
+                    ...formData,
+                    userId: val,
+                  });
+                }}
+              >
+                <SelectTrigger className="min-w-0 w-full">
+                  <SelectValue placeholder={"Pilih Karyawan"} />
+                </SelectTrigger>
 
-              <SelectContent>
-                {employees.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id || ""}>
-                    {emp.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                <SelectContent>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id || ""}>
+                      {emp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          <div className="grid gap-2">
+          <div className="grid min-w-0 gap-2">
             <Label>Jenis Cuti</Label>
             <Select
               value={formData.submissionTypeId}
@@ -318,7 +316,7 @@ export default function FormData({
                 setFormData({ ...formData, submissionTypeId: val })
               }
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="min-w-0 w-full">
                 <SelectValue placeholder="Pilih Jenis Cuti" />
               </SelectTrigger>
               <SelectContent>
@@ -331,9 +329,10 @@ export default function FormData({
             </Select>
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid min-w-0 gap-2">
             <Label>Tanggal Mulai</Label>
             <Input
+              className="min-w-0 w-full"
               type="date"
               value={startDateValue}
               onChange={(e) =>
@@ -354,9 +353,10 @@ export default function FormData({
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid min-w-0 gap-2">
             <Label>Tanggal Selesai</Label>
             <Input
+              className="min-w-0 w-full"
               type="date"
               value={endDateValue}
               min={startDateValue || undefined}
@@ -371,9 +371,10 @@ export default function FormData({
             ) : null}
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid min-w-0 gap-2">
             <Label>Alasan</Label>
             <Textarea
+              className="min-w-0 w-full"
               value={formData.reason}
               onChange={(e) =>
                 setFormData({ ...formData, reason: e.target.value })
@@ -382,11 +383,11 @@ export default function FormData({
             />
           </div>
 
-          <div className="grid gap-3">
+          <div className="grid min-w-0 gap-3">
             <Label htmlFor="submission-proof">Bukti Pengajuan</Label>
 
             {!previewUrl ? (
-              <label className="flex h-40 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed">
+              <label className="flex h-40 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-4 text-center">
                 <Upload className="h-6 w-6 text-gray-500" />
                 <p className="text-sm text-gray-500">
                   JPG, PNG, PDF (Maks. 5MB)
@@ -429,7 +430,7 @@ export default function FormData({
                   </div>
                 )}
 
-                <div className="flex justify-between bg-gray-50 p-4 dark:bg-slate-900/40">
+                <div className="flex flex-col gap-2 bg-gray-50 p-4 dark:bg-slate-900/40 sm:flex-row sm:items-center sm:justify-between">
                   <label className="cursor-pointer text-xs">
                     Ganti File
                     <input
@@ -453,12 +454,12 @@ export default function FormData({
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
               Batal
             </Button>
 
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? "Menyimpan..." : formData.id ? "Update" : "Simpan"}
             </Button>
           </div>

@@ -128,7 +128,7 @@ export default function PettyCashFormData({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-xl overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Petty Cash" : "Buat Petty Cash Baru"}
@@ -206,7 +206,7 @@ export default function PettyCashFormData({
           </div>
 
           {/* Bank & Rekening */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="bankName">Bank Tujuan</Label>
               <Input
@@ -230,7 +230,7 @@ export default function PettyCashFormData({
           </div>
 
           {/* Tanggal Transfer & Status */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="transferDate">Tanggal Ditransfer</Label>
               <Input
@@ -271,11 +271,11 @@ export default function PettyCashFormData({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
               Batal
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? "Menyimpan..." : formData.id ? "Update" : "Simpan"}
             </Button>
           </div>

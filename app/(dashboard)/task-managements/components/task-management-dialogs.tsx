@@ -234,7 +234,7 @@ export function TaskManagementDialogs({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => !savingTask && closeTaskModal()} />
           <div className="relative max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-900">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900 sm:px-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300">
                   <Plus className="h-5 w-5" />
@@ -254,7 +254,7 @@ export function TaskManagementDialogs({
               </Button>
             </div>
 
-            <div className="max-h-[calc(92vh-80px)] space-y-6 overflow-y-auto p-5">
+            <div className="max-h-[calc(92vh-80px)] space-y-6 overflow-y-auto p-4 sm:p-5">
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">
@@ -284,7 +284,7 @@ export function TaskManagementDialogs({
                   </Select>
                 </div>
 
-                <div className="flex gap-4 sm:col-span-2">
+                <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
                   <div className="flex-1">
                     <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Start Date</label>
                     <Input
@@ -374,11 +374,11 @@ export function TaskManagementDialogs({
                 </div>
 
                 <div className="sm:col-span-2">
-                  <div className="mb-2 flex items-center justify-between">
+                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <label className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Attachment</label>
-                    <div className="flex gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={openAttachmentPicker} className="h-9 rounded-lg"><Plus className="h-4 w-4" />Upload File</Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setTaskForm((prev) => ({ ...prev, attachments: [...prev.attachments, { name: "", url: "", type: "Link" }] }))} className="h-9 rounded-lg"><Plus className="h-4 w-4" />Tambah Link</Button>
+                    <div className="grid w-full grid-cols-2 gap-2 sm:w-auto">
+                      <Button type="button" variant="outline" size="sm" onClick={openAttachmentPicker} className="h-9 w-full rounded-lg"><Plus className="h-4 w-4" />Upload File</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setTaskForm((prev) => ({ ...prev, attachments: [...prev.attachments, { name: "", url: "", type: "Link" }] }))} className="h-9 w-full rounded-lg"><Plus className="h-4 w-4" />Tambah Link</Button>
                     </div>
                   </div>
                   <input ref={attachmentFileInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf,.xls,.xlsx,.csv,.doc,.docx,.ppt,.pptx" className="hidden" onChange={async (e) => {

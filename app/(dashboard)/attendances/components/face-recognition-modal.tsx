@@ -412,10 +412,10 @@ export default function FaceRecognitionModal({
           </button>
         </div>
 
-        <div className="relative bg-black aspect-[4/3] sm:aspect-video overflow-hidden">
+        <div className="relative bg-black aspect-[4/5] sm:aspect-[4/3] md:aspect-video overflow-hidden">
           <video
             ref={videoRef}
-            className="w-full h-full object-cover -scale-x-100"
+            className="h-full w-full object-cover object-center -scale-x-100"
             muted
             playsInline
           />
@@ -443,7 +443,7 @@ export default function FaceRecognitionModal({
           {!shouldSuppressStatusUi && (status === "scanning" || status === "no-face" || status === "no-match" || status === "head-turn-required") && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div
-                className={`w-54 h-66 sm:w-48 sm:h-60 rounded-full border-4 transition-colors duration-500 ${
+                className={`h-[70%] w-[66%] max-w-[18rem] rounded-full border-4 transition-colors duration-500 sm:h-[78%] sm:w-48 ${
                   status === "no-match"
                     ? "border-red-400"
                     : status === "no-face"

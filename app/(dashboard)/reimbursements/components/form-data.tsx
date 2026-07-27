@@ -250,7 +250,7 @@ export default function ReimbursementFormData({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-2xl overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>
             {formData.id ? "Edit Reimbursement" : "Tambah Reimbursement"}
@@ -260,34 +260,32 @@ export default function ReimbursementFormData({
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             {/* Karyawan */}
-            <div className="grid gap-2">
-              <Label>Nama Karyawan</Label>
-              <Select
-                value={
-                  formData.userId ||
-                  (userData.role === "Karyawan" ? userData.id : "")
-                }
-                onValueChange={(val) => {
-                  setFormData({
-                    ...formData,
-                    userId: val,
-                  });
-                }}
-                disabled={userData.role === "Karyawan"}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={"Pilih Karyawan"} />
-                </SelectTrigger>
+            {userData.role !== "Karyawan" && (
+              <div className="grid gap-2">
+                <Label>Nama Karyawan</Label>
+                <Select
+                  value={formData.userId}
+                  onValueChange={(val) => {
+                    setFormData({
+                      ...formData,
+                      userId: val,
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={"Pilih Karyawan"} />
+                  </SelectTrigger>
 
-                <SelectContent>
-                  {employees.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id || ""}>
-                      {emp.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                  <SelectContent>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id || ""}>
+                        {emp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Judul */}
             <div className="grid gap-2">
@@ -325,7 +323,7 @@ export default function ReimbursementFormData({
             </div>
 
             {/* Nominal & Tanggal */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Nominal (Rp)</Label>
                 <Input
@@ -364,7 +362,7 @@ export default function ReimbursementFormData({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Bank Tujuan</Label>
                 <Input
@@ -415,7 +413,7 @@ export default function ReimbursementFormData({
               <Label>Upload Struk / Bukti Pembayaran</Label>
 
               {!previewUrl ? (
-                <label className="flex flex-col items-center justify-center gap-3 w-full h-40 border-2 border-dashed rounded-2xl cursor-pointer">
+                <label className="flex h-40 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-4 text-center">
                   <Upload className="w-6 h-6 text-gray-500" />
                   <p className="text-sm text-gray-500">
                     JPG, PNG, WebP, PDF (Maks. 5MB)
@@ -445,7 +443,7 @@ export default function ReimbursementFormData({
                     </div>
                   )}
 
-                  <div className="flex justify-between p-4 bg-gray-50">
+                  <div className="flex flex-col gap-2 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <label className="text-xs cursor-pointer">
                       Ganti File
                       <input
@@ -474,11 +472,11 @@ export default function ReimbursementFormData({
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
               Batal
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? "Menyimpan..." : formData.id ? "Update" : "Simpan"}
             </Button>
           </div>
