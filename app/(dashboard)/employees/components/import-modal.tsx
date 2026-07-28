@@ -16,7 +16,6 @@ import {
 import {
   buildEmployeeImportInfoRows,
   buildEmployeeImportTemplateRows,
-  EMPLOYEE_IMPORT_BATCH_SIZE,
   getEmployeeImportColumns,
   normalizeEmployeeImportRow,
   validateEmployeeImportRow,
@@ -203,47 +202,31 @@ export default function ImportModal({
         return;
       }
 
-      const batches: typeof normalizedRows[] = [];
-      for (let index = 0; index < normalizedRows.length; index += EMPLOYEE_IMPORT_BATCH_SIZE) {
-        batches.push(normalizedRows.slice(index, index + EMPLOYEE_IMPORT_BATCH_SIZE));
-      }
+      setProgressText(`Mengimport ${normalizedRows.length} data karyawan...`);
 
-      const collectedErrors: ImportErrorItem[] = [];
-      let createdTotal = 0;
+      const response = await fetch("/api/users/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows: normalizedRows,
+        }),
+      });
 
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
-        const batch = batches[batchIndex];
-        setProgressText(
-          `Mengimport batch ${batchIndex + 1} dari ${batches.length} (${batch.length} data)...`,
+      if (!response.ok) {
+        throw new Error(
+          await parseApiError(response, "Gagal mengimport data karyawan"),
         );
-
-        const response = await fetch("/api/users/import", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            rows: batch,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            await parseApiError(response, "Gagal mengimport batch data"),
-          );
-        }
-        const json = await response.json().catch(() => ({}));
-
-        const data = json.data as {
-          created?: number;
-          errors?: ImportErrorItem[];
-        };
-
-        createdTotal += data?.created || 0;
-        if (Array.isArray(data?.errors) && data.errors.length > 0) {
-          collectedErrors.push(...data.errors);
-        }
-
-        await new Promise((resolve) => window.setTimeout(resolve, 120));
       }
+
+      const json = await response.json().catch(() => ({}));
+
+      const data = json.data as {
+        created?: number;
+        errors?: ImportErrorItem[];
+      };
+
+      const createdTotal = data?.created || 0;
+      const collectedErrors = Array.isArray(data?.errors) ? data.errors : [];
 
       setErrors(collectedErrors);
       onSuccess?.();

@@ -48,7 +48,7 @@ jobs:
             npm run build
 
             echo "🔄 Reload PM2"
-            pm2 reload hr-manage-next
+            pm2 reload jahris-prod-next
 
             echo "✅ Deploy success 🚀"
           EOF
