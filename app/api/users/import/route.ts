@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const rows = Array.isArray(body?.rows) ? (body.rows as ImportRequestRow[]) : [];
+    const MAX_IMPORT_ROWS = 1000;
 
     if (rows.length === 0) {
       writeAuditLog({
@@ -93,6 +94,13 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json(
         { message: "Data import tidak ditemukan" },
+        { status: 400 },
+      );
+    }
+
+    if (rows.length > MAX_IMPORT_ROWS) {
+      return NextResponse.json(
+        { message: `Maksimal ${MAX_IMPORT_ROWS} data per sekali import` },
         { status: 400 },
       );
     }
@@ -131,7 +139,26 @@ export async function POST(req: NextRequest) {
     const roleMap = new Map(roles.map((role) => [normalizeText(role.name), role]));
     const tenantMap = new Map(tenants.map((tenant) => [normalizeText(tenant.companyName), tenant]));
     const errors: ImportErrorItem[] = [];
-    let created = 0;
+    const usersToCreate: Array<{
+      tenantId: string | null;
+      roleId: string;
+      departmentId: string | null;
+      email: string;
+      name: string;
+      password: string;
+      salt: string;
+      nik: string | null;
+      phone: string | null;
+      position: string | null;
+      joinDate: Date | null;
+      salary: number | null;
+      gender: string | null;
+      address: string | null;
+      birthDate: Date | null;
+      birthPlace: string | null;
+      currentToken: string;
+      status: string;
+    }> = [];
 
     for (let index = 0; index < rows.length; index += 1) {
       const item = rows[index];
@@ -221,35 +248,54 @@ export async function POST(req: NextRequest) {
         departmentId = department.id;
       }
 
+      batchEmailSet.add(email);
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(row.password, salt);
 
-      await prisma.user.create({
-        data: {
-          tenantId: finalTenantId,
-          roleId: role.id,
-          departmentId,
-          email: row.email.trim(),
-          name: row.name.trim(),
-          password: hashedPassword,
-          salt,
-          nik: row.nik?.trim() || null,
-          phone: row.phone?.trim() || null,
-          position: row.position?.trim() || null,
-          joinDate: parseDate(row.joinDate),
-          salary: typeof row.salary === "number" ? row.salary : null,
-          gender: mapGender(row.gender),
-          address: row.address?.trim() || null,
-          birthDate: parseDate(row.birthDate),
-          birthPlace: row.birthPlace?.trim() || null,
-          currentToken: "",
-          status: mapStatus(row.status),
-        },
+      usersToCreate.push({
+        tenantId: finalTenantId,
+        roleId: role.id,
+        departmentId,
+        email: row.email.trim(),
+        name: row.name.trim(),
+        password: hashedPassword,
+        salt,
+        nik: row.nik?.trim() || null,
+        phone: row.phone?.trim() || null,
+        position: row.position?.trim() || null,
+        joinDate: parseDate(row.joinDate),
+        salary: typeof row.salary === "number" ? row.salary : null,
+        gender: mapGender(row.gender),
+        address: row.address?.trim() || null,
+        birthDate: parseDate(row.birthDate),
+        birthPlace: row.birthPlace?.trim() || null,
+        currentToken: "",
+        status: mapStatus(row.status),
       });
-
-      batchEmailSet.add(email);
-      created += 1;
     }
+
+    if (usersToCreate.length > 0) {
+      await prisma.user.createMany({
+        data: usersToCreate,
+      });
+    }
+
+    const created = usersToCreate.length;
+
+    writeAuditLog({
+      action: "users.import",
+      status: errors.length > 0 ? "failed" : "success",
+      request: req,
+      actorUserId: auth.user.id,
+      actorRole: auth.user.roleName,
+      tenantId: auth.user.tenantId,
+      message: "User import completed",
+      metadata: {
+        total: rows.length,
+        created,
+        failed: errors.length,
+      },
+    });
 
     return NextResponse.json({
       message:
