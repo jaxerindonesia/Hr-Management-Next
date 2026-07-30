@@ -9,6 +9,7 @@ import { hasPermission } from "@/lib/auth/permission";
 import { getDateAtTime, getJakartaDayKey } from "@/lib/helper/date";
 import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
+import { haversineKm } from "@/lib/helper/attendance";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
         userId: targetUserId,
         attendanceDay,
       },
+      include: { branch: true },
     });
 
     if (!attendance) {
@@ -83,6 +85,20 @@ export async function POST(req: NextRequest) {
         { message: "Already checked out today" },
         { status: 409 },
       );
+    }
+
+    const latitude = Number(checkOutLocation?.latitude);
+    const longitude = Number(checkOutLocation?.longitude);
+    const hasLocation = Number.isFinite(latitude) && Number.isFinite(longitude);
+    let checkOutDistanceMeters: number | null = null;
+    if (attendance.branch && hasLocation) {
+      checkOutDistanceMeters = haversineKm(attendance.branch.latitude, attendance.branch.longitude, latitude, longitude) * 1000;
+    }
+    if (attendance.branch?.locationLockEnabled) {
+      if (!hasLocation) return NextResponse.json({ message: "Lokasi wajib diaktifkan untuk absensi di cabang ini" }, { status: 400 });
+      if ((checkOutDistanceMeters ?? Infinity) > attendance.branch.attendanceRadiusMeters) {
+        return NextResponse.json({ message: `Anda berada di luar radius cabang (${Math.round(checkOutDistanceMeters ?? 0)} m, maksimal ${attendance.branch.attendanceRadiusMeters} m)` }, { status: 400 });
+      }
     }
 
     const now = new Date();
@@ -116,7 +132,8 @@ export async function POST(req: NextRequest) {
         orderBy: { updatedAt: "desc" },
       })) ??
       DEFAULT_CONFIG;
-    const officeEnd = getDateAtTime(now, cfg.officeEndTime);
+    const officeEndTime = attendance.branch?.customWorkingHoursEnabled ? attendance.branch.officeEndTime : cfg.officeEndTime;
+    const officeEnd = getDateAtTime(now, officeEndTime);
     const isHalfDay = now < officeEnd;
     const wasLate = attendance.status === "Late";
     let status: string;
@@ -139,6 +156,7 @@ export async function POST(req: NextRequest) {
           status,
           workHours: formattedWorkHours,
           checkOutLocation,
+          checkOutDistanceMeters,
           checkOutFaceImage,
         },
       });

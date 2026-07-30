@@ -8,6 +8,7 @@ import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { getJakartaDayKey } from "@/lib/helper/date";
 import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
+import { getBranchDistanceMeters } from "@/lib/helper/attendance";
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
         userId,
         attendanceDay,
       },
+      include: { branch: true },
     });
     if (!attendance?.checkIn) return jsonError("Silakan check in terlebih dahulu", 404);
     if (attendance.checkOut) return jsonError("Tidak bisa break setelah check out", 409);
@@ -62,6 +64,21 @@ export async function POST(req: NextRequest) {
     }
     if (hasOpenBreak(attendance.breakSessions)) {
       return jsonError("Masih ada sesi break yang sedang berjalan", 409);
+    }
+
+    if (attendance.branch && !attendance.branch.isActive) {
+      return jsonError("Cabang karyawan sedang nonaktif", 400);
+    }
+    const breakInDistanceMeters = attendance.branch
+      ? getBranchDistanceMeters(attendance.branch, breakInLocation)
+      : null;
+    if (attendance.branch?.locationLockEnabled) {
+      if (breakInDistanceMeters === null) {
+        return jsonError("Lokasi wajib diaktifkan untuk break check in di cabang ini", 400);
+      }
+      if (breakInDistanceMeters > attendance.branch.attendanceRadiusMeters) {
+        return jsonError(`Anda berada di luar radius cabang (${Math.round(breakInDistanceMeters)} m, maksimal ${attendance.branch.attendanceRadiusMeters} m)`, 400);
+      }
     }
 
     if (cfg.breakFaceCaptureEnabled && !faceCaptureBase64) {
@@ -98,6 +115,7 @@ export async function POST(req: NextRequest) {
             breakOut: null,
             duration: null,
             breakInLocation,
+            breakInDistanceMeters,
             breakInFaceImage: uploadedFaceImage,
           },
         ]
@@ -106,6 +124,7 @@ export async function POST(req: NextRequest) {
           breakOut: null,
           duration: null,
           breakInLocation,
+          breakInDistanceMeters,
           breakInFaceImage: uploadedFaceImage,
         }];
 

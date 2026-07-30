@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
     const departmentId = searchParams.get("departmentId") || "";
+    const branchId = searchParams.get("branchId") || "";
     const position = searchParams.get("position") || "";
     const tenantId = searchParams.get("tenantId") || "";
 
@@ -46,6 +47,10 @@ export async function GET(req: NextRequest) {
       where.departmentId = departmentId;
     }
 
+    if (branchId) {
+      where.branchId = branchId;
+    }
+
     if (position) {
       where.position = position;
     }
@@ -61,6 +66,7 @@ export async function GET(req: NextRequest) {
           tenantId: true,
           roleId: true,
           departmentId: true,
+          branchId: true,
           email: true,
           name: true,
           status: true,
@@ -82,6 +88,7 @@ export async function GET(req: NextRequest) {
               name: true,
             },
           },
+          branch: { select: { id: true, name: true } },
           role: {
             select: {
               id: true,
@@ -129,6 +136,7 @@ export async function POST(req: NextRequest) {
       password,
       roleId,
       departmentId,
+      branchId,
       nik,
       phone,
       position,
@@ -167,6 +175,11 @@ export async function POST(req: NextRequest) {
       where: { email },
     });
 
+    if (branchId) {
+      const branch = await prisma.branch.findFirst({ where: { id: branchId, tenantId: finalTenantId } });
+      if (!branch) return NextResponse.json({ message: "Cabang tidak valid" }, { status: 400 });
+    }
+
     if (existing) {
       return NextResponse.json(
         { message: "Email already registered" },
@@ -185,6 +198,7 @@ export async function POST(req: NextRequest) {
         salt,
         roleId,
         departmentId,
+        branchId: branchId || null,
         nik,
         phone,
         position,

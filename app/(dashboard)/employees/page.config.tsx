@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { DepartmentDto } from "@/lib/dto/department";
+import type { BranchDto } from "@/lib/dto/branch";
 import type { UserDto } from "@/lib/dto/user";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { formatDateId, formatTimeId } from "@/lib/helper/date";
@@ -104,11 +105,14 @@ interface HeaderToolbarProps {
     setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
     department: string;
     setDepartment: React.Dispatch<React.SetStateAction<string>>;
+    branch: string;
+    setBranch: React.Dispatch<React.SetStateAction<string>>;
     status: string;
     setStatus: React.Dispatch<React.SetStateAction<string>>;
     company: string;
     setCompany: React.Dispatch<React.SetStateAction<string>>;
     departments: DepartmentDto[];
+    branches: BranchDto[];
     tenants: TenantOption[];
     isSuperAdmin: boolean;
     getDepartmentDisplayName: (dept?: DepartmentOption) => string;
@@ -204,6 +208,12 @@ export const columnFormats = ({
       title: "Departemen",
       textClassName: "text-slate-700 dark:text-slate-200",
       formatter: (_value, row) => getDepartmentDisplayName(row.department),
+    },
+    {
+      key: "branch",
+      title: "Cabang",
+      textClassName: "text-slate-700 dark:text-slate-200",
+      formatter: (_value, row) => row.branch?.name || "-",
     },
   );
 
@@ -331,7 +341,7 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
         </div>
 
         <div
-          className={`grid grid-cols-1 gap-4 ${filters.isSuperAdmin ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"
+          className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${filters.isSuperAdmin ? "lg:grid-cols-5" : "lg:grid-cols-4"
             }`}
         >
           <div>
@@ -399,6 +409,27 @@ export const headerToolbar = ({ actions, filters }: HeaderToolbarProps) => (
                 <SelectItem value="all">Semua Status</SelectItem>
                 <SelectItem value="active">Aktif</SelectItem>
                 <SelectItem value="inactive">Tidak Aktif</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Cabang
+            </Label>
+            <Select value={filters.branch} onValueChange={filters.setBranch}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Semua Cabang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Cabang</SelectItem>
+                {filters.branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id || ""}>
+                    {filters.isSuperAdmin && branch.tenant?.companyName
+                      ? `${branch.name} - ${branch.tenant.companyName}`
+                      : branch.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -556,7 +587,7 @@ export function buildEmployeeRecapSection(employee: UserDto, recap: RecapData) {
       <div class="profile">
         <div>
           <h1>${escapeHtml(employee.name)}</h1>
-          <div class="subtitle">${escapeHtml(employee.position || "-")} &bull; ${escapeHtml(employee.department?.name || "-")}</div>
+          <div class="subtitle">${escapeHtml(employee.position || "-")} &bull; Departemen ${escapeHtml(employee.department?.name || "-")} &bull; Cabang ${escapeHtml(employee.branch?.name || "-")}</div>
           <div class="meta">
             <div class="meta-item"><span class="label">NIK</span><span class="value">${escapeHtml(employee.nik || "-")}</span></div>
             <div class="meta-item"><span class="label">Gender</span><span class="value">${escapeHtml(gender)}</span></div>

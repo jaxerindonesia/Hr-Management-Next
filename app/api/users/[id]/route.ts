@@ -63,7 +63,7 @@ export async function PUT(req: Request, { params }: Params) {
     const { id } = await params;
     const targetUser = await prisma.user.findFirst({
       where: { id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
-      select: { id: true },
+      select: { id: true, tenantId: true },
     });
     if (!targetUser) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
@@ -85,6 +85,16 @@ export async function PUT(req: Request, { params }: Params) {
     if (body.name) updateData.name = body.name;
     if (body.roleId) updateData.roleId = body.roleId;
     if (body.departmentId) updateData.departmentId = body.departmentId;
+    if (body.branchId !== undefined) {
+      if (body.branchId) {
+        if (!targetUser.tenantId) return NextResponse.json({ message: "User tidak memiliki tenant" }, { status: 400 });
+        const branch = await prisma.branch.findFirst({
+          where: { id: body.branchId, tenantId: targetUser.tenantId },
+        });
+        if (!branch) return NextResponse.json({ message: "Cabang tidak valid" }, { status: 400 });
+      }
+      updateData.branchId = body.branchId || null;
+    }
     if (body.nik) updateData.nik = body.nik;
     if (body.phone) updateData.phone = body.phone;
     if (body.position) updateData.position = body.position;

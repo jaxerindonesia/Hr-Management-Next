@@ -26,6 +26,8 @@ import {
   Banknote,
   Clock,
   ChevronDown,
+  Building2,
+  Split,
 } from "lucide-react";
 
 export default function MobileNavbar() {
@@ -70,6 +72,13 @@ export default function MobileNavbar() {
       name: "Dashboard",
       icon: LayoutDashboard,
       path: "/dashboard",
+    },
+    {
+      id: "branches",
+      name: "Cabang",
+      icon: Split,
+      path: "/branches",
+      permissions: ["get-all", "get-by-id"],
     },
     {
       id: "employees",
@@ -242,69 +251,69 @@ export default function MobileNavbar() {
       <nav className="fixed left-0 right-0 top-0 z-50 lg:hidden">
         <div className="px-4 pt-3">
           <div className="flex h-14 items-center justify-between rounded-[0.9rem] border border-slate-200/70 bg-white/80 px-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75 dark:shadow-[0_18px_40px_rgba(2,6,23,0.35)]">
-          {/* Logo */}
-          <Link href="/dashboard" className="flex items-center" onClick={handleLogoClick}>
-            {tenantLogo ? (
-              <Image
-                src={tenantLogo}
-                alt={tenantConfig?.companyName ?? "Company Logo"}
-                width={110}
-                height={32}
-                priority
-                className="max-h-8 w-auto object-contain"
-                unoptimized
-              />
-            ) : (
-              <>
+            {/* Logo */}
+            <Link href="/dashboard" className="flex items-center" onClick={handleLogoClick}>
+              {tenantLogo ? (
                 <Image
-                  src="/logo_jahris_colored.png"
-                  alt="Jahris Logo"
-                  width={80}
-                  height={16}
+                  src={tenantLogo}
+                  alt={tenantConfig?.companyName ?? "Company Logo"}
+                  width={110}
+                  height={32}
                   priority
-                  className="object-contain dark:hidden"
+                  className="max-h-8 w-auto object-contain"
+                  unoptimized
                 />
-                <Image
-                  src="/logo_jahris_white.png"
-                  alt="Jahris Logo"
-                  width={80}
-                  height={16}
-                  priority
-                  className="hidden object-contain dark:block"
-                />
-              </>
-            )}
-          </Link>
-
-          {/* Right Side Icons */}
-          <div className="flex items-center gap-2">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/80 text-slate-700 transition-colors hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15"
-              aria-label="Toggle theme"
-            >
-              {theme === "light" ? (
-                <Moon className="w-5 h-5" />
               ) : (
-                <Sun className="w-5 h-5" />
+                <>
+                  <Image
+                    src="/logo_jahris_colored.png"
+                    alt="Jahris Logo"
+                    width={80}
+                    height={16}
+                    priority
+                    className="object-contain dark:hidden"
+                  />
+                  <Image
+                    src="/logo_jahris_white.png"
+                    alt="Jahris Logo"
+                    width={80}
+                    height={16}
+                    priority
+                    className="hidden object-contain dark:block"
+                  />
+                </>
               )}
-            </button>
+            </Link>
 
-            {/* Menu Toggle */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_8px_20px_rgba(37,99,235,0.35)] transition-all hover:bg-blue-700 active:scale-95 dark:bg-blue-500 dark:hover:bg-blue-400"
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? (
-                <X className="w-4 h-4" />
-              ) : (
-                <Menu className="w-4 h-4" />
-              )}
-            </button>
+            {/* Right Side Icons */}
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/80 text-slate-700 transition-colors hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15"
+                aria-label="Toggle theme"
+              >
+                {theme === "light" ? (
+                  <Moon className="w-5 h-5" />
+                ) : (
+                  <Sun className="w-5 h-5" />
+                )}
+              </button>
+
+              {/* Menu Toggle */}
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_8px_20px_rgba(37,99,235,0.35)] transition-all hover:bg-blue-700 active:scale-95 dark:bg-blue-500 dark:hover:bg-blue-400"
+                aria-label="Toggle menu"
+              >
+                {isMenuOpen ? (
+                  <X className="w-4 h-4" />
+                ) : (
+                  <Menu className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
-        </div>
         </div>
       </nav>
 
@@ -335,18 +344,16 @@ export default function MobileNavbar() {
                   <div key={item.id} className="space-y-1">
                     <button
                       onClick={() => toggleMenu(item.id)}
-                      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200 ${
-                        isActive
+                      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200 ${isActive
                           ? "bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-500/15 dark:text-blue-300"
                           : "text-gray-700 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-white/8"
-                      }`}
+                        }`}
                     >
                       <Icon className="w-5 h-5 shrink-0" />
                       <span className="flex-1 text-left">{item.name}</span>
                       <ChevronDown
-                        className={`w-4 h-4 transition-transform duration-200 ${
-                          isExpanded ? "rotate-180" : ""
-                        }`}
+                        className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""
+                          }`}
                       />
                     </button>
 
@@ -365,11 +372,10 @@ export default function MobileNavbar() {
                                 );
                                 closeMenu();
                               }}
-                              className={`block rounded-xl px-3 py-2 text-sm transition-colors ${
-                                isSubActive
+                              className={`block rounded-xl px-3 py-2 text-sm transition-colors ${isSubActive
                                   ? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
                                   : "text-gray-600 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-white/8"
-                              }`}
+                                }`}
                             >
                               {subItem.name}
                             </Link>
@@ -447,34 +453,34 @@ export default function MobileNavbar() {
       >
         <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] pt-2">
           <div className="mx-auto flex max-w-md items-end justify-around rounded-[2rem] border border-slate-200/70 bg-white/88 px-2 py-2 shadow-[0_20px_40px_rgba(15,23,42,0.14)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/82 dark:shadow-[0_24px_60px_rgba(2,6,23,0.45)]">
-          {bottomNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              pathname === item.path || pathname.startsWith(item.path);
+            {bottomNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                pathname === item.path || pathname.startsWith(item.path);
 
-            return (
-              <button
-                key={item.path}
-                type="button"
-                onClick={() => handleBottomNavClick(item.path)}
-                className={`flex min-w-[60px] touch-manipulation flex-col items-center justify-center rounded-[1.4rem] px-3 py-2 transition-all duration-200 ${isActive
-                  ? "-translate-y-1 bg-blue-600 text-white shadow-[0_12px_26px_rgba(37,99,235,0.35)] dark:bg-blue-500"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/8 dark:hover:text-slate-100"
-                  }`}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <Icon
-                  className={`h-5 w-5 ${isActive ? "scale-110" : ""} transition-transform`}
-                />
-                <span
-                  className={`mt-1 text-[10px] ${isActive ? "font-semibold" : "font-medium"}`}
+              return (
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => handleBottomNavClick(item.path)}
+                  className={`flex min-w-[60px] touch-manipulation flex-col items-center justify-center rounded-[1.4rem] px-3 py-2 transition-all duration-200 ${isActive
+                    ? "-translate-y-1 bg-blue-600 text-white shadow-[0_12px_26px_rgba(37,99,235,0.35)] dark:bg-blue-500"
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/8 dark:hover:text-slate-100"
+                    }`}
+                  aria-current={isActive ? "page" : undefined}
                 >
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  <Icon
+                    className={`h-5 w-5 ${isActive ? "scale-110" : ""} transition-transform`}
+                  />
+                  <span
+                    className={`mt-1 text-[10px] ${isActive ? "font-semibold" : "font-medium"}`}
+                  >
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

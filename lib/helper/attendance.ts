@@ -22,3 +22,20 @@ export function haversineKm(
     Math.cos(p1) * Math.cos(p2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
   return 2 * R * Math.asin(Math.sqrt(h));
 }
+
+export function getBranchDistanceMeters(
+  branch: { latitude: number; longitude: number },
+  location: unknown,
+) {
+  if (!location || typeof location !== "object") return null;
+  const latitude = Number((location as { latitude?: unknown }).latitude);
+  const longitude = Number((location as { longitude?: unknown }).longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+  return haversineKm(
+    branch.latitude,
+    branch.longitude,
+    latitude,
+    longitude,
+  ) * 1000;
+}

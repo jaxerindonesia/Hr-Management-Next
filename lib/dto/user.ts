@@ -5,6 +5,8 @@ export interface UserDto {
   tenantId?: string | null;
   roleId: string;
   departmentId?: string | null;
+  branchId?: string | null;
+  branch?: { id: string; name: string } | null;
   department?: { id: string; name: string } | null;
   role?: { id: string; name: string } | null;
   tenant?: { id: string; companyName: string } | null;
