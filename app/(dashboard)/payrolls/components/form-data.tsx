@@ -20,7 +20,11 @@ import { formatCurrency } from "@/lib/helper/format-currency";
 import { parseApiError } from "@/lib/helper/response-api";
 import type { PayrollComponentConfigDto, PayrollComponentValueDto } from "@/lib/dto/payroll-component";
 import type { PayrollCalculationSummaryDto } from "@/lib/dto/payroll-calculation";
-import { AUTO_OVERTIME_COMPONENT_NAME } from "@/lib/constants/payroll";
+import {
+  AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+  AUTO_OVERTIME_COMPONENT_NAME,
+} from "@/lib/constants/payroll";
+import { Info } from "lucide-react";
 
 const createDefaultFormData = (): PayrollDto => ({
   userId: "",
@@ -47,6 +51,7 @@ export default function FormData({
   const [loading, setLoading] = useState(false);
   const [componentConfigs, setComponentConfigs] = useState<PayrollComponentConfigDto[]>([]);
   const [overtimeAmount, setOvertimeAmount] = useState(0);
+  const [lateDeductionAmount, setLateDeductionAmount] = useState(0);
   const [calculationSummary, setCalculationSummary] =
     useState<PayrollCalculationSummaryDto | null>(null);
   const [formData, setFormData] = useState<PayrollDto>(createDefaultFormData);
@@ -63,6 +68,7 @@ export default function FormData({
     basicSalary: number,
     existingValues?: PayrollComponentValueDto[],
     overtimeTotal = 0,
+    lateDeductionTotal = 0,
   ) =>
     [
       ...configs
@@ -108,21 +114,37 @@ export default function FormData({
           amount: overtimeTotal,
         } satisfies PayrollComponentValueDto]
         : []),
+      ...(lateDeductionTotal > 0
+        ? [{
+          id: null,
+          payrollId: null,
+          componentConfigId: null,
+          nameSnapshot: AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+          typeSnapshot: "DEDUCTION",
+          inputTypeSnapshot: "FIXED",
+          baseValue: null,
+          amount: lateDeductionTotal,
+        } satisfies PayrollComponentValueDto]
+        : []),
     ];
 
   const rebuildComponentValues = (
     basicSalary: number,
     sourceValues?: PayrollComponentValueDto[],
     overtimeTotal = overtimeAmount,
+    lateDeductionTotal = lateDeductionAmount,
   ) => {
     const manualValues = (sourceValues ?? formData.componentValues ?? []).filter(
-      (item) => item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME,
+      (item) =>
+        item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME &&
+        item.nameSnapshot !== AUTO_LATE_DEDUCTION_COMPONENT_NAME,
     );
     return buildComponentValues(
       componentConfigs,
       basicSalary,
       manualValues,
       overtimeTotal,
+      lateDeductionTotal,
     );
   };
 
@@ -136,6 +158,7 @@ export default function FormData({
 
     if (!userId || !month || !year) {
       setOvertimeAmount(0);
+      setLateDeductionAmount(0);
       setCalculationSummary(null);
       setFormData((current) => ({
         ...current,
@@ -143,7 +166,7 @@ export default function FormData({
         month,
         year,
         basicSalary: 0,
-        componentValues: rebuildComponentValues(0, sourceValues, 0),
+        componentValues: rebuildComponentValues(0, sourceValues, 0, 0),
       }));
       return;
     }
@@ -166,8 +189,10 @@ export default function FormData({
       const summary = json.data as PayrollCalculationSummaryDto;
       const basicSalary = Number(summary.basicSalary || 0);
       const totalAmount = Number(summary.overtimeAmount || 0);
+      const lateDeductionTotal = Number(summary.lateDeductionAmount || 0);
       setCalculationSummary(summary);
       setOvertimeAmount(totalAmount);
+      setLateDeductionAmount(lateDeductionTotal);
       setFormData((current) => ({
         ...current,
         userId,
@@ -178,10 +203,12 @@ export default function FormData({
           basicSalary,
           sourceValues ?? current.componentValues,
           totalAmount,
+          lateDeductionTotal,
         ),
       }));
     } catch (error) {
       setOvertimeAmount(0);
+      setLateDeductionAmount(0);
       setCalculationSummary(null);
       toast.error(
         error instanceof Error ? error.message : "Gagal menghitung payroll",
@@ -192,7 +219,7 @@ export default function FormData({
         month,
         year,
         basicSalary: 0,
-        componentValues: rebuildComponentValues(0, sourceValues, 0),
+        componentValues: rebuildComponentValues(0, sourceValues, 0, 0),
       }));
     }
   };
@@ -255,7 +282,9 @@ export default function FormData({
     if (initialData) {
       const baseSalary = Number(initialData.basicSalary || 0);
       const sourceValues = (initialData.componentValues || []).filter(
-        (item) => item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME,
+        (item) =>
+          item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME &&
+          item.nameSnapshot !== AUTO_LATE_DEDUCTION_COMPONENT_NAME,
       );
       setFormData({
         ...createDefaultFormData(),
@@ -274,6 +303,7 @@ export default function FormData({
 
     const defaultData = createDefaultFormData();
     setOvertimeAmount(0);
+    setLateDeductionAmount(0);
     setCalculationSummary(null);
     setFormData({
       ...defaultData,
@@ -386,6 +416,15 @@ export default function FormData({
                     Gaji bulanan: {formatCurrency(calculationSummary.basicSalary)}
                   </p>
                 )}
+                {calculationSummary.lateAttendanceDays > 0 && (
+                  <p className="mt-1 text-red-600 dark:text-red-400">
+                    Potongan terlambat: {formatCurrency(calculationSummary.lateDeductionRate)} ×{" "}
+                    {calculationSummary.lateAttendanceDays} hari ={" "}
+                    <span className="font-semibold">
+                      {formatCurrency(calculationSummary.lateDeductionAmount)}
+                    </span>
+                  </p>
+                )}
               </div>
             )}
 
@@ -422,27 +461,43 @@ export default function FormData({
                               : item.amount
                                 ? item.amount.toLocaleString("id-ID")
                                 : "";
+                          const automaticDescription =
+                            item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME
+                              ? "Otomatis dari lembur yang disetujui pada periode ini."
+                              : item.nameSnapshot === AUTO_LATE_DEDUCTION_COMPONENT_NAME
+                                ? "Otomatis dari jumlah keterlambatan pada periode ini."
+                                : null;
 
                           return (
                             <div key={`${item.componentConfigId || item.nameSnapshot}-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-12">
                               <div className="grid gap-2 md:col-span-5">
-                                <Label>{item.nameSnapshot}
-                                  <span className="italic">
-                                    {item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME && (
-                                      <p className="text-xs text-slate-500">
-                                        Otomatis dari lembur yang disetujui pada periode ini.
-                                      </p>
+                                <div>
+                                  <Label className="whitespace-nowrap">
+                                    {item.nameSnapshot}
+                                    {automaticDescription && (
+                                      <span
+                                        title={automaticDescription}
+                                        aria-label={automaticDescription}
+                                        className="text-slate-400"
+                                      >
+                                        <Info className="size-4" />
+                                      </span>
                                     )}
-                                  </span>
-                                </Label>
+                                  </Label>
+                                </div>
                                 <Input value={item.nameSnapshot} disabled />
                               </div>
                               <div className="grid gap-2 md:col-span-3">
-                                <Label>{item.inputTypeSnapshot === "PERCENTAGE" ? "Persentase (%)" : "Nominal"}</Label>
+                                <div>
+                                  <Label>{item.inputTypeSnapshot === "PERCENTAGE" ? "Persentase (%)" : "Nominal"}</Label>
+                                </div>
                                 <Input
                                   type={item.inputTypeSnapshot === "PERCENTAGE" ? "number" : "text"}
                                   value={displayValue}
-                                  disabled={item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME}
+                                  disabled={
+                                    item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME ||
+                                    item.nameSnapshot === AUTO_LATE_DEDUCTION_COMPONENT_NAME
+                                  }
                                   onChange={(e) => {
                                     const nextValues = [...(formData.componentValues || [])];
                                     if (currentIndex < 0) return;
@@ -470,7 +525,9 @@ export default function FormData({
                                 />
                               </div>
                               <div className="grid gap-2 md:col-span-4">
-                                <Label>Nilai Terhitung</Label>
+                                <div>
+                                  <Label>Nilai Terhitung</Label>
+                                </div>
                                 <Input
                                   value={formatCurrency(Number(item.amount || 0))}
                                   disabled

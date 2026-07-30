@@ -1,0 +1,7 @@
+ALTER TABLE "attendance_configs"
+ADD COLUMN "late_deduction_amount" DOUBLE PRECISION NOT NULL DEFAULT 0;
+
+ALTER TABLE "payrolls"
+ADD COLUMN "late_deduction_rate" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN "late_attendance_days" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "late_deduction_amount" DOUBLE PRECISION NOT NULL DEFAULT 0;

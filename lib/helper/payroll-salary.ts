@@ -1,5 +1,8 @@
 import prisma from "@/lib/prisma";
-import { isWorkedAttendanceStatus } from "@/lib/helper/attendance-status";
+import {
+  isLateAttendanceStatus,
+  isWorkedAttendanceStatus,
+} from "@/lib/helper/attendance-status";
 import type { PayrollSalarySummaryDto } from "@/lib/dto/payroll-calculation";
 
 export async function getPayrollSalarySummary(params: {
@@ -31,16 +34,6 @@ export async function getPayrollSalarySummary(params: {
   const salaryRate = Number(user.salary || 0);
   const salaryType = user.salaryType === "daily" ? "daily" : "monthly";
 
-  if (salaryType === "monthly") {
-    return {
-      salaryType,
-      tenantId: user.tenantId,
-      salaryRate,
-      paidAttendanceDays: 0,
-      basicSalary: salaryRate,
-    };
-  }
-
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 1);
   const attendances = await prisma.attendance.findMany({
@@ -56,12 +49,25 @@ export async function getPayrollSalarySummary(params: {
   const paidAttendanceDays = attendances.filter((attendance) =>
     isWorkedAttendanceStatus(attendance.status),
   ).length;
+  const lateAttendanceDays = attendances.filter((attendance) =>
+    isLateAttendanceStatus(attendance.status),
+  ).length;
+  const attendanceConfig = await prisma.attendanceConfig.findFirst({
+    where: { tenantId: user.tenantId },
+    orderBy: { updatedAt: "desc" },
+    select: { lateDeductionAmount: true },
+  });
+  const lateDeductionRate = Number(attendanceConfig?.lateDeductionAmount || 0);
 
   return {
     salaryType,
     tenantId: user.tenantId,
     salaryRate,
-    paidAttendanceDays,
-    basicSalary: salaryRate * paidAttendanceDays,
+    paidAttendanceDays: salaryType === "daily" ? paidAttendanceDays : 0,
+    basicSalary:
+      salaryType === "daily" ? salaryRate * paidAttendanceDays : salaryRate,
+    lateDeductionRate,
+    lateAttendanceDays,
+    lateDeductionAmount: lateDeductionRate * lateAttendanceDays,
   };
 }

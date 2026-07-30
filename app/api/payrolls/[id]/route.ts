@@ -6,7 +6,10 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
-import { AUTO_OVERTIME_COMPONENT_NAME } from "@/lib/constants/payroll";
+import {
+  AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+  AUTO_OVERTIME_COMPONENT_NAME,
+} from "@/lib/constants/payroll";
 import {
   getApprovedOvertimePayoutSummary,
 } from "@/lib/helper/payroll-overtime";
@@ -36,6 +39,7 @@ function normalizeComponentValues(items: unknown[], basicSalary: number) {
   }).filter((item) =>
     item.nameSnapshot &&
     item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME &&
+    item.nameSnapshot !== AUTO_LATE_DEDUCTION_COMPONENT_NAME &&
     ["EARNING", "DEDUCTION"].includes(item.typeSnapshot),
   );
 }
@@ -141,6 +145,16 @@ export async function PUT(req: Request, { params }: Params) {
         baseValue: null,
       });
     }
+    if (salarySummary.lateDeductionAmount > 0) {
+      componentValues.push({
+        componentConfigId: null,
+        nameSnapshot: AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+        typeSnapshot: "DEDUCTION",
+        inputTypeSnapshot: "FIXED",
+        amount: salarySummary.lateDeductionAmount,
+        baseValue: null,
+      });
+    }
     const allowances = componentValues
       .filter((item) => item.typeSnapshot === "EARNING")
       .reduce((sum, item) => sum + item.amount, 0);
@@ -159,6 +173,9 @@ export async function PUT(req: Request, { params }: Params) {
     updateData.salaryType = salarySummary.salaryType;
     updateData.salaryRate = salarySummary.salaryRate;
     updateData.paidAttendanceDays = salarySummary.paidAttendanceDays;
+    updateData.lateDeductionRate = salarySummary.lateDeductionRate;
+    updateData.lateAttendanceDays = salarySummary.lateAttendanceDays;
+    updateData.lateDeductionAmount = salarySummary.lateDeductionAmount;
     updateData.allowances = allowances;
     updateData.deductions = deductions;
     if (body.status !== undefined) updateData.status = body.status;

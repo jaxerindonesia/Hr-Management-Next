@@ -5,6 +5,9 @@ export interface PayrollSalarySummaryDto {
   salaryRate: number;
   paidAttendanceDays: number;
   basicSalary: number;
+  lateDeductionRate: number;
+  lateAttendanceDays: number;
+  lateDeductionAmount: number;
 }
 
 export interface PayrollCalculationSummaryDto

@@ -11,6 +11,9 @@ export interface PayrollDto {
     salaryType?: SalaryType;
     salaryRate?: number;
     paidAttendanceDays?: number;
+    lateDeductionRate?: number;
+    lateAttendanceDays?: number;
+    lateDeductionAmount?: number;
     allowances: number;
     deductions: number;
     totalSalary: number;

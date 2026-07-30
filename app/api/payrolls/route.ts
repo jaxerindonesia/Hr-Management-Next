@@ -5,7 +5,10 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
-import { AUTO_OVERTIME_COMPONENT_NAME } from "@/lib/constants/payroll";
+import {
+  AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+  AUTO_OVERTIME_COMPONENT_NAME,
+} from "@/lib/constants/payroll";
 import {
   getApprovedOvertimePayoutSummary,
 } from "@/lib/helper/payroll-overtime";
@@ -39,6 +42,7 @@ function normalizeComponentValues(items: unknown[], basicSalary: number) {
   }).filter((item) =>
     item.nameSnapshot &&
     item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME &&
+    item.nameSnapshot !== AUTO_LATE_DEDUCTION_COMPONENT_NAME &&
     ["EARNING", "DEDUCTION"].includes(item.typeSnapshot),
   );
 }
@@ -194,6 +198,16 @@ export async function POST(req: NextRequest) {
         baseValue: null,
       });
     }
+    if (salarySummary.lateDeductionAmount > 0) {
+      normalizedComponentValues.push({
+        componentConfigId: null,
+        nameSnapshot: AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+        typeSnapshot: "DEDUCTION",
+        inputTypeSnapshot: "FIXED",
+        amount: salarySummary.lateDeductionAmount,
+        baseValue: null,
+      });
+    }
     const allowances = normalizedComponentValues
       .filter((item) => item.typeSnapshot === "EARNING")
       .reduce((sum, item) => sum + item.amount, 0);
@@ -211,6 +225,9 @@ export async function POST(req: NextRequest) {
         salaryType: salarySummary.salaryType,
         salaryRate: salarySummary.salaryRate,
         paidAttendanceDays: salarySummary.paidAttendanceDays,
+        lateDeductionRate: salarySummary.lateDeductionRate,
+        lateAttendanceDays: salarySummary.lateAttendanceDays,
+        lateDeductionAmount: salarySummary.lateDeductionAmount,
         allowances,
         deductions,
         totalSalary,

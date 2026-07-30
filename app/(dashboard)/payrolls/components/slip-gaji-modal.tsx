@@ -5,6 +5,7 @@ import { PayrollDto } from "@/lib/dto/payroll";
 import { months } from "@/lib/helper/date";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { useEffect, useState } from "react";
+import { AUTO_LATE_DEDUCTION_COMPONENT_NAME } from "@/lib/constants/payroll";
 
 interface SlipGajiModalProps {
     isOpen?: boolean;
@@ -356,7 +357,15 @@ function SlipContent({
                         </tr>
                         {deductionComponents.map((item) => (
                             <tr key={item.id || item.nameSnapshot}>
-                                <td className="py-2 pl-8 text-sm text-gray-600">{item.nameSnapshot}</td>
+                                <td className="py-2 pl-8 text-sm text-gray-600">
+                                    <div>{item.nameSnapshot}</div>
+                                    {item.nameSnapshot === AUTO_LATE_DEDUCTION_COMPONENT_NAME && (
+                                        <div className="text-xs text-gray-500">
+                                            {formatCurrency(Number(payroll.lateDeductionRate || 0))} ×{" "}
+                                            {payroll.lateAttendanceDays || 0} hari terlambat
+                                        </div>
+                                    )}
+                                </td>
                                 <td className="py-2 text-right text-sm text-gray-700">
                                     - {formatCurrency(item.amount)}
                                 </td>

@@ -18,6 +18,7 @@ type AttendanceConfigState = {
   officeStartTime: string;
   officeEndTime: string;
   lateToleranceMinutes: number;
+  lateDeductionAmount: number;
   breakEnabled: boolean;
   breakFaceCaptureEnabled: boolean;
   workingDays: string[];
@@ -28,6 +29,7 @@ const DEFAULT_ATTENDANCE_CONFIG: AttendanceConfigState = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
   lateToleranceMinutes: 15,
+  lateDeductionAmount: 0,
   breakEnabled: false,
   breakFaceCaptureEnabled: false,
   workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
@@ -257,6 +259,7 @@ export default function Page() {
         officeStartTime: config.officeStartTime || "09:00",
         officeEndTime: config.officeEndTime || "17:00",
         lateToleranceMinutes: Number(config.lateToleranceMinutes ?? 15),
+        lateDeductionAmount: Number(config.lateDeductionAmount ?? 0),
         breakEnabled: Boolean(config.breakEnabled ?? false),
         breakFaceCaptureEnabled: Boolean(config.breakFaceCaptureEnabled ?? false),
         workingDays:
