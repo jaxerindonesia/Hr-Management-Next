@@ -312,7 +312,15 @@ function SlipContent({
                             </td>
                         </tr>
                         <tr>
-                            <td className="py-2 pl-4 text-sm text-gray-700">Gaji Pokok</td>
+                            <td className="py-2 pl-4 text-sm text-gray-700">
+                                <div>Gaji Pokok</div>
+                                {payroll.salaryType === "daily" && (
+                                    <div className="text-xs text-gray-500">
+                                        {formatCurrency(Number(payroll.salaryRate || 0))} ×{" "}
+                                        {payroll.paidAttendanceDays || 0} hari hadir
+                                    </div>
+                                )}
+                            </td>
                             <td className="py-2 text-right text-sm font-medium text-gray-900">
                                 {formatCurrency(payroll.basicSalary)}
                             </td>

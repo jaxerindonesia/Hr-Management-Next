@@ -212,7 +212,9 @@ export const columnFormats = ({
       key: "salary",
       title: "Gaji",
       textClassName: "text-slate-700 dark:text-slate-200",
-      formatter: (value) => formatCurrency(Number(value || 0)),
+      formatter: (_value, row) => (
+        <span>{formatCurrency(Number(row.salary || 0))} / {row.salaryType == "monthly" ? 'bulan' : 'hari'}</span>
+      ),
     });
   }
 

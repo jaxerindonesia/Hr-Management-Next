@@ -19,6 +19,7 @@ import { months } from "@/lib/helper/date";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { parseApiError } from "@/lib/helper/response-api";
 import type { PayrollComponentConfigDto, PayrollComponentValueDto } from "@/lib/dto/payroll-component";
+import type { PayrollCalculationSummaryDto } from "@/lib/dto/payroll-calculation";
 import { AUTO_OVERTIME_COMPONENT_NAME } from "@/lib/constants/payroll";
 
 const createDefaultFormData = (): PayrollDto => ({
@@ -46,6 +47,8 @@ export default function FormData({
   const [loading, setLoading] = useState(false);
   const [componentConfigs, setComponentConfigs] = useState<PayrollComponentConfigDto[]>([]);
   const [overtimeAmount, setOvertimeAmount] = useState(0);
+  const [calculationSummary, setCalculationSummary] =
+    useState<PayrollCalculationSummaryDto | null>(null);
   const [formData, setFormData] = useState<PayrollDto>(createDefaultFormData);
 
   const computedAllowances = (formData.componentValues || [])
@@ -123,24 +126,24 @@ export default function FormData({
     );
   };
 
-  const fetchOvertimeSummary = async (params: {
+  const fetchPayrollSummary = async (params: {
     userId: string;
     month: number;
     year: number;
-    basicSalary: number;
     sourceValues?: PayrollComponentValueDto[];
   }) => {
-    const { userId, month, year, basicSalary, sourceValues } = params;
+    const { userId, month, year, sourceValues } = params;
 
     if (!userId || !month || !year) {
       setOvertimeAmount(0);
+      setCalculationSummary(null);
       setFormData((current) => ({
         ...current,
         userId,
         month,
         year,
-        basicSalary,
-        componentValues: rebuildComponentValues(basicSalary, sourceValues, 0),
+        basicSalary: 0,
+        componentValues: rebuildComponentValues(0, sourceValues, 0),
       }));
       return;
     }
@@ -151,14 +154,19 @@ export default function FormData({
         month: String(month),
         year: String(year),
       });
-      const res = await fetch(`/api/payrolls/overtime-summary?${searchParams.toString()}`);
+      const res = await fetch(
+        `/api/payrolls/calculation-summary?${searchParams.toString()}`,
+      );
       if (!res.ok) {
         throw new Error(
-          await parseApiError(res, "Gagal mengambil ringkasan lembur"),
+          await parseApiError(res, "Gagal menghitung payroll"),
         );
       }
       const json = await res.json();
-      const totalAmount = Number(json?.data?.totalAmount || 0);
+      const summary = json.data as PayrollCalculationSummaryDto;
+      const basicSalary = Number(summary.basicSalary || 0);
+      const totalAmount = Number(summary.overtimeAmount || 0);
+      setCalculationSummary(summary);
       setOvertimeAmount(totalAmount);
       setFormData((current) => ({
         ...current,
@@ -174,37 +182,18 @@ export default function FormData({
       }));
     } catch (error) {
       setOvertimeAmount(0);
+      setCalculationSummary(null);
       toast.error(
-        error instanceof Error ? error.message : "Gagal memuat ringkasan lembur",
+        error instanceof Error ? error.message : "Gagal menghitung payroll",
       );
       setFormData((current) => ({
         ...current,
         userId,
         month,
         year,
-        basicSalary,
-        componentValues: rebuildComponentValues(basicSalary, sourceValues, 0),
+        basicSalary: 0,
+        componentValues: rebuildComponentValues(0, sourceValues, 0),
       }));
-    }
-  };
-
-  const fetchEmployeeSalary = async (userId: string) => {
-    if (!userId) return 0;
-
-    try {
-      const res = await fetch(`/api/users/${userId}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        throw new Error(await parseApiError(res, "Gagal mengambil data karyawan"));
-      }
-      const user = await res.json();
-      return Number(user?.salary || 0);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Gagal memuat data karyawan",
-      );
-      return 0;
     }
   };
 
@@ -246,7 +235,7 @@ export default function FormData({
         `Data gaji berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
 
-      onSuccess && onSuccess();
+      onSuccess?.();
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
@@ -274,11 +263,10 @@ export default function FormData({
         userId: initialData.userId || initialData.user?.id || "",
         componentValues: rebuildComponentValues(baseSalary, sourceValues, 0),
       });
-      void fetchOvertimeSummary({
+      void fetchPayrollSummary({
         userId: initialData.userId || initialData.user?.id || "",
         month: Number(initialData.month || createDefaultFormData().month),
         year: Number(initialData.year || createDefaultFormData().year),
-        basicSalary: baseSalary,
         sourceValues,
       });
       return;
@@ -286,6 +274,7 @@ export default function FormData({
 
     const defaultData = createDefaultFormData();
     setOvertimeAmount(0);
+    setCalculationSummary(null);
     setFormData({
       ...defaultData,
       componentValues: rebuildComponentValues(defaultData.basicSalary, [], 0),
@@ -311,16 +300,12 @@ export default function FormData({
               <EmployeeSearchSelect
                 value={formData.userId || ""}
                 onChange={(val) => {
-                  void (async () => {
-                    const basicSalary = await fetchEmployeeSalary(val);
-                    await fetchOvertimeSummary({
-                      userId: val,
-                      month: Number(formData.month || createDefaultFormData().month),
-                      year: Number(formData.year || createDefaultFormData().year),
-                      basicSalary,
-                      sourceValues: formData.componentValues,
-                    });
-                  })();
+                  void fetchPayrollSummary({
+                    userId: val,
+                    month: Number(formData.month || createDefaultFormData().month),
+                    year: Number(formData.year || createDefaultFormData().year),
+                    sourceValues: formData.componentValues,
+                  });
                 }}
                 placeholder="Pilih Karyawan"
               />
@@ -333,11 +318,10 @@ export default function FormData({
                 <Select
                   value={String(formData.month)}
                   onValueChange={(value) =>
-                    void fetchOvertimeSummary({
+                    void fetchPayrollSummary({
                       userId: formData.userId || "",
                       month: Number(value),
                       year: Number(formData.year || createDefaultFormData().year),
-                      basicSalary: Number(formData.basicSalary || 0),
                       sourceValues: formData.componentValues,
                     })
                   }
@@ -362,11 +346,10 @@ export default function FormData({
                   type="number"
                   value={formData.year}
                   onChange={(e) =>
-                    void fetchOvertimeSummary({
+                    void fetchPayrollSummary({
                       userId: formData.userId || "",
                       month: Number(formData.month || createDefaultFormData().month),
                       year: parseInt(e.target.value),
-                      basicSalary: Number(formData.basicSalary || 0),
                       sourceValues: formData.componentValues,
                     })
                   }
@@ -382,19 +365,29 @@ export default function FormData({
                 id="basicSalary"
                 type="text"
                 value={formData.basicSalary ? formData.basicSalary.toLocaleString("id-ID") : ""}
-                onChange={(e) => {
-                  const numericValue = e.target.value.replace(/\D/g, "");
-                  const basicSalary = numericValue ? Number(numericValue) : 0;
-                  setFormData({
-                    ...formData,
-                    basicSalary,
-                    componentValues: rebuildComponentValues(basicSalary),
-                  });
-                }}
                 placeholder="0"
+                disabled
                 required
               />
             </div>
+
+            {calculationSummary && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-900/40">
+                {calculationSummary.salaryType === "daily" ? (
+                  <p className="text-slate-700 dark:text-slate-300">
+                    Gaji harian: {formatCurrency(calculationSummary.salaryRate)} ×{" "}
+                    {calculationSummary.paidAttendanceDays} hari hadir ={" "}
+                    <span className="font-semibold">
+                      {formatCurrency(calculationSummary.basicSalary)}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-slate-700 dark:text-slate-300">
+                    Gaji bulanan: {formatCurrency(calculationSummary.basicSalary)}
+                  </p>
+                )}
+              </div>
+            )}
 
             {componentConfigs.length > 0 && (
               <div className="space-y-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-900/40">

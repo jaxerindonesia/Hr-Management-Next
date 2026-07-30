@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePermission } from "@/lib/helper/check-role";
+import { useTenantConfig } from "@/contexts/TenantConfigContext";
 import {
   LayoutDashboard,
   Users,
@@ -36,6 +37,11 @@ export default function MobileNavbar() {
   );
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const tenantConfig = useTenantConfig();
+  const tenantLogo =
+    theme === "dark"
+      ? tenantConfig?.logoDarkUrl || tenantConfig?.logoUrl
+      : tenantConfig?.logoUrl || tenantConfig?.logoDarkUrl;
 
   // Easter egg states
   const [showCredits, setShowCredits] = useState(false);
@@ -237,26 +243,37 @@ export default function MobileNavbar() {
         <div className="px-4 pt-3">
           <div className="flex h-14 items-center justify-between rounded-[0.9rem] border border-slate-200/70 bg-white/80 px-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/75 dark:shadow-[0_18px_40px_rgba(2,6,23,0.35)]">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center">
-            {/* Logo Light */}
-            <Image
-              src="/logo_jahris_colored.png"
-              alt="Jahris Logo"
-              width={80}
-              height={16}
-              priority
-              className="object-contain dark:hidden"
-            />
-
-            {/* Logo Dark */}
-            <Image
-              src="/logo_jahris_white.png"
-              alt="Jahris Logo"
-              width={80}
-              height={16}
-              priority
-              className="object-contain hidden dark:block"
-            />
+          <Link href="/dashboard" className="flex items-center" onClick={handleLogoClick}>
+            {tenantLogo ? (
+              <Image
+                src={tenantLogo}
+                alt={tenantConfig?.companyName ?? "Company Logo"}
+                width={110}
+                height={32}
+                priority
+                className="max-h-8 w-auto object-contain"
+                unoptimized
+              />
+            ) : (
+              <>
+                <Image
+                  src="/logo_jahris_colored.png"
+                  alt="Jahris Logo"
+                  width={80}
+                  height={16}
+                  priority
+                  className="object-contain dark:hidden"
+                />
+                <Image
+                  src="/logo_jahris_white.png"
+                  alt="Jahris Logo"
+                  width={80}
+                  height={16}
+                  priority
+                  className="hidden object-contain dark:block"
+                />
+              </>
+            )}
           </Link>
 
           {/* Right Side Icons */}

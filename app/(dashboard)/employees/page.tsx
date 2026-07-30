@@ -183,6 +183,8 @@ export default function EmployeesPage() {
 
         if (isSuperAdmin || isAdmin) {
           row["Gaji"] = emp.salary || 0;
+          row["Jenis Pembayaran Gaji"] =
+            emp.salaryType === "daily" ? "Harian" : "Bulanan";
         }
 
         if (!isSuperAdmin) {

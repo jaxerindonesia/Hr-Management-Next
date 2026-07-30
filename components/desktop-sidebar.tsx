@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
+import React, { useState, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
-import { handleUnauthorizedClient } from "@/lib/helper/response-api";
+import { useTenantConfig } from "@/contexts/TenantConfigContext";
 import {
   Dialog,
   DialogContent,
@@ -51,12 +51,6 @@ import {
 } from "lucide-react";
 import { usePermission } from "@/lib/helper/check-role";
 
-type TenantConfig = {
-  companyName: string | null;
-  logoUrl: string | null;
-  logoDarkUrl: string | null;
-} | null;
-
 type SidebarSubItem = {
   name: string;
   path: string;
@@ -81,7 +75,7 @@ export default function DesktopSidebar() {
     pathname.startsWith("/finance") ? ["finance"] : [],
   );
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [tenantConfig, setTenantConfig] = useState<TenantConfig>(null);
+  const tenantConfig = useTenantConfig();
 
   // Easter egg states
   const [showCredits, setShowCredits] = useState(false);
@@ -112,23 +106,6 @@ export default function DesktopSidebar() {
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
-
-  // Fetch tenant config untuk logo sidebar
-  useEffect(() => {
-    fetch("/api/tenant-config")
-      .then(async (res) => {
-        if (res.status === 401) {
-          handleUnauthorizedClient();
-          return null;
-        }
-        return res.json();
-      })
-      .then((json) => {
-        if (!json) return;
-        if (json.data) setTenantConfig(json.data);
-      })
-      .catch(() => { });
-  }, []);
 
   const isSuperAdmin = useSyncExternalStore(
     () => () => {},

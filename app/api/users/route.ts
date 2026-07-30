@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
           position: true,
           joinDate: true,
           salary: true,
+          salaryType: true,
           gender: true,
           address: true,
           birthDate: true,
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
       position,
       joinDate,
       salary,
+      salaryType,
       gender,
       address,
       birthDate,
@@ -144,6 +146,16 @@ export async function POST(req: NextRequest) {
     if (!email || !name || !password || !roleId) {
       return NextResponse.json(
         { message: "Email, name, password, and role are required fields" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      salaryType !== undefined &&
+      !["daily", "monthly"].includes(salaryType)
+    ) {
+      return NextResponse.json(
+        { message: "Jenis pembayaran gaji tidak valid" },
         { status: 400 },
       );
     }
@@ -178,6 +190,7 @@ export async function POST(req: NextRequest) {
         position,
         joinDate: joinDate ? new Date(joinDate) : null,
         salary,
+        salaryType: salaryType || "monthly",
         gender: gender || null,
         address: address || null,
         birthDate: birthDate ? new Date(birthDate) : null,

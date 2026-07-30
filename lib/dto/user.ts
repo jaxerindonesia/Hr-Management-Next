@@ -1,3 +1,5 @@
+export type SalaryType = "daily" | "monthly";
+
 export interface UserDto {
   id?: string | null;
   tenantId?: string | null;
@@ -13,6 +15,7 @@ export interface UserDto {
   position?: string | null;
   joinDate?: string | null;
   salary?: number | null;
+  salaryType?: SalaryType;
   gender?: string | null;
   address?: string | null;
   birthDate?: string | null;

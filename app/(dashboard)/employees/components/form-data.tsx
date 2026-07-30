@@ -43,6 +43,7 @@ const INITIAL_FORM_DATA: UserDto = {
   position: "",
   joinDate: "",
   salary: 0,
+  salaryType: "monthly",
   status: "active",
   password: "",
   avatarUrl: "",
@@ -579,9 +580,31 @@ export default function FormData({
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="grid gap-2">
-              <Label>Gaji</Label>
+              <Label>Jenis Pembayaran Gaji *</Label>
+              <Select
+                value={formData.salaryType || "monthly"}
+                onValueChange={(value: "daily" | "monthly") =>
+                  setFormData((current) => ({
+                    ...current,
+                    salaryType: value,
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih jenis pembayaran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Harian</SelectItem>
+                  <SelectItem value="monthly">Bulanan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Gaji {formData.salaryType == "monthly" ? 'Bulanan' : 'Harian'}</Label>
               <Input
                 type="text"
+                disabled={!formData.salaryType}
                 value={formData.salary ? formData.salary.toLocaleString("id-ID") : ""}
                 onChange={(event) => {
                   const numericValue = event.target.value.replace(/\D/g, "");
@@ -710,11 +733,10 @@ export default function FormData({
                   {passwordChecks.map((check) => (
                     <p
                       key={check.label}
-                      className={`text-sm ${
-                        check.passed
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-slate-500 dark:text-slate-400"
-                      }`}
+                      className={`text-sm ${check.passed
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-slate-500 dark:text-slate-400"
+                        }`}
                     >
                       {check.passed ? "✓" : "•"} {check.label}
                     </p>
@@ -829,11 +851,10 @@ export default function FormData({
                       {passwordChecks.map((check) => (
                         <p
                           key={check.label}
-                          className={`text-sm ${
-                            check.passed
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-slate-500 dark:text-slate-400"
-                          }`}
+                          className={`text-sm ${check.passed
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-slate-500 dark:text-slate-400"
+                            }`}
                         >
                           {check.passed ? "✓" : "•"} {check.label}
                         </p>
