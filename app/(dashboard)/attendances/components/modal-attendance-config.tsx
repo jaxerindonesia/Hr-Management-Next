@@ -12,6 +12,7 @@ interface AttendanceConfig {
   officeStartTime: string;
   officeEndTime: string;
   lateToleranceMinutes: number;
+  lateDeductionAmount: number;
   breakEnabled: boolean;
   breakFaceCaptureEnabled: boolean;
   workingDays: string[];
@@ -21,6 +22,7 @@ const defaultConfig: AttendanceConfig = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
   lateToleranceMinutes: 15,
+  lateDeductionAmount: 0,
   breakEnabled: false,
   breakFaceCaptureEnabled: false,
   workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
@@ -66,6 +68,9 @@ export default function ModalAttendanceConfig({
         lateToleranceMinutes: Number(
           data.lateToleranceMinutes ?? defaultConfig.lateToleranceMinutes,
         ),
+        lateDeductionAmount: Number(
+          data.lateDeductionAmount ?? defaultConfig.lateDeductionAmount,
+        ),
         breakEnabled: Boolean(data.breakEnabled ?? defaultConfig.breakEnabled),
         breakFaceCaptureEnabled: Boolean(
           data.breakFaceCaptureEnabled ?? defaultConfig.breakFaceCaptureEnabled,
@@ -100,6 +105,10 @@ export default function ModalAttendanceConfig({
     }
     if (form.lateToleranceMinutes < 0) {
       toast.error("Toleransi terlambat tidak boleh negatif");
+      return;
+    }
+    if (form.lateDeductionAmount < 0) {
+      toast.error("Potongan keterlambatan tidak boleh negatif");
       return;
     }
     if (form.workingDays.length === 0) {
@@ -169,6 +178,30 @@ export default function ModalAttendanceConfig({
                 setForm((p) => ({ ...p, lateToleranceMinutes: Number(e.target.value || 0) }))
               }
               />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Potongan per Keterlambatan</Label>
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={
+                form.lateDeductionAmount
+                  ? form.lateDeductionAmount.toLocaleString("id-ID")
+                  : ""
+              }
+              onChange={(event) => {
+                const numericValue = event.target.value.replace(/\D/g, "");
+                setForm((current) => ({
+                  ...current,
+                  lateDeductionAmount: numericValue ? Number(numericValue) : 0,
+                }));
+              }}
+              placeholder="0"
+            />
+            <p className="text-xs text-muted-foreground">
+              Dipotong satu kali untuk setiap hari berstatus terlambat pada payroll.
+            </p>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-3">

@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
     const departmentId = searchParams.get("departmentId") || "";
+    const branchId = searchParams.get("branchId") || "";
     const position = searchParams.get("position") || "";
     const tenantId = searchParams.get("tenantId") || "";
 
@@ -46,6 +47,10 @@ export async function GET(req: NextRequest) {
       where.departmentId = departmentId;
     }
 
+    if (branchId) {
+      where.branchId = branchId;
+    }
+
     if (position) {
       where.position = position;
     }
@@ -61,6 +66,7 @@ export async function GET(req: NextRequest) {
           tenantId: true,
           roleId: true,
           departmentId: true,
+          branchId: true,
           email: true,
           name: true,
           status: true,
@@ -70,6 +76,7 @@ export async function GET(req: NextRequest) {
           position: true,
           joinDate: true,
           salary: true,
+          salaryType: true,
           gender: true,
           address: true,
           birthDate: true,
@@ -81,6 +88,7 @@ export async function GET(req: NextRequest) {
               name: true,
             },
           },
+          branch: { select: { id: true, name: true } },
           role: {
             select: {
               id: true,
@@ -128,11 +136,13 @@ export async function POST(req: NextRequest) {
       password,
       roleId,
       departmentId,
+      branchId,
       nik,
       phone,
       position,
       joinDate,
       salary,
+      salaryType,
       gender,
       address,
       birthDate,
@@ -148,12 +158,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (
+      salaryType !== undefined &&
+      !["daily", "monthly"].includes(salaryType)
+    ) {
+      return NextResponse.json(
+        { message: "Jenis pembayaran gaji tidak valid" },
+        { status: 400 },
+      );
+    }
+
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId ?? tenantId ?? null;
 
     const existing = await prisma.user.findUnique({
       where: { email },
     });
+
+    if (branchId) {
+      const branch = await prisma.branch.findFirst({ where: { id: branchId, tenantId: finalTenantId } });
+      if (!branch) return NextResponse.json({ message: "Cabang tidak valid" }, { status: 400 });
+    }
 
     if (existing) {
       return NextResponse.json(
@@ -173,11 +198,13 @@ export async function POST(req: NextRequest) {
         salt,
         roleId,
         departmentId,
+        branchId: branchId || null,
         nik,
         phone,
         position,
         joinDate: joinDate ? new Date(joinDate) : null,
         salary,
+        salaryType: salaryType || "monthly",
         gender: gender || null,
         address: address || null,
         birthDate: birthDate ? new Date(birthDate) : null,

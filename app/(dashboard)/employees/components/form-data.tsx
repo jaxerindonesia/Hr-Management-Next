@@ -24,6 +24,7 @@ import {
 import type { UserDto } from "@/lib/dto/user";
 import type { RoleDto } from "@/lib/dto/role";
 import type { DepartmentDto } from "@/lib/dto/department";
+import type { BranchDto } from "@/lib/dto/branch";
 import { parseApiError } from "@/lib/helper/response-api";
 import FaceCapture from "./face-capture";
 
@@ -35,6 +36,7 @@ type TenantDto = {
 const INITIAL_FORM_DATA: UserDto = {
   roleId: "",
   departmentId: "",
+  branchId: "",
   department: null,
   nik: "",
   name: "",
@@ -43,6 +45,7 @@ const INITIAL_FORM_DATA: UserDto = {
   position: "",
   joinDate: "",
   salary: 0,
+  salaryType: "monthly",
   status: "active",
   password: "",
   avatarUrl: "",
@@ -113,6 +116,7 @@ export default function FormData({
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<RoleDto[]>([]);
   const [tenants, setTenants] = useState<TenantDto[]>([]);
+  const [branches, setBranches] = useState<BranchDto[]>([]);
   const [rePassword, setRePassword] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentTenantId, setCurrentTenantId] = useState("");
@@ -333,6 +337,14 @@ export default function FormData({
   const selectedTenantId = isSuperAdmin
     ? formData.tenantId || ""
     : currentTenantId || formData.tenantId || initialData?.tenantId || "";
+
+  useEffect(() => {
+    if (!isOpen || !selectedTenantId) { setBranches([]); return; }
+    fetch(`/api/branches?page=1&limit=100&tenantId=${selectedTenantId}`)
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((json) => setBranches(json.data || []))
+      .catch(() => setBranches([]));
+  }, [isOpen, selectedTenantId]);
   const passwordChecks = getPasswordChecks(formData.password || "");
 
   const filteredDepartments = departments.filter((department) => {
@@ -368,7 +380,35 @@ export default function FormData({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className={`grid gap-4 ${isSuperAdmin ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+          {isSuperAdmin ? (
+            <div className="grid gap-2">
+              <Label>Tenant *</Label>
+              <Select
+                value={formData.tenantId || ""}
+                onValueChange={(value) =>
+                  setFormData((current) => ({
+                    ...current,
+                    tenantId: value,
+                    departmentId: "",
+                    branchId: "",
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih Tenant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tenants.map((tenant) => (
+                    <SelectItem key={tenant.id} value={tenant.id}>
+                      {tenant.companyName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 lg:grid-cols-3">
             <div className="grid gap-2">
               <Label>Role *</Label>
               <Select
@@ -390,33 +430,6 @@ export default function FormData({
               </Select>
             </div>
 
-            {isSuperAdmin ? (
-              <div className="grid gap-2">
-                <Label>Tenant *</Label>
-                <Select
-                  value={formData.tenantId || ""}
-                  onValueChange={(value) =>
-                    setFormData((current) => ({
-                      ...current,
-                      tenantId: value,
-                      departmentId: "",
-                    }))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Pilih Tenant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tenants.map((tenant) => (
-                      <SelectItem key={tenant.id} value={tenant.id}>
-                        {tenant.companyName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
-
             <div className="grid gap-2">
               <Label>Departemen *</Label>
               <Select
@@ -437,6 +450,13 @@ export default function FormData({
                     </SelectItem>
                   ))}
                 </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Cabang</Label>
+              <Select value={formData.branchId || "none"} onValueChange={(value) => setFormData((current) => ({ ...current, branchId: value === "none" ? "" : value }))}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Pilih Cabang" /></SelectTrigger>
+                <SelectContent><SelectItem value="none">Belum ditentukan</SelectItem>{branches.map((branch) => <SelectItem key={branch.id} value={branch.id || ""}>{branch.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
@@ -579,9 +599,31 @@ export default function FormData({
 
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="grid gap-2">
-              <Label>Gaji</Label>
+              <Label>Jenis Pembayaran Gaji *</Label>
+              <Select
+                value={formData.salaryType || "monthly"}
+                onValueChange={(value: "daily" | "monthly") =>
+                  setFormData((current) => ({
+                    ...current,
+                    salaryType: value,
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih jenis pembayaran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Harian</SelectItem>
+                  <SelectItem value="monthly">Bulanan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Gaji {formData.salaryType == "monthly" ? 'Bulanan' : 'Harian'}</Label>
               <Input
                 type="text"
+                disabled={!formData.salaryType}
                 value={formData.salary ? formData.salary.toLocaleString("id-ID") : ""}
                 onChange={(event) => {
                   const numericValue = event.target.value.replace(/\D/g, "");
@@ -710,11 +752,10 @@ export default function FormData({
                   {passwordChecks.map((check) => (
                     <p
                       key={check.label}
-                      className={`text-sm ${
-                        check.passed
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-slate-500 dark:text-slate-400"
-                      }`}
+                      className={`text-sm ${check.passed
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-slate-500 dark:text-slate-400"
+                        }`}
                     >
                       {check.passed ? "✓" : "•"} {check.label}
                     </p>
@@ -829,11 +870,10 @@ export default function FormData({
                       {passwordChecks.map((check) => (
                         <p
                           key={check.label}
-                          className={`text-sm ${
-                            check.passed
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-slate-500 dark:text-slate-400"
-                          }`}
+                          className={`text-sm ${check.passed
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-slate-500 dark:text-slate-400"
+                            }`}
                         >
                           {check.passed ? "✓" : "•"} {check.label}
                         </p>

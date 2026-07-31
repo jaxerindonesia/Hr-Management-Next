@@ -6,6 +6,7 @@ import MobileNavbar from "@/components/mobile-navbar";
 import DesktopNavbar from "@/components/desktop-navbar";
 import DesktopSidebar from "@/components/desktop-sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { TenantConfigProvider } from "@/contexts/TenantConfigContext";
 
 export default function DashboardLayout({
   children,
@@ -13,7 +14,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <TenantConfigProvider>
       <AuthSessionGuard />
 
       {/* Mobile Navbar - Only visible on mobile devices */}
@@ -45,6 +46,6 @@ export default function DashboardLayout({
         </main>
         <Toaster position="top-right" richColors />
       </div>
-    </>
+    </TenantConfigProvider>
   );
 }

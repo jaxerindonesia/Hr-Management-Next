@@ -1,8 +1,12 @@
+export type SalaryType = "daily" | "monthly";
+
 export interface UserDto {
   id?: string | null;
   tenantId?: string | null;
   roleId: string;
   departmentId?: string | null;
+  branchId?: string | null;
+  branch?: { id: string; name: string } | null;
   department?: { id: string; name: string } | null;
   role?: { id: string; name: string } | null;
   tenant?: { id: string; companyName: string } | null;
@@ -13,6 +17,7 @@ export interface UserDto {
   position?: string | null;
   joinDate?: string | null;
   salary?: number | null;
+  salaryType?: SalaryType;
   gender?: string | null;
   address?: string | null;
   birthDate?: string | null;

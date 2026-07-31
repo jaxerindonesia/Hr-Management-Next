@@ -274,7 +274,7 @@ export default function RecapModal({
         <div class="profile">
           <div style="flex:1; min-width: 0;">
             <h1>${employee.name}</h1>
-            <div style="color:#2563eb; font-weight:600;">${employee.position || "-"} • ${employee.department?.name || "-"}</div>
+            <div style="color:#2563eb; font-weight:600;">${employee.position || "-"} • ${employee.department?.name || "-"} • ${employee.branch?.name || "-"}</div>
             <div class="meta">
               <div class="meta-item"><span class="label">NIK</span><span class="value">${employee.nik || "-"}</span></div>
               <div class="meta-item"><span class="label">Gender</span><span class="value">${gender}</span></div>
@@ -372,7 +372,7 @@ export default function RecapModal({
                       {employee.name}
                     </p>
                     <p className="font-medium mb-2 text-gray-500 dark:text-white">
-                      {employee.position || "Posisi belum diatur"} • {employee.department?.name || "Departemen belum diatur"}
+                      {employee.position || "Posisi belum diatur"} • Departemen {employee.department?.name || "belum diatur"} • Cabang {employee.branch?.name || "belum ditentukan"}
                     </p>
                   </div>
                   <Button

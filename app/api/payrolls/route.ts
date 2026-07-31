@@ -5,10 +5,14 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
-import { AUTO_OVERTIME_COMPONENT_NAME } from "@/lib/constants/payroll";
+import {
+  AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+  AUTO_OVERTIME_COMPONENT_NAME,
+} from "@/lib/constants/payroll";
 import {
   getApprovedOvertimePayoutSummary,
 } from "@/lib/helper/payroll-overtime";
+import { getPayrollSalarySummary } from "@/lib/helper/payroll-salary";
 
 function buildPayrollReferenceNumber(id: string, createdAt: Date) {
   return `PYR-${createdAt.getFullYear()}-${id.slice(0, 8).toUpperCase()}`;
@@ -38,6 +42,7 @@ function normalizeComponentValues(items: unknown[], basicSalary: number) {
   }).filter((item) =>
     item.nameSnapshot &&
     item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME &&
+    item.nameSnapshot !== AUTO_LATE_DEDUCTION_COMPONENT_NAME &&
     ["EARNING", "DEDUCTION"].includes(item.typeSnapshot),
   );
 }
@@ -123,24 +128,49 @@ export async function POST(req: NextRequest) {
       userId,
       month,
       year,
-      basicSalary,
       status,
       paidAt,
       componentValues,
     } = body;
 
-    if (!userId || !month || !year || !basicSalary || !status) {
+    if (!userId || !month || !year || !status) {
       return NextResponse.json(
         { message: "All payroll fields are required fields" },
         { status: 400 },
       );
     }
 
+    const normalizedMonth = Number(month);
+    const normalizedYear = Number(year);
+    if (
+      !Number.isInteger(normalizedMonth) ||
+      normalizedMonth < 1 ||
+      normalizedMonth > 12 ||
+      !Number.isInteger(normalizedYear) ||
+      normalizedYear < 1
+    ) {
+      return NextResponse.json(
+        { message: "Periode payroll tidak valid" },
+        { status: 400 },
+      );
+    }
+
     const scopedTenantId = ensureTenantScope(auth.user);
-    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+    const salarySummary = await getPayrollSalarySummary({
+      tenantId: scopedTenantId,
+      userId,
+      month: normalizedMonth,
+      year: normalizedYear,
+    });
+    const finalTenantId = salarySummary.tenantId;
 
     const existing = await prisma.payroll.findFirst({
-      where: { userId: userId, month: month, year: year, ...(finalTenantId ? { tenantId: finalTenantId } : {}) },
+      where: {
+        userId,
+        month: normalizedMonth,
+        year: normalizedYear,
+        tenantId: finalTenantId,
+      },
     });
 
     if (existing) {
@@ -150,13 +180,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const normalizedBasicSalary = Number(basicSalary || 0);
+    const normalizedBasicSalary = salarySummary.basicSalary;
     const normalizedComponentValues = normalizeComponentValues(componentValues, normalizedBasicSalary);
     const overtimeSummary = await getApprovedOvertimePayoutSummary({
-      tenantId: finalTenantId,
+      tenantId: salarySummary.tenantId,
       userId,
-      month: Number(month),
-      year: Number(year),
+      month: normalizedMonth,
+      year: normalizedYear,
     });
     if (overtimeSummary.totalAmount > 0) {
       normalizedComponentValues.push({
@@ -165,6 +195,16 @@ export async function POST(req: NextRequest) {
         typeSnapshot: "EARNING",
         inputTypeSnapshot: "FIXED",
         amount: overtimeSummary.totalAmount,
+        baseValue: null,
+      });
+    }
+    if (salarySummary.lateDeductionAmount > 0) {
+      normalizedComponentValues.push({
+        componentConfigId: null,
+        nameSnapshot: AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+        typeSnapshot: "DEDUCTION",
+        inputTypeSnapshot: "FIXED",
+        amount: salarySummary.lateDeductionAmount,
         baseValue: null,
       });
     }
@@ -179,9 +219,15 @@ export async function POST(req: NextRequest) {
       data: {
         tenantId: finalTenantId,
         userId,
-        month,
-        year,
+        month: normalizedMonth,
+        year: normalizedYear,
         basicSalary: normalizedBasicSalary,
+        salaryType: salarySummary.salaryType,
+        salaryRate: salarySummary.salaryRate,
+        paidAttendanceDays: salarySummary.paidAttendanceDays,
+        lateDeductionRate: salarySummary.lateDeductionRate,
+        lateAttendanceDays: salarySummary.lateAttendanceDays,
+        lateDeductionAmount: salarySummary.lateDeductionAmount,
         allowances,
         deductions,
         totalSalary,

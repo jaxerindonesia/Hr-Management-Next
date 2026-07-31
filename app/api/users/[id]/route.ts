@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import type { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 import { deleteFromMinio } from "@/lib/minio";
@@ -62,22 +63,43 @@ export async function PUT(req: Request, { params }: Params) {
     const { id } = await params;
     const targetUser = await prisma.user.findFirst({
       where: { id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
-      select: { id: true },
+      select: { id: true, tenantId: true },
     });
     if (!targetUser) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
     const body = await req.json();
 
-    const updateData: any = {};
+    if (
+      body.salaryType !== undefined &&
+      !["daily", "monthly"].includes(body.salaryType)
+    ) {
+      return NextResponse.json(
+        { message: "Jenis pembayaran gaji tidak valid" },
+        { status: 400 },
+      );
+    }
+
+    const updateData: Prisma.UserUncheckedUpdateInput = {};
 
     if (body.email) updateData.email = body.email;
     if (body.name) updateData.name = body.name;
     if (body.roleId) updateData.roleId = body.roleId;
     if (body.departmentId) updateData.departmentId = body.departmentId;
+    if (body.branchId !== undefined) {
+      if (body.branchId) {
+        if (!targetUser.tenantId) return NextResponse.json({ message: "User tidak memiliki tenant" }, { status: 400 });
+        const branch = await prisma.branch.findFirst({
+          where: { id: body.branchId, tenantId: targetUser.tenantId },
+        });
+        if (!branch) return NextResponse.json({ message: "Cabang tidak valid" }, { status: 400 });
+      }
+      updateData.branchId = body.branchId || null;
+    }
     if (body.nik) updateData.nik = body.nik;
     if (body.phone) updateData.phone = body.phone;
     if (body.position) updateData.position = body.position;
     if (body.salary !== undefined) updateData.salary = body.salary;
+    if (body.salaryType !== undefined) updateData.salaryType = body.salaryType;
     if (body.gender !== undefined) updateData.gender = body.gender || null;
     if (body.address !== undefined) updateData.address = body.address || null;
     if (body.birthPlace !== undefined) updateData.birthPlace = body.birthPlace || null;

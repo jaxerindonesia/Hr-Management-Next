@@ -23,6 +23,7 @@ export type EmployeeImportPayload = {
   birthDate?: string;
   address?: string;
   salary?: number;
+  salaryType?: "daily" | "monthly";
   status?: string;
   password: string;
 };
@@ -113,6 +114,12 @@ const COMMON_COLUMNS: EmployeeImportColumn[] = [
     label: "Gaji",
     description: "Opsional. Hanya angka tanpa pemisah ribuan.",
     sample: "7500000",
+  },
+  {
+    key: "salaryType",
+    label: "Jenis Pembayaran Gaji",
+    description: "Isi: Harian / Bulanan. Default Bulanan jika kosong.",
+    sample: "Bulanan",
   },
   {
     key: "status",
@@ -225,6 +232,13 @@ function normalizeStatusValue(value: unknown) {
   return raw;
 }
 
+function normalizeSalaryTypeValue(value: unknown) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw || raw === "bulanan" || raw === "monthly") return "monthly";
+  if (raw === "harian" || raw === "daily") return "daily";
+  return raw;
+}
+
 function normalizeNumberValue(value: unknown) {
   const raw = String(value ?? "").trim();
   if (!raw) return undefined;
@@ -254,6 +268,9 @@ export function normalizeEmployeeImportRow(
     birthDate: normalizeDateValue(getValue("Tanggal Lahir")),
     address: String(getValue("Alamat")).trim(),
     salary: normalizeNumberValue(getValue("Gaji")),
+    salaryType: normalizeSalaryTypeValue(
+      getValue("Jenis Pembayaran Gaji"),
+    ) as "daily" | "monthly",
     status: normalizeStatusValue(getValue("Status")),
     password: String(getValue("Password")).trim(),
   };
@@ -282,6 +299,12 @@ export function validateEmployeeImportRow(
   }
   if (row.password && row.password.length < 6) {
     errors.push({ column: "Password", message: "Password minimal 6 karakter" });
+  }
+  if (row.salaryType && !["daily", "monthly"].includes(row.salaryType)) {
+    errors.push({
+      column: "Jenis Pembayaran Gaji",
+      message: "Jenis Pembayaran Gaji harus Harian atau Bulanan",
+    });
   }
 
   return errors;

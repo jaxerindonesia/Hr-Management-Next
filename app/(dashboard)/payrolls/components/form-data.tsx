@@ -19,7 +19,12 @@ import { months } from "@/lib/helper/date";
 import { formatCurrency } from "@/lib/helper/format-currency";
 import { parseApiError } from "@/lib/helper/response-api";
 import type { PayrollComponentConfigDto, PayrollComponentValueDto } from "@/lib/dto/payroll-component";
-import { AUTO_OVERTIME_COMPONENT_NAME } from "@/lib/constants/payroll";
+import type { PayrollCalculationSummaryDto } from "@/lib/dto/payroll-calculation";
+import {
+  AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+  AUTO_OVERTIME_COMPONENT_NAME,
+} from "@/lib/constants/payroll";
+import { Info } from "lucide-react";
 
 const createDefaultFormData = (): PayrollDto => ({
   userId: "",
@@ -46,6 +51,9 @@ export default function FormData({
   const [loading, setLoading] = useState(false);
   const [componentConfigs, setComponentConfigs] = useState<PayrollComponentConfigDto[]>([]);
   const [overtimeAmount, setOvertimeAmount] = useState(0);
+  const [lateDeductionAmount, setLateDeductionAmount] = useState(0);
+  const [calculationSummary, setCalculationSummary] =
+    useState<PayrollCalculationSummaryDto | null>(null);
   const [formData, setFormData] = useState<PayrollDto>(createDefaultFormData);
 
   const computedAllowances = (formData.componentValues || [])
@@ -60,6 +68,7 @@ export default function FormData({
     basicSalary: number,
     existingValues?: PayrollComponentValueDto[],
     overtimeTotal = 0,
+    lateDeductionTotal = 0,
   ) =>
     [
       ...configs
@@ -105,42 +114,59 @@ export default function FormData({
           amount: overtimeTotal,
         } satisfies PayrollComponentValueDto]
         : []),
+      ...(lateDeductionTotal > 0
+        ? [{
+          id: null,
+          payrollId: null,
+          componentConfigId: null,
+          nameSnapshot: AUTO_LATE_DEDUCTION_COMPONENT_NAME,
+          typeSnapshot: "DEDUCTION",
+          inputTypeSnapshot: "FIXED",
+          baseValue: null,
+          amount: lateDeductionTotal,
+        } satisfies PayrollComponentValueDto]
+        : []),
     ];
 
   const rebuildComponentValues = (
     basicSalary: number,
     sourceValues?: PayrollComponentValueDto[],
     overtimeTotal = overtimeAmount,
+    lateDeductionTotal = lateDeductionAmount,
   ) => {
     const manualValues = (sourceValues ?? formData.componentValues ?? []).filter(
-      (item) => item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME,
+      (item) =>
+        item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME &&
+        item.nameSnapshot !== AUTO_LATE_DEDUCTION_COMPONENT_NAME,
     );
     return buildComponentValues(
       componentConfigs,
       basicSalary,
       manualValues,
       overtimeTotal,
+      lateDeductionTotal,
     );
   };
 
-  const fetchOvertimeSummary = async (params: {
+  const fetchPayrollSummary = async (params: {
     userId: string;
     month: number;
     year: number;
-    basicSalary: number;
     sourceValues?: PayrollComponentValueDto[];
   }) => {
-    const { userId, month, year, basicSalary, sourceValues } = params;
+    const { userId, month, year, sourceValues } = params;
 
     if (!userId || !month || !year) {
       setOvertimeAmount(0);
+      setLateDeductionAmount(0);
+      setCalculationSummary(null);
       setFormData((current) => ({
         ...current,
         userId,
         month,
         year,
-        basicSalary,
-        componentValues: rebuildComponentValues(basicSalary, sourceValues, 0),
+        basicSalary: 0,
+        componentValues: rebuildComponentValues(0, sourceValues, 0, 0),
       }));
       return;
     }
@@ -151,15 +177,22 @@ export default function FormData({
         month: String(month),
         year: String(year),
       });
-      const res = await fetch(`/api/payrolls/overtime-summary?${searchParams.toString()}`);
+      const res = await fetch(
+        `/api/payrolls/calculation-summary?${searchParams.toString()}`,
+      );
       if (!res.ok) {
         throw new Error(
-          await parseApiError(res, "Gagal mengambil ringkasan lembur"),
+          await parseApiError(res, "Gagal menghitung payroll"),
         );
       }
       const json = await res.json();
-      const totalAmount = Number(json?.data?.totalAmount || 0);
+      const summary = json.data as PayrollCalculationSummaryDto;
+      const basicSalary = Number(summary.basicSalary || 0);
+      const totalAmount = Number(summary.overtimeAmount || 0);
+      const lateDeductionTotal = Number(summary.lateDeductionAmount || 0);
+      setCalculationSummary(summary);
       setOvertimeAmount(totalAmount);
+      setLateDeductionAmount(lateDeductionTotal);
       setFormData((current) => ({
         ...current,
         userId,
@@ -170,41 +203,24 @@ export default function FormData({
           basicSalary,
           sourceValues ?? current.componentValues,
           totalAmount,
+          lateDeductionTotal,
         ),
       }));
     } catch (error) {
       setOvertimeAmount(0);
+      setLateDeductionAmount(0);
+      setCalculationSummary(null);
       toast.error(
-        error instanceof Error ? error.message : "Gagal memuat ringkasan lembur",
+        error instanceof Error ? error.message : "Gagal menghitung payroll",
       );
       setFormData((current) => ({
         ...current,
         userId,
         month,
         year,
-        basicSalary,
-        componentValues: rebuildComponentValues(basicSalary, sourceValues, 0),
+        basicSalary: 0,
+        componentValues: rebuildComponentValues(0, sourceValues, 0, 0),
       }));
-    }
-  };
-
-  const fetchEmployeeSalary = async (userId: string) => {
-    if (!userId) return 0;
-
-    try {
-      const res = await fetch(`/api/users/${userId}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        throw new Error(await parseApiError(res, "Gagal mengambil data karyawan"));
-      }
-      const user = await res.json();
-      return Number(user?.salary || 0);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Gagal memuat data karyawan",
-      );
-      return 0;
     }
   };
 
@@ -246,7 +262,7 @@ export default function FormData({
         `Data gaji berhasil ${formData.id ? "diupdate" : "disimpan"}!`,
       );
 
-      onSuccess && onSuccess();
+      onSuccess?.();
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
@@ -266,7 +282,9 @@ export default function FormData({
     if (initialData) {
       const baseSalary = Number(initialData.basicSalary || 0);
       const sourceValues = (initialData.componentValues || []).filter(
-        (item) => item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME,
+        (item) =>
+          item.nameSnapshot !== AUTO_OVERTIME_COMPONENT_NAME &&
+          item.nameSnapshot !== AUTO_LATE_DEDUCTION_COMPONENT_NAME,
       );
       setFormData({
         ...createDefaultFormData(),
@@ -274,11 +292,10 @@ export default function FormData({
         userId: initialData.userId || initialData.user?.id || "",
         componentValues: rebuildComponentValues(baseSalary, sourceValues, 0),
       });
-      void fetchOvertimeSummary({
+      void fetchPayrollSummary({
         userId: initialData.userId || initialData.user?.id || "",
         month: Number(initialData.month || createDefaultFormData().month),
         year: Number(initialData.year || createDefaultFormData().year),
-        basicSalary: baseSalary,
         sourceValues,
       });
       return;
@@ -286,6 +303,8 @@ export default function FormData({
 
     const defaultData = createDefaultFormData();
     setOvertimeAmount(0);
+    setLateDeductionAmount(0);
+    setCalculationSummary(null);
     setFormData({
       ...defaultData,
       componentValues: rebuildComponentValues(defaultData.basicSalary, [], 0),
@@ -311,16 +330,12 @@ export default function FormData({
               <EmployeeSearchSelect
                 value={formData.userId || ""}
                 onChange={(val) => {
-                  void (async () => {
-                    const basicSalary = await fetchEmployeeSalary(val);
-                    await fetchOvertimeSummary({
-                      userId: val,
-                      month: Number(formData.month || createDefaultFormData().month),
-                      year: Number(formData.year || createDefaultFormData().year),
-                      basicSalary,
-                      sourceValues: formData.componentValues,
-                    });
-                  })();
+                  void fetchPayrollSummary({
+                    userId: val,
+                    month: Number(formData.month || createDefaultFormData().month),
+                    year: Number(formData.year || createDefaultFormData().year),
+                    sourceValues: formData.componentValues,
+                  });
                 }}
                 placeholder="Pilih Karyawan"
               />
@@ -333,11 +348,10 @@ export default function FormData({
                 <Select
                   value={String(formData.month)}
                   onValueChange={(value) =>
-                    void fetchOvertimeSummary({
+                    void fetchPayrollSummary({
                       userId: formData.userId || "",
                       month: Number(value),
                       year: Number(formData.year || createDefaultFormData().year),
-                      basicSalary: Number(formData.basicSalary || 0),
                       sourceValues: formData.componentValues,
                     })
                   }
@@ -362,11 +376,10 @@ export default function FormData({
                   type="number"
                   value={formData.year}
                   onChange={(e) =>
-                    void fetchOvertimeSummary({
+                    void fetchPayrollSummary({
                       userId: formData.userId || "",
                       month: Number(formData.month || createDefaultFormData().month),
                       year: parseInt(e.target.value),
-                      basicSalary: Number(formData.basicSalary || 0),
                       sourceValues: formData.componentValues,
                     })
                   }
@@ -382,19 +395,38 @@ export default function FormData({
                 id="basicSalary"
                 type="text"
                 value={formData.basicSalary ? formData.basicSalary.toLocaleString("id-ID") : ""}
-                onChange={(e) => {
-                  const numericValue = e.target.value.replace(/\D/g, "");
-                  const basicSalary = numericValue ? Number(numericValue) : 0;
-                  setFormData({
-                    ...formData,
-                    basicSalary,
-                    componentValues: rebuildComponentValues(basicSalary),
-                  });
-                }}
                 placeholder="0"
+                disabled
                 required
               />
             </div>
+
+            {calculationSummary && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-900/40">
+                {calculationSummary.salaryType === "daily" ? (
+                  <p className="text-slate-700 dark:text-slate-300">
+                    Gaji harian: {formatCurrency(calculationSummary.salaryRate)} ×{" "}
+                    {calculationSummary.paidAttendanceDays} hari hadir ={" "}
+                    <span className="font-semibold">
+                      {formatCurrency(calculationSummary.basicSalary)}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-slate-700 dark:text-slate-300">
+                    Gaji bulanan: {formatCurrency(calculationSummary.basicSalary)}
+                  </p>
+                )}
+                {calculationSummary.lateAttendanceDays > 0 && (
+                  <p className="mt-1 text-red-600 dark:text-red-400">
+                    Potongan terlambat: {formatCurrency(calculationSummary.lateDeductionRate)} ×{" "}
+                    {calculationSummary.lateAttendanceDays} hari ={" "}
+                    <span className="font-semibold">
+                      {formatCurrency(calculationSummary.lateDeductionAmount)}
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
 
             {componentConfigs.length > 0 && (
               <div className="space-y-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-900/40">
@@ -429,27 +461,43 @@ export default function FormData({
                               : item.amount
                                 ? item.amount.toLocaleString("id-ID")
                                 : "";
+                          const automaticDescription =
+                            item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME
+                              ? "Otomatis dari lembur yang disetujui pada periode ini."
+                              : item.nameSnapshot === AUTO_LATE_DEDUCTION_COMPONENT_NAME
+                                ? "Otomatis dari jumlah keterlambatan pada periode ini."
+                                : null;
 
                           return (
                             <div key={`${item.componentConfigId || item.nameSnapshot}-${index}`} className="grid grid-cols-1 gap-3 md:grid-cols-12">
                               <div className="grid gap-2 md:col-span-5">
-                                <Label>{item.nameSnapshot}
-                                  <span className="italic">
-                                    {item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME && (
-                                      <p className="text-xs text-slate-500">
-                                        Otomatis dari lembur yang disetujui pada periode ini.
-                                      </p>
+                                <div>
+                                  <Label className="whitespace-nowrap">
+                                    {item.nameSnapshot}
+                                    {automaticDescription && (
+                                      <span
+                                        title={automaticDescription}
+                                        aria-label={automaticDescription}
+                                        className="text-slate-400"
+                                      >
+                                        <Info className="size-4" />
+                                      </span>
                                     )}
-                                  </span>
-                                </Label>
+                                  </Label>
+                                </div>
                                 <Input value={item.nameSnapshot} disabled />
                               </div>
                               <div className="grid gap-2 md:col-span-3">
-                                <Label>{item.inputTypeSnapshot === "PERCENTAGE" ? "Persentase (%)" : "Nominal"}</Label>
+                                <div>
+                                  <Label>{item.inputTypeSnapshot === "PERCENTAGE" ? "Persentase (%)" : "Nominal"}</Label>
+                                </div>
                                 <Input
                                   type={item.inputTypeSnapshot === "PERCENTAGE" ? "number" : "text"}
                                   value={displayValue}
-                                  disabled={item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME}
+                                  disabled={
+                                    item.nameSnapshot === AUTO_OVERTIME_COMPONENT_NAME ||
+                                    item.nameSnapshot === AUTO_LATE_DEDUCTION_COMPONENT_NAME
+                                  }
                                   onChange={(e) => {
                                     const nextValues = [...(formData.componentValues || [])];
                                     if (currentIndex < 0) return;
@@ -477,7 +525,9 @@ export default function FormData({
                                 />
                               </div>
                               <div className="grid gap-2 md:col-span-4">
-                                <Label>Nilai Terhitung</Label>
+                                <div>
+                                  <Label>Nilai Terhitung</Label>
+                                </div>
                                 <Input
                                   value={formatCurrency(Number(item.amount || 0))}
                                   disabled

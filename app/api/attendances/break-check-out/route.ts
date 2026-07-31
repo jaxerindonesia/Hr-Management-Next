@@ -9,6 +9,7 @@ import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { getJakartaDayKey } from "@/lib/helper/date";
 import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
+import { getBranchDistanceMeters } from "@/lib/helper/attendance";
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ message }, { status });
@@ -49,11 +50,27 @@ export async function POST(req: NextRequest) {
         userId,
         attendanceDay,
       },
+      include: { branch: true },
     });
     if (!attendance?.checkIn) return jsonError("Silakan check in terlebih dahulu", 404);
     if (attendance.checkOut) return jsonError("Tidak bisa break setelah check out", 409);
     if (!Array.isArray(attendance.breakSessions) || attendance.breakSessions.length === 0) {
       return jsonError("Belum ada sesi break yang aktif", 409);
+    }
+
+    if (attendance.branch && !attendance.branch.isActive) {
+      return jsonError("Cabang karyawan sedang nonaktif", 400);
+    }
+    const breakOutDistanceMeters = attendance.branch
+      ? getBranchDistanceMeters(attendance.branch, breakOutLocation)
+      : null;
+    if (attendance.branch?.locationLockEnabled) {
+      if (breakOutDistanceMeters === null) {
+        return jsonError("Lokasi wajib diaktifkan untuk break check out di cabang ini", 400);
+      }
+      if (breakOutDistanceMeters > attendance.branch.attendanceRadiusMeters) {
+        return jsonError(`Anda berada di luar radius cabang (${Math.round(breakOutDistanceMeters)} m, maksimal ${attendance.branch.attendanceRadiusMeters} m)`, 400);
+      }
     }
 
     if (cfg.breakFaceCaptureEnabled && !faceCaptureBase64) {
@@ -89,6 +106,8 @@ export async function POST(req: NextRequest) {
       duration?: string | null;
       breakInLocation?: unknown;
       breakOutLocation?: unknown;
+      breakInDistanceMeters?: number | null;
+      breakOutDistanceMeters?: number | null;
       breakInFaceImage?: string | null;
       breakOutFaceImage?: string | null;
     }>;
@@ -105,6 +124,7 @@ export async function POST(req: NextRequest) {
       breakOut: now.toISOString(),
       duration,
       breakOutLocation,
+      breakOutDistanceMeters,
       breakOutFaceImage,
     };
 

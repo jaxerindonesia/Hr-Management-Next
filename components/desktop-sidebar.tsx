@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
+import React, { useState, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
-import { handleUnauthorizedClient } from "@/lib/helper/response-api";
+import { useTenantConfig } from "@/contexts/TenantConfigContext";
 import {
   Dialog,
   DialogContent,
@@ -48,14 +48,9 @@ import {
   Banknote,
   ListTodo,
   Clock,
+  Split,
 } from "lucide-react";
 import { usePermission } from "@/lib/helper/check-role";
-
-type TenantConfig = {
-  companyName: string | null;
-  logoUrl: string | null;
-  logoDarkUrl: string | null;
-} | null;
 
 type SidebarSubItem = {
   name: string;
@@ -81,7 +76,7 @@ export default function DesktopSidebar() {
     pathname.startsWith("/finance") ? ["finance"] : [],
   );
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [tenantConfig, setTenantConfig] = useState<TenantConfig>(null);
+  const tenantConfig = useTenantConfig();
 
   // Easter egg states
   const [showCredits, setShowCredits] = useState(false);
@@ -113,25 +108,8 @@ export default function DesktopSidebar() {
     );
   };
 
-  // Fetch tenant config untuk logo sidebar
-  useEffect(() => {
-    fetch("/api/tenant-config")
-      .then(async (res) => {
-        if (res.status === 401) {
-          handleUnauthorizedClient();
-          return null;
-        }
-        return res.json();
-      })
-      .then((json) => {
-        if (!json) return;
-        if (json.data) setTenantConfig(json.data);
-      })
-      .catch(() => { });
-  }, []);
-
   const isSuperAdmin = useSyncExternalStore(
-    () => () => {},
+    () => () => { },
     () => {
       const raw = localStorage.getItem("hr_user_data");
       if (!raw) return false;
@@ -181,6 +159,13 @@ export default function DesktopSidebar() {
         path: "/tenants",
         permissions: ["superadmin"],
         superadminOnly: true,
+      },
+      {
+        id: "branches",
+        name: "Cabang",
+        icon: Split,
+        path: "/branches",
+        permissions: ["get-all", "get-by-id"],
       },
       {
         id: "users",
@@ -308,301 +293,300 @@ export default function DesktopSidebar() {
         ${sidebarOpen ? "md:w-[22rem]" : "md:w-[6.5rem]"} w-full h-full lg:h-screen md:sticky md:top-0`}
       >
         <SidebarInset
-          className={`flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(241,247,255,0.98)_52%,rgba(232,242,255,0.96)_100%)] text-slate-900 shadow-[0_24px_60px_rgba(148,163,184,0.18)] ring-1 ring-sky-100/80 backdrop-blur-2xl transition-all duration-300 dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(22,30,48,0.98)_0%,rgba(21,31,51,0.98)_100%)] dark:text-white dark:shadow-[0_24px_60px_rgba(2,6,23,0.42)] dark:ring-white/5 ${
-            sidebarOpen ? "px-4 py-5" : "px-3 py-5"
-          }`}
+          className={`flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(241,247,255,0.98)_52%,rgba(232,242,255,0.96)_100%)] text-slate-900 shadow-[0_24px_60px_rgba(148,163,184,0.18)] ring-1 ring-sky-100/80 backdrop-blur-2xl transition-all duration-300 dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(22,30,48,0.98)_0%,rgba(21,31,51,0.98)_100%)] dark:text-white dark:shadow-[0_24px_60px_rgba(2,6,23,0.42)] dark:ring-white/5 ${sidebarOpen ? "px-4 py-5" : "px-3 py-5"
+            }`}
         >
-        {/* ===== HEADER ===== */}
-        <SidebarHeader className={`flex h-[72px] items-center ${sidebarOpen ? "justify-between px-2" : "justify-center"}`}>
-          {sidebarOpen ? (
-            <>
-              <div className="flex h-full flex-1 items-center justify-start overflow-hidden">
-                {(() => {
-                  const hasLight = !!tenantConfig?.logoUrl;
-                  const hasDark = !!tenantConfig?.logoDarkUrl;
-                  const showCompanyLogo = hasLight || hasDark;
+          {/* ===== HEADER ===== */}
+          <SidebarHeader className={`flex h-[72px] items-center ${sidebarOpen ? "justify-between px-2" : "justify-center"}`}>
+            {sidebarOpen ? (
+              <>
+                <div className="flex h-full flex-1 items-center justify-start overflow-hidden">
+                  {(() => {
+                    const hasLight = !!tenantConfig?.logoUrl;
+                    const hasDark = !!tenantConfig?.logoDarkUrl;
+                    const showCompanyLogo = hasLight || hasDark;
 
-                  // Jika kita punya logo perusahaan
-                  if (showCompanyLogo) {
-                    // Coba tentukan logo mana yang dipakai, fallback bila salah satu tidak diupload
-                    const activeLogo =
-                      theme === "dark"
-                        ? tenantConfig?.logoDarkUrl || tenantConfig?.logoUrl
-                        : tenantConfig?.logoUrl || tenantConfig?.logoDarkUrl;
+                    // Jika kita punya logo perusahaan
+                    if (showCompanyLogo) {
+                      // Coba tentukan logo mana yang dipakai, fallback bila salah satu tidak diupload
+                      const activeLogo =
+                        theme === "dark"
+                          ? tenantConfig?.logoDarkUrl || tenantConfig?.logoUrl
+                          : tenantConfig?.logoUrl || tenantConfig?.logoDarkUrl;
 
+                      return (
+                        <>
+                          <Image
+                            src={activeLogo as string}
+                            alt={tenantConfig?.companyName ?? "Company Logo"}
+                            width={140}
+                            height={45}
+                            priority
+                            className="max-h-[45px] w-auto rounded object-contain"
+                            unoptimized
+                          />
+
+                        </>
+                      );
+                    }
+
+                    // Default Logo Jaxer
                     return (
                       <>
+                        {/* Logo Jaxer Default - Light */}
                         <Image
-                          src={activeLogo as string}
-                          alt={tenantConfig?.companyName ?? "Company Logo"}
-                          width={140}
-                          height={45}
+                          src="/logo_jahris_colored.png"
+                          alt="Jahris Logo"
+                          width={120}
+                          height={20}
                           priority
-                          className="max-h-[45px] w-auto rounded object-contain"
-                          unoptimized
+                          className="object-contain dark:hidden"
                         />
 
+                        {/* Logo Jaxer Default - Dark */}
+                        <Image
+                          src="/logo_jahris_white.png"
+                          alt="Jahris Logo"
+                          width={120}
+                          height={20}
+                          priority
+                          className="hidden object-contain dark:block"
+                        />
                       </>
                     );
-                  }
-
-                  // Default Logo Jaxer
-                  return (
-                    <>
-                      {/* Logo Jaxer Default - Light */}
-                      <Image
-                        src="/logo_jahris_colored.png"
-                        alt="Jahris Logo"
-                        width={120}
-                        height={20}
-                        priority
-                        className="object-contain dark:hidden"
-                      />
-
-                      {/* Logo Jaxer Default - Dark */}
-                      <Image
-                        src="/logo_jahris_white.png"
-                        alt="Jahris Logo"
-                        width={120}
-                        height={20}
-                        priority
-                        className="hidden object-contain dark:block"
-                      />
-                    </>
-                  );
-                })()}
-              </div>
+                  })()}
+                </div>
+                <Button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 text-slate-600 backdrop-blur-md hover:bg-sky-50 hover:text-slate-900 active:scale-95 shadow-[0_10px_30px_rgba(148,163,184,0.18)] dark:border-white/15 dark:bg-white/[0.10] dark:text-white dark:hover:bg-white/[0.16] dark:hover:text-white dark:shadow-[0_10px_30px_rgba(15,23,42,0.22)]"
+                >
+                  <ChevronLeft className="size-5 transition-transform duration-300" />
+                </Button>
+              </>
+            ) : (
               <Button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 variant="ghost"
                 size="icon"
                 className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 text-slate-600 backdrop-blur-md hover:bg-sky-50 hover:text-slate-900 active:scale-95 shadow-[0_10px_30px_rgba(148,163,184,0.18)] dark:border-white/15 dark:bg-white/[0.10] dark:text-white dark:hover:bg-white/[0.16] dark:hover:text-white dark:shadow-[0_10px_30px_rgba(15,23,42,0.22)]"
               >
-                <ChevronLeft className="size-5 transition-transform duration-300" />
+                <ChevronRight className="size-5 transition-transform duration-300" />
               </Button>
-            </>
-          ) : (
-            <Button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              variant="ghost"
-              size="icon"
-              className="rounded-2xl border border-slate-200/80 bg-white/80 p-2 text-slate-600 backdrop-blur-md hover:bg-sky-50 hover:text-slate-900 active:scale-95 shadow-[0_10px_30px_rgba(148,163,184,0.18)] dark:border-white/15 dark:bg-white/[0.10] dark:text-white dark:hover:bg-white/[0.16] dark:hover:text-white dark:shadow-[0_10px_30px_rgba(15,23,42,0.22)]"
-            >
-              <ChevronRight className="size-5 transition-transform duration-300" />
-            </Button>
-          )}
-        </SidebarHeader>
+            )}
+          </SidebarHeader>
 
-        {/* ===== MENU ===== */}
-        <SidebarContent className={`space-y-1 ${sidebarOpen ? "px-2 pt-4" : "px-0 pt-5"}`}>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              pathname === item.path ||
-              (item.subItems && pathname.startsWith(item.path));
-            const isExpanded = expandedMenus.includes(item.id);
-            const currentType = searchParams.get("type");
-            const currentAction = searchParams.get("action");
+          {/* ===== MENU ===== */}
+          <SidebarContent className={`space-y-1 ${sidebarOpen ? "px-2 pt-4" : "px-0 pt-5"}`}>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {menuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive =
+                      pathname === item.path ||
+                      (item.subItems && pathname.startsWith(item.path));
+                    const isExpanded = expandedMenus.includes(item.id);
+                    const currentType = searchParams.get("type");
+                    const currentAction = searchParams.get("action");
 
-            if (item.subItems) {
-              return (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    onClick={() => {
-                      if (!sidebarOpen) setSidebarOpen(true);
-                      toggleMenu(item.id);
-                    }}
-                    className={`flex w-full items-center rounded-2xl transition-all duration-300 relative group
+                    if (item.subItems) {
+                      return (
+                        <SidebarMenuItem key={item.id}>
+                          <SidebarMenuButton
+                            onClick={() => {
+                              if (!sidebarOpen) setSidebarOpen(true);
+                              toggleMenu(item.id);
+                            }}
+                            className={`flex w-full items-center rounded-2xl transition-all duration-300 relative group
                     ${isActive
-                        ? "border border-slate-200/80 bg-sky-300/40 text-slate-900 shadow-[0_14px_34px_rgba(148,163,184,0.18)] dark:border-white/10 dark:bg-white/[0.14] dark:text-white dark:shadow-[0_14px_34px_rgba(15,23,42,0.28)]"
-                        : "text-slate-600 hover:bg-sky-50/80 hover:text-slate-900 dark:text-slate-200/80 dark:hover:bg-white/[0.07] dark:hover:text-white"
-                      }
+                                ? "border border-slate-200/80 bg-sky-300/40 text-slate-900 shadow-[0_14px_34px_rgba(148,163,184,0.18)] dark:border-white/10 dark:bg-white/[0.14] dark:text-white dark:shadow-[0_14px_34px_rgba(15,23,42,0.28)]"
+                                : "text-slate-600 hover:bg-sky-50/80 hover:text-slate-900 dark:text-slate-200/80 dark:hover:bg-white/[0.07] dark:hover:text-white"
+                              }
                     ${sidebarOpen ? "gap-3 px-4 py-3.5" : "justify-center px-0 py-3.5"}
                     hover:scale-[1.02] active:scale-[0.98]`}
-                  >
-                    {/* Animated Icon */}
-                    <Icon
-                      className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive
-                        ? "scale-110"
-                        : "group-hover:scale-110 group-hover:rotate-3"
-                        }`}
-                    />
+                          >
+                            {/* Animated Icon */}
+                            <Icon
+                              className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive
+                                ? "scale-110"
+                                : "group-hover:scale-110 group-hover:rotate-3"
+                                }`}
+                            />
 
-                    {sidebarOpen && (
-                      <>
-                        <span className="flex-1 truncate text-sm font-medium text-left">
-                          {item.name}
-                        </span>
+                            {sidebarOpen && (
+                              <>
+                                <span className="flex-1 truncate text-sm font-medium text-left">
+                                  {item.name}
+                                </span>
 
-                        <ChevronDown
-                      className={`w-4 h-4 transition-all duration-300 ${isExpanded ? "rotate-180" : ""
-                            }`}
-                        />
-                      </>
-                    )}
-                  </SidebarMenuButton>
+                                <ChevronDown
+                                  className={`w-4 h-4 transition-all duration-300 ${isExpanded ? "rotate-180" : ""
+                                    }`}
+                                />
+                              </>
+                            )}
+                          </SidebarMenuButton>
 
-                  {/* Submenu with smooth animation */}
-                  {sidebarOpen && (
-                    <div
-                      className={`transition-all duration-500 ease-in-out overflow-hidden ${isExpanded
-                        ? "max-h-[60vh] opacity-100 mt-0.5"
-                        : "max-h-0 opacity-0"
-                        }`}
-                    >
-                      <div className="ml-6 mr-3 border-l border-slate-200 py-2 pl-3 dark:border-white/15">
-                        {item.subItems.map((sub, index) => {
-                          const isSubActive =
-                            pathname === sub.path ||
-                            ((pathname === item.path &&
-                              currentType === sub.name) ||
-                              (pathname === item.path &&
-                                currentAction === "new" &&
-                                sub.name.includes("Form Pengajuan")));
-
-                          const isFormPengajuan =
-                            "isSpecial" in sub ? sub.isSpecial : false;
-
-                          return (
-                            <Link
-                              key={sub.name}
-                              href={sub.path}
-                              prefetch={false}
-                              onClick={() =>
-                                setExpandedMenus((prev) =>
-                                  prev.filter((menuId) => menuId !== item.id),
-                                )
-                              }
-                              style={{
-                                animationDelay: `${index * 50}ms`,
-                              }}
-                              className={`block rounded-lg px-3 py-2 text-sm transition-all duration-300
-                                ${isExpanded ? "animate-in slide-in-from-left-2 fade-in" : ""}
-                                ${isFormPengajuan
-                                  ? "border-l-4 border-cyan-500 bg-cyan-50 font-bold text-cyan-700 hover:scale-[1.02] hover:bg-cyan-100 dark:border-cyan-300 dark:bg-cyan-400/10 dark:text-cyan-100 dark:hover:bg-cyan-400/15"
-                                  : isSubActive
-                                    ? "bg-slate-900/8 font-medium text-slate-900 shadow-sm dark:bg-white/[0.11] dark:text-white"
-                                    : "text-slate-500 hover:bg-sky-50 hover:text-slate-900 dark:text-slate-300/65 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                          {/* Submenu with smooth animation */}
+                          {sidebarOpen && (
+                            <div
+                              className={`transition-all duration-500 ease-in-out overflow-hidden ${isExpanded
+                                ? "max-h-[60vh] opacity-100 mt-0.5"
+                                : "max-h-0 opacity-0"
                                 }`}
                             >
-                              {sub.name}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </SidebarMenuItem>
-              );
-            }
+                              <div className="ml-6 mr-3 border-l border-slate-200 py-2 pl-3 dark:border-white/15">
+                                {item.subItems.map((sub, index) => {
+                                  const isSubActive =
+                                    pathname === sub.path ||
+                                    ((pathname === item.path &&
+                                      currentType === sub.name) ||
+                                      (pathname === item.path &&
+                                        currentAction === "new" &&
+                                        sub.name.includes("Form Pengajuan")));
 
-            return (
-              <SidebarMenuItem key={item.id}>
-              <SidebarMenuButton
-                key={item.id}
-                asChild
-                className={`flex w-full items-center rounded-2xl transition-all duration-300 relative group
+                                  const isFormPengajuan =
+                                    "isSpecial" in sub ? sub.isSpecial : false;
+
+                                  return (
+                                    <Link
+                                      key={sub.name}
+                                      href={sub.path}
+                                      prefetch={false}
+                                      onClick={() =>
+                                        setExpandedMenus((prev) =>
+                                          prev.filter((menuId) => menuId !== item.id),
+                                        )
+                                      }
+                                      style={{
+                                        animationDelay: `${index * 50}ms`,
+                                      }}
+                                      className={`block rounded-lg px-3 py-2 text-sm transition-all duration-300
+                                ${isExpanded ? "animate-in slide-in-from-left-2 fade-in" : ""}
+                                ${isFormPengajuan
+                                          ? "border-l-4 border-cyan-500 bg-cyan-50 font-bold text-cyan-700 hover:scale-[1.02] hover:bg-cyan-100 dark:border-cyan-300 dark:bg-cyan-400/10 dark:text-cyan-100 dark:hover:bg-cyan-400/15"
+                                          : isSubActive
+                                            ? "bg-slate-900/8 font-medium text-slate-900 shadow-sm dark:bg-white/[0.11] dark:text-white"
+                                            : "text-slate-500 hover:bg-sky-50 hover:text-slate-900 dark:text-slate-300/65 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                                        }`}
+                                    >
+                                      {sub.name}
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </SidebarMenuItem>
+                      );
+                    }
+
+                    return (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          key={item.id}
+                          asChild
+                          className={`flex w-full items-center rounded-2xl transition-all duration-300 relative group
                 ${isActive
-                    ? "border border-slate-200/80 bg-sky-300/40 text-slate-900 shadow-[0_14px_34px_rgba(148,163,184,0.18)] dark:border-white/10 dark:bg-white/[0.14] dark:text-white dark:shadow-[0_14px_34px_rgba(15,23,42,0.28)]"
-                    : "text-slate-600 hover:bg-sky-100/80 hover:text-slate-900 dark:text-slate-200/80 dark:hover:bg-white/[0.07] dark:hover:text-white"
-                  }
+                              ? "border border-slate-200/80 bg-sky-300/40 text-slate-900 shadow-[0_14px_34px_rgba(148,163,184,0.18)] dark:border-white/10 dark:bg-white/[0.14] dark:text-white dark:shadow-[0_14px_34px_rgba(15,23,42,0.28)]"
+                              : "text-slate-600 hover:bg-sky-100/80 hover:text-slate-900 dark:text-slate-200/80 dark:hover:bg-white/[0.07] dark:hover:text-white"
+                            }
                 ${sidebarOpen ? "gap-3 px-4 py-3.5" : "justify-center px-0 py-3.5"}
                 hover:scale-[1.02] active:scale-[0.98]`}
-              >
-                <Link href={item.path}>
-                {/* Animated Icon */}
-                <Icon
-                  className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive
-                    ? "scale-110"
-                    : "group-hover:scale-110 group-hover:rotate-3"
-                    }`}
-                />
+                        >
+                          <Link href={item.path}>
+                            {/* Animated Icon */}
+                            <Icon
+                              className={`w-5 h-5 shrink-0 transition-all duration-300 ${isActive
+                                ? "scale-110"
+                                : "group-hover:scale-110 group-hover:rotate-3"
+                                }`}
+                            />
 
-                {sidebarOpen && (
-                  <span className="flex-1 truncate text-sm font-medium">
-                    {item.name}
-                  </span>
-                )}
-                </Link>
-              </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
+                            {sidebarOpen && (
+                              <span className="flex-1 truncate text-sm font-medium">
+                                {item.name}
+                              </span>
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
 
-        {/* ===== WATERMARK BOTTOM ===== */}
-        <div className={`py-4 transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "hidden opacity-0"}`}>
-          <div
-            onClick={handleLogoClick}
-            className="flex cursor-pointer items-center justify-end gap-1.5 text-slate-500 opacity-70 transition-opacity hover:opacity-100 select-none dark:text-white/55"
+          {/* ===== WATERMARK BOTTOM ===== */}
+          <div className={`py-4 transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "hidden opacity-0"}`}>
+            <div
+              onClick={handleLogoClick}
+              className="flex cursor-pointer items-center justify-end gap-1.5 text-slate-500 opacity-70 transition-opacity hover:opacity-100 select-none dark:text-white/55"
 
-          >
-            {/* Saat Terang -> Logo Berwarna */}
-            <Image
-              src="/logo_jaxer_colored.png"
-              alt="Jaxer Watermark"
-              width={65}
-              height={14}
-              className="mt-0.5 object-contain dark:hidden"
-              unoptimized
-            />
-            {/* Saat Gelap -> Logo Putih */}
-            <Image
-              src="/logo_jaxer_white.png"
-              alt="Jaxer Watermark"
-              width={65}
-              height={14}
-              className="mt-0.5 hidden object-contain dark:block"
-              unoptimized
-            />
+            >
+              {/* Saat Terang -> Logo Berwarna */}
+              <Image
+                src="/logo_jaxer_colored.png"
+                alt="Jaxer Watermark"
+                width={65}
+                height={14}
+                className="mt-0.5 object-contain dark:hidden"
+                unoptimized
+              />
+              {/* Saat Gelap -> Logo Putih */}
+              <Image
+                src="/logo_jaxer_white.png"
+                alt="Jaxer Watermark"
+                width={65}
+                height={14}
+                className="mt-0.5 hidden object-contain dark:block"
+                unoptimized
+              />
+            </div>
           </div>
-        </div>
 
-        {/* ===== FOOTER ===== */}
-        <SidebarFooter className="space-y-2 border-t border-slate-200 pt-3 dark:border-white/10">
-          {/* Theme Toggle */}
-          <Button
-            onClick={toggleTheme}
-            variant="ghost"
-            className={`flex h-auto w-full items-center rounded-2xl px-4 py-3
+          {/* ===== FOOTER ===== */}
+          <SidebarFooter className="space-y-2 border-t border-slate-200 pt-3 dark:border-white/10">
+            {/* Theme Toggle */}
+            <Button
+              onClick={toggleTheme}
+              variant="ghost"
+              className={`flex h-auto w-full items-center rounded-2xl px-4 py-3
               text-slate-600 hover:bg-sky-200 hover:text-slate-900 dark:text-slate-200/80 dark:hover:bg-white/[0.07] dark:hover:text-white
               hover:scale-[1.02] active:scale-[0.98]
               ${sidebarOpen ? "justify-start gap-3 text-left" : "justify-center"}`}
-          >
-            {theme === "light" ? (
-              <Moon className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
-            ) : (
-              <Sun className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
-            )}
+            >
+              {theme === "light" ? (
+                <Moon className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
+              ) : (
+                <Sun className="w-5 h-5 group-hover:animate-[spin_1s_linear_infinite]" />
+              )}
 
-            {sidebarOpen && (
-              <span className="font-medium">
-                {theme === "light" ? "Mode Gelap" : "Mode Terang"}
-              </span>
-            )}
-          </Button>
+              {sidebarOpen && (
+                <span className="font-medium">
+                  {theme === "light" ? "Mode Gelap" : "Mode Terang"}
+                </span>
+              )}
+            </Button>
 
-          {/* Logout Button */}
-          <Button
-            onClick={() => setShowLogoutModal(true)}
-            variant="ghost"
-            className={`flex h-auto w-full items-center rounded-2xl px-4 py-3
+            {/* Logout Button */}
+            <Button
+              onClick={() => setShowLogoutModal(true)}
+              variant="ghost"
+              className={`flex h-auto w-full items-center rounded-2xl px-4 py-3
               border border-transparent text-rose-500
               hover:border-rose-300/15 hover:bg-rose-400 hover:text-rose-50
               hover:scale-[1.02] active:scale-[0.98]
               ${sidebarOpen ? "justify-start gap-3 text-left" : "justify-center"}`}
-          >
-            <LogOut className="w-5 h-5 transition-all duration-300 group-hover:translate-x-1" />
+            >
+              <LogOut className="w-5 h-5 transition-all duration-300 group-hover:translate-x-1" />
 
-            {sidebarOpen && <span className="font-medium">Logout</span>}
-          </Button>
-        </SidebarFooter>
+              {sidebarOpen && <span className="font-medium">Logout</span>}
+            </Button>
+          </SidebarFooter>
         </SidebarInset>
       </SidebarShell>
 

@@ -9,6 +9,7 @@ const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
   officeEndTime: "17:00",
   lateToleranceMinutes: 15,
+  lateDeductionAmount: 0,
   breakEnabled: false,
   breakFaceCaptureEnabled: false,
   workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
@@ -71,6 +72,7 @@ export async function PUT(req: NextRequest) {
     const officeStartTime = String(body.officeStartTime || "").trim();
     const officeEndTime = String(body.officeEndTime || "").trim();
     const lateToleranceMinutes = Number(body.lateToleranceMinutes);
+    const lateDeductionAmount = Number(body.lateDeductionAmount);
     const breakEnabled = Boolean(body.breakEnabled);
     const breakFaceCaptureEnabled = Boolean(body.breakFaceCaptureEnabled);
     const workingDaysInput: unknown[] = Array.isArray(body.workingDays)
@@ -96,6 +98,12 @@ export async function PUT(req: NextRequest) {
         { status: 400 },
       );
     }
+    if (!Number.isFinite(lateDeductionAmount) || lateDeductionAmount < 0) {
+      return NextResponse.json(
+        { message: "Potongan keterlambatan harus angka >= 0" },
+        { status: 400 },
+      );
+    }
     if (workingDays.length === 0) {
       return NextResponse.json(
         { message: "Minimal pilih 1 hari masuk kerja" },
@@ -112,6 +120,7 @@ export async function PUT(req: NextRequest) {
       officeStartTime,
       officeEndTime,
       lateToleranceMinutes,
+      lateDeductionAmount,
       breakEnabled,
       breakFaceCaptureEnabled,
       workingDays,

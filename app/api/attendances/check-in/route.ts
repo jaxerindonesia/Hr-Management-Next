@@ -13,6 +13,7 @@ import { hasPermission } from "@/lib/auth/permission";
 import { getDateAtTime, getJakartaDayKey } from "@/lib/helper/date";
 import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
+import { haversineKm } from "@/lib/helper/attendance";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -63,6 +64,27 @@ export async function POST(req: Request) {
     const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
     const targetUserId = canManageAttendances ? userId : auth.user.id;
 
+    const targetUser = await prisma.user.findFirst({
+      where: { id: targetUserId, ...(finalTenantId ? { tenantId: finalTenantId } : {}) },
+      include: { branch: true },
+    });
+    if (!targetUser) return jsonError("User not found", 404);
+    const branch = targetUser.branch;
+    if (branch && !branch.isActive) return jsonError("Cabang karyawan sedang nonaktif", 400);
+    const latitude = Number(checkInLocation?.latitude);
+    const longitude = Number(checkInLocation?.longitude);
+    const hasLocation = Number.isFinite(latitude) && Number.isFinite(longitude);
+    let checkInDistanceMeters: number | null = null;
+    if (branch && hasLocation) {
+      checkInDistanceMeters = haversineKm(branch.latitude, branch.longitude, latitude, longitude) * 1000;
+    }
+    if (branch?.locationLockEnabled) {
+      if (!hasLocation) return jsonError("Lokasi wajib diaktifkan untuk absensi di cabang ini", 400);
+      if ((checkInDistanceMeters ?? Infinity) > branch.attendanceRadiusMeters) {
+        return jsonError(`Anda berada di luar radius cabang (${Math.round(checkInDistanceMeters ?? 0)} m, maksimal ${branch.attendanceRadiusMeters} m)`, 400);
+      }
+    }
+
     if (!canManageAttendances && userId !== auth.user.id) {
       return jsonError("Forbidden", 403);
     }
@@ -73,7 +95,8 @@ export async function POST(req: Request) {
         where: finalTenantId ? { tenantId: finalTenantId } : {},
         orderBy: { updatedAt: "desc" },
       })) ?? DEFAULT_CONFIG;
-    const officeStart = getDateAtTime(now, cfg.officeStartTime);
+    const officeStartTime = branch?.customWorkingHoursEnabled ? branch.officeStartTime : cfg.officeStartTime;
+    const officeStart = getDateAtTime(now, officeStartTime);
     const lateLimit = new Date(
       officeStart.getTime() + cfg.lateToleranceMinutes * 60 * 1000,
     );
@@ -118,6 +141,7 @@ export async function POST(req: Request) {
       return tx.attendance.create({
         data: {
           tenantId: finalTenantId,
+          branchId: branch?.id || null,
           userId: targetUserId,
           date: now,
           attendanceDay,
@@ -125,6 +149,7 @@ export async function POST(req: Request) {
           status: checkInStatus,
           workHours: "0",
           checkInLocation,
+          checkInDistanceMeters,
           checkInFaceImage: uploadedFaceImage,
         },
       });

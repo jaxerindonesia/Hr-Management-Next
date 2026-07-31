@@ -1,4 +1,5 @@
 import type { PayrollComponentValueDto } from "@/lib/dto/payroll-component";
+import type { SalaryType } from "@/lib/dto/user";
 
 export interface PayrollDto {
     id?: string | null;
@@ -7,6 +8,12 @@ export interface PayrollDto {
     month: number;
     year: number;
     basicSalary: number;
+    salaryType?: SalaryType;
+    salaryRate?: number;
+    paidAttendanceDays?: number;
+    lateDeductionRate?: number;
+    lateAttendanceDays?: number;
+    lateDeductionAmount?: number;
     allowances: number;
     deductions: number;
     totalSalary: number;

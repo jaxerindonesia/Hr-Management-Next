@@ -152,6 +152,7 @@ export async function POST(req: NextRequest) {
       position: string | null;
       joinDate: Date | null;
       salary: number | null;
+      salaryType: "daily" | "monthly";
       gender: string | null;
       address: string | null;
       birthDate: Date | null;
@@ -191,6 +192,18 @@ export async function POST(req: NextRequest) {
           row: rowNumber,
           column: "Password",
           message: "Password minimal 6 karakter",
+        });
+        continue;
+      }
+
+      if (
+        row.salaryType &&
+        !["daily", "monthly"].includes(row.salaryType)
+      ) {
+        errors.push({
+          row: rowNumber,
+          column: "Jenis Pembayaran Gaji",
+          message: "Jenis Pembayaran Gaji harus Harian atau Bulanan",
         });
         continue;
       }
@@ -265,6 +278,7 @@ export async function POST(req: NextRequest) {
         position: row.position?.trim() || null,
         joinDate: parseDate(row.joinDate),
         salary: typeof row.salary === "number" ? row.salary : null,
+        salaryType: row.salaryType || "monthly",
         gender: mapGender(row.gender),
         address: row.address?.trim() || null,
         birthDate: parseDate(row.birthDate),

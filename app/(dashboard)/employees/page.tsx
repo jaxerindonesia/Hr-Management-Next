@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import FormData from "./components/form-data";
 import { usePermission } from "@/lib/helper/check-role";
 import { DepartmentDto } from "@/lib/dto/department";
+import type { BranchDto } from "@/lib/dto/branch";
 import DynamicPage from "@/components/dynamic-page";
 import { formatDateId } from "@/lib/helper/date";
 import { parseApiError } from "@/lib/helper/response-api";
@@ -39,12 +40,14 @@ export default function EmployeesPage() {
   const [detailItem, setDetailItem] = useState<UserDto | undefined>(undefined);
   const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [branches, setBranches] = useState<BranchDto[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
 
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCompany, setFilterCompany] = useState<string>("all");
+  const [filterBranch, setFilterBranch] = useState<string>("all");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -58,6 +61,12 @@ export default function EmployeesPage() {
     () => permissions.some(
       (permission) =>
         permission.model === "departments" && permission.action === "get-all",
+    ),
+    [permissions],
+  );
+  const canFetchBranches = useMemo(
+    () => permissions.some(
+      (permission) => permission.model === "branches" && permission.action === "get-all",
     ),
     [permissions],
   );
@@ -77,10 +86,11 @@ export default function EmployeesPage() {
       [
         isSuperAdmin && filterCompany !== "all",
         filterDepartment !== "all",
+        filterBranch !== "all",
         filterStatus !== "all",
         searchTerm !== "",
       ].filter(Boolean).length,
-    [filterCompany, filterDepartment, filterStatus, isSuperAdmin, searchTerm],
+    [filterBranch, filterCompany, filterDepartment, filterStatus, isSuperAdmin, searchTerm],
   );
 
   const filteredDepartments = useMemo(
@@ -91,10 +101,18 @@ export default function EmployeesPage() {
     [departments, filterCompany, isSuperAdmin],
   );
 
+  const filteredBranches = useMemo(
+    () => isSuperAdmin && filterCompany !== "all"
+      ? branches.filter((branch) => branch.tenantId === filterCompany)
+      : branches,
+    [branches, filterCompany, isSuperAdmin],
+  );
+
   const clearFilters = useCallback(() => {
     setFilterDepartment("all");
     setFilterStatus("all");
     setFilterCompany("all");
+    setFilterBranch("all");
     setSearchTerm("");
   }, []);
 
@@ -138,6 +156,7 @@ export default function EmployeesPage() {
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterDepartment !== "all")
         params.set("departmentId", filterDepartment);
+      if (filterBranch !== "all") params.set("branchId", filterBranch);
       if (isSuperAdmin && filterCompany !== "all") {
         params.set("tenantId", filterCompany);
       }
@@ -175,7 +194,8 @@ export default function EmployeesPage() {
           Departemen:
             emp.department?.name && isSuperAdmin
               ? `${emp.department.name} - ${emp.tenant?.companyName || "-"}`
-              : emp.department?.name || "-",
+              : emp.department?.name ? `Departemen ${emp.department?.name}` : "-",
+          Cabang: emp.branch?.name ? `Cabang ${emp.branch?.name}` : "-",
           "Tanggal Bergabung": formatDateId(emp.joinDate),
           Status: emp.status === "active" ? "Aktif" : "Tidak Aktif",
           "Foto Wajah": emp.avatarUrl ? "Tersedia" : "Belum ada",
@@ -183,6 +203,8 @@ export default function EmployeesPage() {
 
         if (isSuperAdmin || isAdmin) {
           row["Gaji"] = emp.salary || 0;
+          row["Jenis Pembayaran Gaji"] =
+            emp.salaryType === "daily" ? "Harian" : "Bulanan";
         }
 
         if (!isSuperAdmin) {
@@ -231,7 +253,7 @@ export default function EmployeesPage() {
     } finally {
       setIsExporting(false);
     }
-  }, [debouncedSearchTerm, filterDepartment, filterStatus, filterCompany, isSuperAdmin, isAdmin]);
+  }, [debouncedSearchTerm, filterBranch, filterDepartment, filterStatus, filterCompany, isSuperAdmin, isAdmin]);
 
   const onBulkDownload = useCallback(async () => {
     try {
@@ -243,6 +265,7 @@ export default function EmployeesPage() {
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterDepartment !== "all")
         params.set("departmentId", filterDepartment);
+      if (filterBranch !== "all") params.set("branchId", filterBranch);
       if (isSuperAdmin && filterCompany !== "all") {
         params.set("tenantId", filterCompany);
       }
@@ -343,7 +366,7 @@ export default function EmployeesPage() {
     } finally {
       setIsBulkDownloading(false);
     }
-  }, [debouncedSearchTerm, filterDepartment, filterStatus, filterCompany, isSuperAdmin]);
+  }, [debouncedSearchTerm, filterBranch, filterDepartment, filterStatus, filterCompany, isSuperAdmin]);
 
   const toolbar = useMemo(
     () =>
@@ -368,11 +391,14 @@ export default function EmployeesPage() {
           setSearchTerm,
           department: filterDepartment,
           setDepartment: setFilterDepartment,
+          branch: filterBranch,
+          setBranch: setFilterBranch,
           status: filterStatus,
           setStatus: setFilterStatus,
           company: filterCompany,
           setCompany: setFilterCompany,
           departments: filteredDepartments,
+          branches: filteredBranches,
           tenants,
           isSuperAdmin,
           getDepartmentDisplayName,
@@ -391,9 +417,11 @@ export default function EmployeesPage() {
       clearFilters,
       searchTerm,
       filterDepartment,
+      filterBranch,
       filterStatus,
       filterCompany,
       filteredDepartments,
+      filteredBranches,
       tenants,
       isSuperAdmin,
       getDepartmentDisplayName,
@@ -410,6 +438,7 @@ export default function EmployeesPage() {
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterDepartment !== "all")
         params.set("departmentId", filterDepartment);
+      if (filterBranch !== "all") params.set("branchId", filterBranch);
       if (isSuperAdmin && filterCompany !== "all") {
         params.set("tenantId", filterCompany);
       }
@@ -430,7 +459,7 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, debouncedSearchTerm, filterStatus, filterDepartment, filterCompany, isSuperAdmin]);
+  }, [currentPage, debouncedSearchTerm, filterStatus, filterDepartment, filterBranch, filterCompany, isSuperAdmin]);
 
   const fetchDepartments = useCallback(async () => {
     try {
@@ -466,6 +495,17 @@ export default function EmployeesPage() {
     }
   }, []);
 
+  const fetchBranches = useCallback(async () => {
+    try {
+      const response = await fetch("/api/branches?page=1&limit=999999");
+      if (!response.ok) throw new Error(await parseApiError(response, "Gagal mengambil data cabang"));
+      const json = await response.json();
+      setBranches(json.data || []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal memuat data cabang");
+    }
+  }, []);
+
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserData(data);
@@ -475,6 +515,11 @@ export default function EmployeesPage() {
     if (!canFetchDepartments) return;
     fetchDepartments();
   }, [canFetchDepartments, fetchDepartments]);
+
+  useEffect(() => {
+    if (!canFetchBranches) return;
+    fetchBranches();
+  }, [canFetchBranches, fetchBranches]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -491,7 +536,7 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchTerm, filterDepartment, filterStatus, filterCompany]);
+  }, [debouncedSearchTerm, filterBranch, filterDepartment, filterStatus, filterCompany]);
 
   useEffect(() => {
     fetchData();
@@ -504,6 +549,12 @@ export default function EmployeesPage() {
       setFilterDepartment("all");
     }
   }, [filterDepartment, filteredDepartments]);
+
+  useEffect(() => {
+    if (filterBranch === "all") return;
+    const exists = filteredBranches.some((branch) => branch.id === filterBranch);
+    if (!exists) setFilterBranch("all");
+  }, [filterBranch, filteredBranches]);
 
   return (
     <>
