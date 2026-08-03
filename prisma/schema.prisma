@@ -36,6 +36,8 @@ model Tenant {
   payrollComponentConfigs PayrollComponentConfig[]
   departments             Department[]
   branches                Branch[]
+  workShifts              WorkShift[]
+  employeeShiftSchedules  EmployeeShiftSchedule[]
   leaveConfigs            LeaveConfig[]
   payrolls                Payroll[]
   performances            Performance[]
@@ -75,35 +77,44 @@ model Department {
   updatedAt      DateTime       @updatedAt @map("updated_at")
   deletedAt      DateTime?      @map("deleted_at")
   tenantId       String?        @map("tenant_id") @db.Uuid
+  branchId       String?        @map("branch_id") @db.Uuid
   tenant         Tenant?        @relation(fields: [tenantId], references: [id])
+  branch         Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
   taskBoards     TaskBoard[]
   taskCategories TaskCategory[]
   tasks          Task[]
   users          User[]
 
+  @@unique([tenantId, branchId, name])
   @@index([tenantId])
+  @@index([branchId])
   @@map("departments")
 }
 
 model Branch {
-  id                        String       @id @default(uuid()) @db.Uuid
-  tenantId                  String       @map("tenant_id") @db.Uuid
+  id                        String                  @id @default(uuid()) @db.Uuid
+  tenantId                  String                  @map("tenant_id") @db.Uuid
   name                      String
   code                      String?
   address                   String?
   latitude                  Float
   longitude                 Float
-  attendanceRadiusMeters    Int          @default(100) @map("attendance_radius_meters")
-  locationLockEnabled       Boolean      @default(false) @map("location_lock_enabled")
-  customWorkingHoursEnabled Boolean      @default(false) @map("custom_working_hours_enabled")
-  officeStartTime           String       @default("09:00") @map("office_start_time")
-  officeEndTime             String       @default("17:00") @map("office_end_time")
-  isActive                  Boolean      @default(true) @map("is_active")
-  createdAt                 DateTime     @default(now()) @map("created_at")
-  updatedAt                 DateTime     @updatedAt @map("updated_at")
-  tenant                    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attendanceRadiusMeters    Int                     @default(100) @map("attendance_radius_meters")
+  locationLockEnabled       Boolean                 @default(false) @map("location_lock_enabled")
+  customWorkingHoursEnabled Boolean                 @default(true) @map("custom_working_hours_enabled")
+  scheduleType              String                  @default("REGULAR") @map("schedule_type")
+  officeStartTime           String                  @default("09:00") @map("office_start_time")
+  officeEndTime             String                  @default("17:00") @map("office_end_time")
+  isActive                  Boolean                 @default(true) @map("is_active")
+  createdAt                 DateTime                @default(now()) @map("created_at")
+  updatedAt                 DateTime                @updatedAt @map("updated_at")
+  tenant                    Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users                     User[]
   attendances               Attendance[]
+  departments               Department[]
+  workingSchedules          BranchWorkingSchedule[]
+  workShifts                WorkShift[]
+  employeeShiftSchedules    EmployeeShiftSchedule[]
 
   @@unique([tenantId, name])
   @@unique([tenantId, code])
@@ -155,6 +166,7 @@ model User {
   branch                      Branch?                      @relation(fields: [branchId], references: [id], onDelete: SetNull)
   role                        Role                         @relation(fields: [roleId], references: [id], onDelete: Cascade)
   tenant                      Tenant?                      @relation(fields: [tenantId], references: [id])
+  employeeShiftSchedules      EmployeeShiftSchedule[]
 
   @@index([tenantId])
   @@map("users")
@@ -247,37 +259,106 @@ model SubmissionApprovalDecision {
 }
 
 model Attendance {
-  id                     String    @id @default(uuid()) @db.Uuid
-  userId                 String    @map("user_id") @db.Uuid
+  id                     String     @id @default(uuid()) @db.Uuid
+  userId                 String     @map("user_id") @db.Uuid
   date                   DateTime
-  attendanceDay          DateTime  @map("attendance_day")
-  checkIn                DateTime? @map("check_in")
-  checkOut               DateTime? @map("check_out")
-  autoCheckout           Boolean   @default(false) @map("auto_checkout")
-  breakSessions          Json?     @map("break_sessions")
-  breakDuration          String?   @map("break_duration")
+  attendanceDay          DateTime   @map("attendance_day")
+  checkIn                DateTime?  @map("check_in")
+  checkOut               DateTime?  @map("check_out")
+  autoCheckout           Boolean    @default(false) @map("auto_checkout")
+  breakSessions          Json?      @map("break_sessions")
+  breakDuration          String?    @map("break_duration")
   status                 String
   notes                  String?
-  workHours              String?   @map("work_hours")
-  checkInLocation        Json?     @map("check_in_location")
-  checkOutLocation       Json?     @map("check_out_location")
-  createdAt              DateTime  @default(now()) @map("created_at")
-  updatedAt              DateTime  @updatedAt @map("updated_at")
-  checkInFaceImage       String?   @map("check_in_face_image")
-  checkOutFaceImage      String?   @map("check_out_face_image")
-  tenantId               String?   @map("tenant_id") @db.Uuid
-  branchId               String?   @map("branch_id") @db.Uuid
-  checkInDistanceMeters  Float?    @map("check_in_distance_meters")
-  checkOutDistanceMeters Float?    @map("check_out_distance_meters")
+  workHours              String?    @map("work_hours")
+  checkInLocation        Json?      @map("check_in_location")
+  checkOutLocation       Json?      @map("check_out_location")
+  createdAt              DateTime   @default(now()) @map("created_at")
+  updatedAt              DateTime   @updatedAt @map("updated_at")
+  checkInFaceImage       String?    @map("check_in_face_image")
+  checkOutFaceImage      String?    @map("check_out_face_image")
+  tenantId               String?    @map("tenant_id") @db.Uuid
+  branchId               String?    @map("branch_id") @db.Uuid
+  workShiftId            String?    @map("work_shift_id") @db.Uuid
+  scheduledStartAt       DateTime?  @map("scheduled_start_at")
+  scheduledEndAt         DateTime?  @map("scheduled_end_at")
+  scheduleSource         String?    @map("schedule_source")
+  checkInDistanceMeters  Float?     @map("check_in_distance_meters")
+  checkOutDistanceMeters Float?     @map("check_out_distance_meters")
   overtime               Overtime?
-  tenant                 Tenant?   @relation(fields: [tenantId], references: [id])
-  branch                 Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant                 Tenant?    @relation(fields: [tenantId], references: [id])
+  branch                 Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  workShift              WorkShift? @relation(fields: [workShiftId], references: [id], onDelete: SetNull)
+  user                   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, attendanceDay])
   @@index([tenantId])
   @@index([branchId])
+  @@index([workShiftId])
   @@map("attendances")
+}
+
+model BranchWorkingSchedule {
+  id        String   @id @default(uuid()) @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  dayOfWeek String   @map("day_of_week")
+  isWorkDay Boolean  @default(true) @map("is_work_day")
+  startTime String?  @map("start_time")
+  endTime   String?  @map("end_time")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, dayOfWeek])
+  @@index([branchId])
+  @@map("branch_working_schedules")
+}
+
+model WorkShift {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  tenantId             String                  @map("tenant_id") @db.Uuid
+  branchId             String                  @map("branch_id") @db.Uuid
+  name                 String
+  code                 String?
+  startTime            String                  @map("start_time")
+  endTime              String                  @map("end_time")
+  crossesMidnight      Boolean                 @default(false) @map("crosses_midnight")
+  lateToleranceMinutes Int?                    @map("late_tolerance_minutes")
+  isActive             Boolean                 @default(true) @map("is_active")
+  createdAt            DateTime                @default(now()) @map("created_at")
+  updatedAt            DateTime                @updatedAt @map("updated_at")
+  tenant               Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch               Branch                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  schedules            EmployeeShiftSchedule[]
+  attendances          Attendance[]
+
+  @@unique([branchId, name])
+  @@unique([branchId, code])
+  @@index([tenantId])
+  @@index([branchId])
+  @@map("work_shifts")
+}
+
+model EmployeeShiftSchedule {
+  id        String     @id @default(uuid()) @db.Uuid
+  tenantId  String     @map("tenant_id") @db.Uuid
+  branchId  String     @map("branch_id") @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  shiftId   String?    @map("shift_id") @db.Uuid
+  isDayOff  Boolean    @default(false) @map("is_day_off")
+  workDate  DateTime   @map("work_date") @db.Date
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shift     WorkShift? @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workDate])
+  @@index([tenantId, workDate])
+  @@index([branchId, workDate])
+  @@index([shiftId])
+  @@map("employee_shift_schedules")
 }
 
 model AttendanceConfig {

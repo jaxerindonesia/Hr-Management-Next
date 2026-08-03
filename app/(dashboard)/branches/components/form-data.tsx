@@ -129,38 +129,47 @@ export default function FormData({
               </p>
             </div>
           </section>
-          <section className="grid gap-4 rounded-lg border border-border bg-muted/20 p-4 sm:grid-cols-2">
-            <div className="grid gap-2 sm:col-span-2">
-              <h3 className="font-semibold">Jam Kerja Cabang</h3>
+          <section className="grid gap-4 rounded-lg border border-border bg-muted/20 p-4">
+            <div>
+              <h3 className="font-semibold">Jadwal Kerja Cabang</h3>
+              <p className="text-sm text-muted-foreground">Cabang menjadi sumber jadwal kerja karyawan.</p>
             </div>
-            <div className="grid gap-2 sm:col-span-2">
-              <Label>Sumber Jam Kerja</Label>
-              <Select
-                value={form.customWorkingHoursEnabled ? "branch" : "tenant"}
-                onValueChange={(value) => setForm({ ...form, customWorkingHoursEnabled: value === "branch" })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
+            <div className="grid gap-2">
+              <Label>Mode Jadwal</Label>
+              <Select value={form.scheduleType} onValueChange={(scheduleType: "REGULAR" | "SHIFT") => setForm({ ...form, scheduleType })}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tenant">Mengikuti konfigurasi tenant</SelectItem>
-                  <SelectItem value="branch">Jam kerja khusus cabang</SelectItem>
+                  <SelectItem value="REGULAR">Reguler</SelectItem>
+                  <SelectItem value="SHIFT">Shifting</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {form.customWorkingHoursEnabled
-                  ? "Tentukan jam masuk dan jam pulang khusus untuk cabang ini."
-                  : "Jam masuk dan jam pulang mengikuti konfigurasi kehadiran tenant."}
-              </p>
             </div>
-            <div className="grid gap-2">
-              <Label>Jam Masuk</Label>
-              <Input type="time" disabled={!form.customWorkingHoursEnabled} value={form.officeStartTime} onChange={(e) => setForm({ ...form, officeStartTime: e.target.value })} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Jam Pulang</Label>
-              <Input type="time" disabled={!form.customWorkingHoursEnabled} value={form.officeEndTime} onChange={(e) => setForm({ ...form, officeEndTime: e.target.value })} />
-            </div>
+            {form.scheduleType === "REGULAR" ? (
+              <div className="grid gap-3">
+                {[
+                  ["MONDAY", "Senin"], ["TUESDAY", "Selasa"], ["WEDNESDAY", "Rabu"],
+                  ["THURSDAY", "Kamis"], ["FRIDAY", "Jumat"], ["SATURDAY", "Sabtu"], ["SUNDAY", "Minggu"],
+                ].map(([dayOfWeek, label]) => {
+                  const schedule = form.workingSchedules.find((row) => row.dayOfWeek === dayOfWeek) ?? { dayOfWeek, isWorkDay: false, startTime: "09:00", endTime: "17:00" };
+                  const updateSchedule = (changes: Partial<typeof schedule>) => setForm((current) => ({
+                    ...current,
+                    workingSchedules: [
+                      ...current.workingSchedules.filter((row) => row.dayOfWeek !== dayOfWeek),
+                      { ...schedule, ...changes },
+                    ],
+                  }));
+                  return (
+                    <div key={dayOfWeek} className="grid items-center gap-3 rounded-md border bg-background p-3 sm:grid-cols-[110px_1fr_1fr]">
+                      <Button type="button" variant={schedule.isWorkDay ? "default" : "outline"} onClick={() => updateSchedule({ isWorkDay: !schedule.isWorkDay })}>{label}</Button>
+                      <Input aria-label={`Jam masuk ${label}`} type="time" disabled={!schedule.isWorkDay} value={schedule.startTime || "09:00"} onChange={(event) => updateSchedule({ startTime: event.target.value })} />
+                      <Input aria-label={`Jam pulang ${label}`} type="time" disabled={!schedule.isWorkDay} value={schedule.endTime || "17:00"} onChange={(event) => updateSchedule({ endTime: event.target.value })} />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">Buat master shift dan jadwal karyawan melalui menu Shift setelah cabang disimpan.</p>
+            )}
           </section>
         </div>
         <div className="flex justify-end gap-2">

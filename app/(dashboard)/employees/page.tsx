@@ -601,6 +601,7 @@ export default function EmployeesPage() {
         isOpen={showDepartmentModal}
         onClose={() => setShowDepartmentModal(false)}
         departments={departments}
+        branches={branches}
         onRefresh={fetchDepartments}
       />
 

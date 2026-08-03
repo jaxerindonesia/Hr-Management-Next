@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
@@ -24,6 +25,10 @@ export async function GET(_: Request, { params }: Params) {
 
     const department = await prisma.department.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+      include: {
+        branch: { select: { id: true, name: true, code: true } },
+        tenant: { select: { id: true, companyName: true } },
+      },
     });
 
     if (!department) {
@@ -53,34 +58,50 @@ export async function PUT(req: Request, { params }: Params) {
 
     const existing = await prisma.department.findFirst({
       where: { id: p.id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
-      select: { id: true },
+      select: { id: true, tenantId: true, branchId: true, name: true },
     });
     if (!existing) return NextResponse.json({ message: "Department not found" }, { status: 404 });
 
     const body = await req.json();
     const rawName = String(body.name || "").trim();
+    const updateData: Prisma.DepartmentUncheckedUpdateInput = {};
+    const hasBranchUpdate = Object.prototype.hasOwnProperty.call(body, "branchId");
+    const branchId = hasBranchUpdate
+      ? String(body.branchId || "").trim() || null
+      : existing.branchId;
 
-    const updateData: any = {};
-
-    if (rawName) {
-      const duplicateDepartment = await prisma.department.findFirst({
-        where: {
-          ...(scopedTenantId ? { tenantId: scopedTenantId } : { tenantId: null }),
-          name: { equals: rawName, mode: "insensitive" },
-          NOT: { id: p.id },
-        },
-        select: { id: true },
-      });
-
-      if (duplicateDepartment) {
-        return NextResponse.json(
-          { message: "Nama departemen sudah digunakan pada tenant ini" },
-          { status: 409 },
-        );
+    if (hasBranchUpdate) {
+      if (branchId) {
+        const branch = await prisma.branch.findFirst({
+          where: {
+            id: branchId,
+            ...(existing.tenantId ? { tenantId: existing.tenantId } : {}),
+          },
+          select: { id: true, isActive: true },
+        });
+        if (!branch) return NextResponse.json({ message: "Cabang tidak ditemukan" }, { status: 400 });
+        if (!branch.isActive) return NextResponse.json({ message: "Cabang yang dipilih sedang nonaktif" }, { status: 400 });
       }
-
-      updateData.name = rawName;
+      updateData.branchId = branchId;
     }
+
+    const finalName = rawName || existing.name;
+    const duplicateDepartment = await prisma.department.findFirst({
+      where: {
+        ...(existing.tenantId ? { tenantId: existing.tenantId } : { tenantId: null }),
+        branchId,
+        name: { equals: finalName, mode: "insensitive" },
+        NOT: { id: p.id },
+      },
+      select: { id: true },
+    });
+    if (duplicateDepartment) {
+      return NextResponse.json(
+        { message: "Nama departemen sudah digunakan pada cabang ini" },
+        { status: 409 },
+      );
+    }
+    if (rawName) updateData.name = rawName;
 
     const department = await prisma.department.update({
       where: { id: p.id },
@@ -92,6 +113,12 @@ export async function PUT(req: Request, { params }: Params) {
       data: department,
     });
   } catch (error) {
+    if ((error as { code?: string }).code === "P2002") {
+      return NextResponse.json(
+        { message: "Nama departemen sudah digunakan pada cabang ini" },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { message: "Failed to update department" },
       { status: 500 },

@@ -31,8 +31,17 @@ const DEFAULT_FORM: BranchDto = {
   attendanceRadiusMeters: 100,
   locationLockEnabled: false,
   customWorkingHoursEnabled: false,
+  scheduleType: "REGULAR",
   officeStartTime: "09:00",
   officeEndTime: "17:00",
+  workingSchedules: [
+    "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY",
+  ].map((dayOfWeek) => ({
+    dayOfWeek,
+    isWorkDay: !["SATURDAY", "SUNDAY"].includes(dayOfWeek),
+    startTime: "09:00",
+    endTime: "17:00",
+  })),
   isActive: true,
 };
 

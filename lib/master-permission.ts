@@ -16,6 +16,14 @@ export const MASTER_PERMISSIONS = [
     actions: ["get-all", "get-by-id", "create", "update", "delete"],
   },
   {
+    model: "work-shifts",
+    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+  },
+  {
+    model: "shift-schedules",
+    actions: ["get-all", "get-by-id", "create", "update", "delete"],
+  },
+  {
     model: "submissions",
     actions: ["get-all", "get-by-id", "create", "update", "set-config", "delete", "export"],
   },

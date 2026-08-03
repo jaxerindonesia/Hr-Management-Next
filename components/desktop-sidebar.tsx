@@ -49,6 +49,7 @@ import {
   ListTodo,
   Clock,
   Split,
+  CalendarSync
 } from "lucide-react";
 import { usePermission } from "@/lib/helper/check-role";
 
@@ -66,6 +67,7 @@ type SidebarItem = {
   permissions?: string[];
   superadminOnly?: boolean;
   subItems?: SidebarSubItem[];
+  permissionModels?: string[];
 };
 
 export default function DesktopSidebar() {
@@ -73,7 +75,11 @@ export default function DesktopSidebar() {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(
-    pathname.startsWith("/finance") ? ["finance"] : [],
+    pathname.startsWith("/finance")
+      ? ["finance"]
+      : pathname === "/work-shifts" || pathname === "/shift-schedules"
+        ? ["shift-management"]
+        : [],
   );
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const tenantConfig = useTenantConfig();
@@ -173,6 +179,18 @@ export default function DesktopSidebar() {
         icon: Users,
         path: "/employees",
         permissions: ["get-all", "get-by-id"],
+      },
+      {
+        id: "shift-management",
+        name: "Manajemen Shift",
+        icon: CalendarSync,
+        path: "/work-shifts",
+        permissions: ["get-all", "get-by-id"],
+        permissionModels: ["work-shifts", "shift-schedules"],
+        subItems: [
+          { name: "Shift Kerja", path: "/work-shifts" },
+          { name: "Jadwal Shift", path: "/shift-schedules" },
+        ],
       },
       {
         id: "submissions",
@@ -282,6 +300,11 @@ export default function DesktopSidebar() {
       if (item.superadminOnly) {
         return isSuperAdmin;
       }
+      if (item.permissionModels) {
+        return item.permissionModels.some((model) =>
+          checkRoleMulti(model, item.permissions ?? []),
+        );
+      }
       return checkRoleMulti(item.id, item.permissions);
     });
   }, [checkRoleMulti, isSuperAdmin]);
@@ -386,7 +409,7 @@ export default function DesktopSidebar() {
                     const Icon = item.icon;
                     const isActive =
                       pathname === item.path ||
-                      (item.subItems && pathname.startsWith(item.path));
+                      Boolean(item.subItems?.some((subItem) => pathname === subItem.path));
                     const isExpanded = expandedMenus.includes(item.id);
                     const currentType = searchParams.get("type");
                     const currentAction = searchParams.get("action");

@@ -9,8 +9,18 @@ export interface BranchDto {
   attendanceRadiusMeters: number;
   locationLockEnabled: boolean;
   customWorkingHoursEnabled: boolean;
+  scheduleType: "REGULAR" | "SHIFT";
   officeStartTime: string;
   officeEndTime: string;
+  workingSchedules: BranchWorkingScheduleDto[];
   isActive: boolean;
   tenant?: { id: string; companyName: string } | null;
+}
+
+export interface BranchWorkingScheduleDto {
+  id?: string;
+  dayOfWeek: string;
+  isWorkDay: boolean;
+  startTime: string | null;
+  endTime: string | null;
 }

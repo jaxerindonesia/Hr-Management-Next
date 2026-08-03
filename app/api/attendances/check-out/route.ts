@@ -6,17 +6,9 @@ import prisma from "@/lib/prisma";
 import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { hasPermission } from "@/lib/auth/permission";
-import { getDateAtTime, getJakartaDayKey } from "@/lib/helper/date";
 import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
 import { haversineKm } from "@/lib/helper/attendance";
-
-const DEFAULT_CONFIG = {
-  officeStartTime: "09:00",
-  officeEndTime: "17:00",
-  lateToleranceMinutes: 15,
-  workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-};
 
 export async function POST(req: NextRequest) {
   try {
@@ -54,16 +46,15 @@ export async function POST(req: NextRequest) {
 
     const targetUserId = canManageAttendances ? userId : auth.user.id;
 
-    const today = new Date();
-    const attendanceDay = getJakartaDayKey(today);
-
     const attendance = await prisma.attendance.findFirst({
       where: {
         ...(finalTenantId ? { tenantId: finalTenantId } : {}),
         userId: targetUserId,
-        attendanceDay,
+        checkIn: { not: null },
+        checkOut: null,
       },
       include: { branch: true },
+      orderBy: { checkIn: "desc" },
     });
 
     if (!attendance) {
@@ -126,14 +117,7 @@ export async function POST(req: NextRequest) {
       minutes,
     ).padStart(2, "0")}`;
 
-    const cfg =
-      (await prisma.attendanceConfig.findFirst({
-        where: finalTenantId ? { tenantId: finalTenantId } : {},
-        orderBy: { updatedAt: "desc" },
-      })) ??
-      DEFAULT_CONFIG;
-    const officeEndTime = attendance.branch?.customWorkingHoursEnabled ? attendance.branch.officeEndTime : cfg.officeEndTime;
-    const officeEnd = getDateAtTime(now, officeEndTime);
+    const officeEnd = attendance.scheduledEndAt ?? now;
     const isHalfDay = now < officeEnd;
     const wasLate = attendance.status === "Late";
     let status: string;

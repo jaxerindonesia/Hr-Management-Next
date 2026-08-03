@@ -18,6 +18,8 @@ async function ensureDepartment(departmentId: string, tenantId: string | null) {
       id: true,
       name: true,
       tenantId: true,
+      branchId: true,
+      branch: { select: { id: true, name: true, code: true } },
       users: {
         where: { deletedAt: null, status: "active" },
         select: { id: true, name: true, email: true, position: true, avatarUrl: true },

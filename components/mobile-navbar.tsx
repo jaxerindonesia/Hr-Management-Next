@@ -26,8 +26,8 @@ import {
   Banknote,
   Clock,
   ChevronDown,
-  Building2,
   Split,
+  CalendarSync
 } from "lucide-react";
 
 export default function MobileNavbar() {
@@ -35,7 +35,11 @@ export default function MobileNavbar() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(
-    pathname.startsWith("/finance") ? ["finance"] : [],
+    pathname.startsWith("/finance")
+      ? ["finance"]
+      : pathname === "/work-shifts" || pathname === "/shift-schedules"
+        ? ["shift-management"]
+        : [],
   );
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -86,6 +90,18 @@ export default function MobileNavbar() {
       icon: Users,
       path: "/employees",
       permissions: ["get-all", "get-by-id"],
+    },
+    {
+      id: "shift-management",
+      name: "Manajemen Shift",
+      icon: CalendarSync,
+      path: "/work-shifts",
+      permissions: ["get-all", "get-by-id"],
+      permissionModels: ["work-shifts", "shift-schedules"],
+      subItems: [
+        { name: "Shift Kerja", path: "/work-shifts" },
+        { name: "Jadwal Shift", path: "/shift-schedules" },
+      ],
     },
     {
       id: "submissions",
@@ -161,6 +177,11 @@ export default function MobileNavbar() {
     },
   ].filter((item) => {
     if (!("permissions" in item) || !item.permissions) return true;
+    if ("permissionModels" in item && item.permissionModels) {
+      return item.permissionModels.some((model) =>
+        checkRoleMulti(model, item.permissions),
+      );
+    }
     return checkRoleMulti(item.id, item.permissions);
   });
 
@@ -336,7 +357,8 @@ export default function MobileNavbar() {
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive =
-                pathname === item.path || pathname.startsWith(item.path);
+                pathname === item.path ||
+                ("subItems" in item && item.subItems?.some((subItem) => pathname === subItem.path));
               const isExpanded = expandedMenus.includes(item.id);
 
               if ("subItems" in item && item.subItems) {
@@ -345,8 +367,8 @@ export default function MobileNavbar() {
                     <button
                       onClick={() => toggleMenu(item.id)}
                       className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-all duration-200 ${isActive
-                          ? "bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-500/15 dark:text-blue-300"
-                          : "text-gray-700 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-white/8"
+                        ? "bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-500/15 dark:text-blue-300"
+                        : "text-gray-700 hover:bg-slate-100 dark:text-gray-300 dark:hover:bg-white/8"
                         }`}
                     >
                       <Icon className="w-5 h-5 shrink-0" />
@@ -373,8 +395,8 @@ export default function MobileNavbar() {
                                 closeMenu();
                               }}
                               className={`block rounded-xl px-3 py-2 text-sm transition-colors ${isSubActive
-                                  ? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-                                  : "text-gray-600 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-white/8"
+                                ? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                                : "text-gray-600 hover:bg-slate-100 dark:text-gray-400 dark:hover:bg-white/8"
                                 }`}
                             >
                               {subItem.name}

@@ -28,16 +28,6 @@ const defaultConfig: AttendanceConfig = {
   workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
 };
 
-const DAY_OPTIONS = [
-  { value: "MONDAY", label: "Senin" },
-  { value: "TUESDAY", label: "Selasa" },
-  { value: "WEDNESDAY", label: "Rabu" },
-  { value: "THURSDAY", label: "Kamis" },
-  { value: "FRIDAY", label: "Jumat" },
-  { value: "SATURDAY", label: "Sabtu" },
-  { value: "SUNDAY", label: "Minggu" },
-] as const;
-
 export default function ModalAttendanceConfig({
   isOpen,
   onClose,
@@ -99,20 +89,12 @@ export default function ModalAttendanceConfig({
   }, [initialConfig]);
 
   const save = async () => {
-    if (!form.officeStartTime || !form.officeEndTime) {
-      toast.error("Jam masuk dan jam pulang wajib diisi");
-      return;
-    }
     if (form.lateToleranceMinutes < 0) {
       toast.error("Toleransi terlambat tidak boleh negatif");
       return;
     }
     if (form.lateDeductionAmount < 0) {
       toast.error("Potongan keterlambatan tidak boleh negatif");
-      return;
-    }
-    if (form.workingDays.length === 0) {
-      toast.error("Pilih minimal 1 hari masuk kantor");
       return;
     }
 
@@ -150,24 +132,6 @@ export default function ModalAttendanceConfig({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Jam Masuk</Label>
-            <Input
-              type="time"
-              value={form.officeStartTime}
-              onChange={(e) => setForm((p) => ({ ...p, officeStartTime: e.target.value }))}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Jam Pulang</Label>
-            <Input
-              type="time"
-              value={form.officeEndTime}
-              onChange={(e) => setForm((p) => ({ ...p, officeEndTime: e.target.value }))}
-            />
-          </div>
-
           <div className="space-y-1.5">
             <Label>Toleransi Terlambat (menit)</Label>
             <Input
@@ -244,61 +208,6 @@ export default function ModalAttendanceConfig({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Hari Masuk Kantor</Label>
-                        <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setForm((prev) => ({
-                    ...prev,
-                    workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
-                  }))
-                }
-              >
-                Senin - Jumat
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setForm((prev) => ({
-                    ...prev,
-                    workingDays: DAY_OPTIONS.map((d) => d.value),
-                  }))
-                }
-              >
-                Semua Hari
-              </Button>
-            </div>
-            <hr className="my-3"/>
-            <div className="flex flex-wrap gap-2">
-              {DAY_OPTIONS.map((day) => {
-                const active = form.workingDays.includes(day.value);
-                return (
-                  <Button
-                    key={day.value}
-                    type="button"
-                    variant={active ? "default" : "outline"}
-                    size="sm"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        workingDays: active
-                          ? prev.workingDays.filter((d) => d !== day.value)
-                          : [...prev.workingDays, day.value],
-                      }))
-                    }
-                  >
-                    {day.label}
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-4">

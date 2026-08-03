@@ -110,7 +110,10 @@ export async function POST(req: NextRequest) {
 
     const [roles, departments, tenants] = await Promise.all([
       prisma.role.findMany({
-        select: { id: true, name: true },
+        where: scopedTenantId
+          ? { OR: [{ tenantId: null }, { tenantId: scopedTenantId }] }
+          : undefined,
+        select: { id: true, name: true, tenantId: true },
       }),
       prisma.department.findMany({
         where: scopedTenantId ? { tenantId: scopedTenantId, deletedAt: null } : { deletedAt: null },
@@ -136,7 +139,6 @@ export async function POST(req: NextRequest) {
 
     const existingEmailSet = new Set(existingUsers.map((user) => normalizeText(user.email)));
     const batchEmailSet = new Set<string>();
-    const roleMap = new Map(roles.map((role) => [normalizeText(role.name), role]));
     const tenantMap = new Map(tenants.map((tenant) => [normalizeText(tenant.companyName), tenant]));
     const errors: ImportErrorItem[] = [];
     const usersToCreate: Array<{
@@ -217,16 +219,6 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      const role = roleMap.get(roleName);
-      if (!role) {
-        errors.push({
-          row: rowNumber,
-          column: "Role",
-          message: `Role ${row.roleName} tidak ditemukan`,
-        });
-        continue;
-      }
-
       let finalTenantId = scopedTenantId;
       if (!finalTenantId) {
         const tenant = tenantMap.get(tenantName);
@@ -239,6 +231,30 @@ export async function POST(req: NextRequest) {
           continue;
         }
         finalTenantId = tenant.id;
+      }
+
+      const matchingRoles = roles.filter(
+        (item) =>
+          normalizeText(item.name) === roleName &&
+          (item.tenantId === finalTenantId || item.tenantId === null),
+      );
+      const role = matchingRoles.find((item) => item.tenantId === finalTenantId)
+        ?? matchingRoles.find((item) => item.tenantId === null);
+      if (!role) {
+        errors.push({
+          row: rowNumber,
+          column: "Role",
+          message: `Role ${row.roleName} tidak ditemukan untuk tenant ini`,
+        });
+        continue;
+      }
+      if (isSuperAdmin(role.name) && !userIsSuperAdmin) {
+        errors.push({
+          row: rowNumber,
+          column: "Role",
+          message: "Hanya Super Admin yang dapat menetapkan role Super Admin",
+        });
+        continue;
       }
 
       let departmentId: string | null = null;

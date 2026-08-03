@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const selectedUserId = searchParams.get("selectedUserId")?.trim() || "";
     const search = searchParams.get("search")?.trim() || "";
+    const branchId = searchParams.get("branchId")?.trim() || "";
     const limit = Math.min(
       20,
       Math.max(1, Number.parseInt(searchParams.get("limit") || "10", 10)),
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
     if (scopedTenantId) {
       where.tenantId = scopedTenantId;
     }
+    if (branchId) where.branchId = branchId;
 
     if (search) {
       where.OR = [
