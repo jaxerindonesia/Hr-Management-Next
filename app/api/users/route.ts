@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
             select: {
               id: true,
               companyName: true,
+              logoUrl: true,
             },
           },
         },
