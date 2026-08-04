@@ -156,11 +156,13 @@ export default function DesktopNavbar() {
     const titles: { [key: string]: string } = {
       dashboard: "Dashboard",
       employees: "Data Karyawan",
+      branches: "Cabang",
       submissions: "Pengajuan Ketidakhadiran",
       pettycash: "Petty Cash",
       finance: "Keuangan",
       attendances: "Kehadiran",
       "task-managements": "Manajemen Tugas",
+      shift: "Shift",
       payrolls: "Payroll",
       performances: "Penilaian Kinerja",
       roles: "Roles",
@@ -181,6 +183,15 @@ export default function DesktopNavbar() {
       };
 
       return subPath ? `Keuangan - ${financeTitles[subPath] || "Keuangan"}` : "Keuangan";
+    }
+
+    if (path === "shift") {
+      const shiftTitles: { [key: string]: string } = {
+        "work-shifts": "Shift Kerja",
+        "shift-schedules": "Jadwal Shift",
+      };
+
+      return subPath ? `Manajemen Shift - ${shiftTitles[subPath] || "Shift"}` : "Shift";
     }
 
     return titles[path] || "Dashboard";

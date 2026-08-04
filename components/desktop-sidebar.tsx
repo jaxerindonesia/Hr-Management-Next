@@ -184,12 +184,12 @@ export default function DesktopSidebar() {
         id: "shift-management",
         name: "Manajemen Shift",
         icon: CalendarSync,
-        path: "/work-shifts",
+        path: "/shift",
         permissions: ["get-all", "get-by-id"],
         permissionModels: ["work-shifts", "shift-schedules"],
         subItems: [
-          { name: "Shift Kerja", path: "/work-shifts" },
-          { name: "Jadwal Shift", path: "/shift-schedules" },
+          { name: "Shift Kerja", path: "/shift/work-shifts" },
+          { name: "Jadwal Shift", path: "/shift/shift-schedules" },
         ],
       },
       {
