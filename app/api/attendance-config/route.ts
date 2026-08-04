@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { hasPermission, requirePermission } from "@/lib/auth/permission";
+import { formatTimeInputValue } from "@/lib/helper/date";
+import { resolveActiveWorkSchedule } from "@/lib/helper/work-schedule";
 
 const DEFAULT_CONFIG = {
   officeStartTime: "09:00",
@@ -46,11 +48,24 @@ export async function GET() {
       where: scopedTenantId ? { tenantId: scopedTenantId } : {},
       orderBy: { updatedAt: "desc" },
     });
+    const workSchedule = await resolveActiveWorkSchedule(
+      prisma,
+      auth.user.id,
+      new Date(),
+    );
 
     return NextResponse.json({
       message: "OK",
       data: cfg ?? DEFAULT_CONFIG,
       isDefault: !cfg,
+      effectiveWorkSchedule: workSchedule
+        ? {
+            source: workSchedule.source,
+            startTime: formatTimeInputValue(workSchedule.startAt),
+            endTime: formatTimeInputValue(workSchedule.endAt),
+            shiftName: workSchedule.shiftName ?? null,
+          }
+        : null,
     });
   } catch {
     return NextResponse.json(

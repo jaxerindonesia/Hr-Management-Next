@@ -23,6 +23,12 @@ type AttendanceConfigState = {
   breakFaceCaptureEnabled: boolean;
   workingDays: string[];
   isDefault?: boolean;
+  effectiveWorkSchedule?: {
+    source: "REGULAR" | "SHIFT";
+    startTime: string;
+    endTime: string;
+    shiftName: string | null;
+  } | null;
 };
 
 const DEFAULT_ATTENDANCE_CONFIG: AttendanceConfigState = {
@@ -34,6 +40,7 @@ const DEFAULT_ATTENDANCE_CONFIG: AttendanceConfigState = {
   breakFaceCaptureEnabled: false,
   workingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
   isDefault: true,
+  effectiveWorkSchedule: null,
 };
 
 const LAST_GEO_STORAGE_KEY = "hr_last_geo_point";
@@ -267,6 +274,7 @@ export default function Page() {
             ? config.workingDays
             : DEFAULT_ATTENDANCE_CONFIG.workingDays,
         isDefault: Boolean(json?.isDefault),
+        effectiveWorkSchedule: json?.effectiveWorkSchedule ?? null,
       });
     } catch (error) {
       setAttendanceConfig(DEFAULT_ATTENDANCE_CONFIG);
