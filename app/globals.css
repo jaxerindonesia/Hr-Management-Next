@@ -175,8 +175,9 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   display: none;
 }
 
-/* Make native date picker controls readable in dark mode */
-input[type="date"] {
+/* Keep native date and time picker controls aligned and readable in dark mode */
+input[type="date"],
+input[type="time"] {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -186,26 +187,31 @@ input[type="date"] {
   color-scheme: light;
 }
 
-input[type="date"]::-webkit-date-and-time-value {
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
   min-width: 0;
   text-align: left;
 }
 
-input[type="date"]::-webkit-datetime-edit {
+input[type="date"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit {
   min-width: 0;
   overflow: hidden;
 }
 
-input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper {
   min-width: 0;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator {
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
   flex-shrink: 0;
   margin: 0;
 }
 
-.dark input[type="date"]::-webkit-calendar-picker-indicator {
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   opacity: 0.85;
 }

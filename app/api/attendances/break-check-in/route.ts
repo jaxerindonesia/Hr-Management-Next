@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { BUCKET_AVATARS, uploadBase64ToMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
-import { getJakartaDayKey } from "@/lib/helper/date";
+import { hasPermission } from "@/lib/auth/permission";
 import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
 import { getBranchDistanceMeters } from "@/lib/helper/attendance";
@@ -36,6 +36,12 @@ export async function POST(req: NextRequest) {
     const { userId, breakInLocation, faceCaptureBase64 } = body;
     if (!userId) return jsonError("UserId is required", 400);
 
+    const canManageAttendances = hasPermission(auth.user, "attendances", "update");
+    if (!canManageAttendances && userId !== auth.user.id) {
+      return jsonError("Forbidden", 403);
+    }
+    const targetUserId = canManageAttendances ? userId : auth.user.id;
+
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
     const cfg =
@@ -47,15 +53,15 @@ export async function POST(req: NextRequest) {
       return jsonError("Fitur absensi istirahat belum diaktifkan", 400);
     }
 
-    const today = new Date();
-    const attendanceDay = getJakartaDayKey(today);
     const attendance = await prisma.attendance.findFirst({
       where: {
         ...(finalTenantId ? { tenantId: finalTenantId } : {}),
-        userId,
-        attendanceDay,
+        userId: targetUserId,
+        checkIn: { not: null },
+        checkOut: null,
       },
       include: { branch: true },
+      orderBy: { checkIn: "desc" },
     });
     if (!attendance?.checkIn) return jsonError("Silakan check in terlebih dahulu", 404);
     if (attendance.checkOut) return jsonError("Tidak bisa break setelah check out", 409);

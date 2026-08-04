@@ -10,16 +10,10 @@ import {
 } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { hasPermission } from "@/lib/auth/permission";
-import { getDateAtTime, getJakartaDayKey } from "@/lib/helper/date";
+import { resolveActiveWorkSchedule } from "@/lib/helper/work-schedule";
 import { buildTenantStorageObjectName } from "@/lib/helper/storage";
 import { validateBase64Image } from "@/lib/security/file-validation";
 import { haversineKm } from "@/lib/helper/attendance";
-
-const DEFAULT_CONFIG = {
-  officeStartTime: "09:00",
-  officeEndTime: "17:00",
-  lateToleranceMinutes: 15,
-};
 
 function jsonError(message: string, status: number, detail?: string) {
   return NextResponse.json(
@@ -90,18 +84,14 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
-    const cfg =
-      (await prisma.attendanceConfig.findFirst({
-        where: finalTenantId ? { tenantId: finalTenantId } : {},
-        orderBy: { updatedAt: "desc" },
-      })) ?? DEFAULT_CONFIG;
-    const officeStartTime = branch?.customWorkingHoursEnabled ? branch.officeStartTime : cfg.officeStartTime;
-    const officeStart = getDateAtTime(now, officeStartTime);
+    const schedule = await resolveActiveWorkSchedule(prisma, targetUserId, now);
+    if (!schedule) return jsonError("Tidak ada jadwal kerja untuk hari ini", 400);
+    const officeStart = schedule.startAt;
     const lateLimit = new Date(
-      officeStart.getTime() + cfg.lateToleranceMinutes * 60 * 1000,
+      officeStart.getTime() + schedule.lateToleranceMinutes * 60 * 1000,
     );
     const checkInStatus = now <= lateLimit ? "On Time" : "Late";
-    const attendanceDay = getJakartaDayKey(now);
+    const attendanceDay = schedule.workDate;
 
     const checkInObjectName = await buildTenantStorageObjectName(
       finalTenantId,
@@ -138,19 +128,35 @@ export async function POST(req: Request) {
         throw error;
       }
 
+      const attendanceData = {
+        tenantId: finalTenantId,
+        branchId: branch?.id || null,
+        workShiftId: schedule.shiftId || null,
+        scheduledStartAt: schedule.startAt,
+        scheduledEndAt: schedule.endAt,
+        scheduleSource: schedule.source,
+        date: now,
+        attendanceDay,
+        checkIn: now,
+        status: checkInStatus,
+        notes: null,
+        workHours: "0",
+        checkInLocation,
+        checkInDistanceMeters,
+        checkInFaceImage: uploadedFaceImage,
+      };
+
+      if (existingToday) {
+        return tx.attendance.update({
+          where: { id: existingToday.id },
+          data: attendanceData,
+        });
+      }
+
       return tx.attendance.create({
         data: {
-          tenantId: finalTenantId,
-          branchId: branch?.id || null,
+          ...attendanceData,
           userId: targetUserId,
-          date: now,
-          attendanceDay,
-          checkIn: now,
-          status: checkInStatus,
-          workHours: "0",
-          checkInLocation,
-          checkInDistanceMeters,
-          checkInFaceImage: uploadedFaceImage,
         },
       });
     });

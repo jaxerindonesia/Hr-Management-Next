@@ -27,67 +27,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { UserDto } from "@/lib/dto/user";
+import type { EmployeeRecapDto } from "@/lib/dto/employee-recap";
+import {
+  buildEmployeeRecapPrintHtml,
+  EMPLOYEE_RECAP_MONTHS,
+  getEmployeeSubmissionStatusLabel,
+  waitForEmployeeRecapImages,
+} from "@/lib/helper/employee-recap-print";
+import { useTenantConfig } from "@/contexts/TenantConfigContext";
 
-type AttendanceDetail = {
-  id: string;
-  date: string;
-  checkIn: string | null;
-  checkOut: string | null;
-  status: string;
-  notes: string | null;
-  workHours: string | null;
-};
-
-type SubmissionHistory = {
-  id: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  reason: string;
-  status: string;
-  createdAt: string;
-};
-
-type LeaveQuota = {
-  configName: string;
-  maxDays: number;
-  usedDays: number;
-  remainingDays: number;
-};
-
-type RecapData = {
-  user: { id: string; name: string };
-  month: number;
-  year: number;
-  attendance: {
-    summary: {
-      totalHadir: number;
-      totalTelat: number;
-      totalAlpha: number;
-      totalIzin: number;
-    };
-    details: AttendanceDetail[];
-  };
-  submissions: {
-    leaveQuotas: LeaveQuota[];
-    history: SubmissionHistory[];
-  };
-};
-
-const MONTHS = [
-  "Januari",
-  "Februari",
-  "Maret",
-  "April",
-  "Mei",
-  "Juni",
-  "Juli",
-  "Agustus",
-  "September",
-  "Oktober",
-  "November",
-  "Desember",
-];
+type RecapData = EmployeeRecapDto;
+const MONTHS = EMPLOYEE_RECAP_MONTHS;
 
 function formatTime(dateStr: string | null) {
   if (!dateStr) return "-";
@@ -122,10 +72,7 @@ function getSubmissionStatusBadge(status: string) {
 }
 
 function getSubmissionStatusLabel(status: string) {
-  const s = status?.toUpperCase() || "";
-  if (s === "APPROVED") return "Disetujui";
-  if (s === "REJECTED") return "Ditolak";
-  return "Pending";
+  return getEmployeeSubmissionStatusLabel(status);
 }
 
 export default function RecapModal({
@@ -135,6 +82,7 @@ export default function RecapModal({
   employee: UserDto;
   onClose: () => void;
 }) {
+  const tenantConfig = useTenantConfig();
   const now = new Date();
   const [activeTab, setActiveTab] = useState<"attendance" | "submissions">("attendance");
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -168,186 +116,43 @@ export default function RecapModal({
   const submissionHistory = data?.submissions.history || [];
   const leaveQuotas = data?.submissions.leaveQuotas || [];
 
-  const handlePrint = () => {
-    const attRows = attendanceDetails
-      .map(
-        (att) => `
-          <tr>
-            <td>${formatDate(att.date)}</td>
-            <td>${formatTime(att.checkIn)}</td>
-            <td>${formatTime(att.checkOut)}</td>
-            <td>${att.status || "-"}</td>
-            <td>${att.workHours || "-"}</td>
-            <td>${att.notes || "-"}</td>
-          </tr>
-        `,
-      )
-      .join("");
 
-    const subRows = submissionHistory
-      .map(
-        (sub) => `
-          <tr>
-            <td>${sub.type}</td>
-            <td>${formatDate(sub.startDate)}</td>
-            <td>${formatDate(sub.endDate)}</td>
-            <td>${sub.reason || "-"}</td>
-            <td>${getSubmissionStatusLabel(sub.status)}</td>
-            <td>${formatDate(sub.createdAt)}</td>
-          </tr>
-        `,
-      )
-      .join("");
-
-    const quotaCards = leaveQuotas
-      .map(
-        (q) => `
-          <div class="quota-card">
-            <p class="quota-title">${q.configName}</p>
-            <p class="quota-value">${q.remainingDays} <span>/ ${q.maxDays} hari</span></p>
-            <p class="quota-used">Terpakai: ${q.usedDays} hari</p>
-          </div>
-        `,
-      )
-      .join("");
-
-    const gender =
-      employee.gender === "male"
-        ? "Laki-laki"
-        : employee.gender === "female"
-          ? "Perempuan"
-          : "-";
-
-    const printHtml = `
-      <div id="recap-print-container">
-        <style>
-          #recap-print-container {
-            font-family: Arial, sans-serif;
-            color: #111827;
-            padding: 24px;
-            font-size: 13px;
-          }
-          #recap-print-container h1 { font-size: 22px; margin: 0 0 6px; }
-          #recap-print-container h2 { font-size: 16px; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #2563eb; color: #1e40af; }
-          #recap-print-container .profile {
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-            padding: 16px;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-          }
-          #recap-print-container .avatar {
-            width: 84px;
-            height: 84px;
-            border-radius: 9999px;
-            overflow: hidden;
-            background: #e5e7eb;
-            flex-shrink: 0;
-          }
-          #recap-print-container .avatar img { width: 100%; height: 100%; object-fit: cover; }
-          #recap-print-container .meta {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px 28px;
-            margin-top: 12px;
-          }
-          #recap-print-container .meta-item { display: flex; flex-direction: column; gap: 2px; }
-          #recap-print-container .label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; }
-          #recap-print-container .value { font-weight: 600; font-size: 14px; }
-          #recap-print-container .summary-cards { display: flex; gap: 12px; margin: 12px 0 0; flex-wrap: wrap; }
-          #recap-print-container .summary-card { flex: 1; min-width: 160px; padding: 12px; border-radius: 12px; border: 1px solid #e5e7eb; }
-          #recap-print-container .summary-card .num { font-size: 28px; font-weight: 700; margin-top: 6px; }
-          #recap-print-container table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          #recap-print-container th { background: #f3f4f6; text-align: left; padding: 8px; border-bottom: 2px solid #d1d5db; font-size: 12px; }
-          #recap-print-container td { padding: 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-          #recap-print-container .quota-cards { display: flex; gap: 12px; flex-wrap: wrap; }
-          #recap-print-container .quota-card { flex: 1; min-width: 180px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
-          #recap-print-container .quota-title { margin: 0 0 4px; font-weight: 600; }
-          #recap-print-container .quota-value { margin: 0; font-size: 24px; font-weight: 700; color: #2563eb; }
-          #recap-print-container .quota-value span { font-size: 14px; color: #6b7280; font-weight: 500; }
-          #recap-print-container .quota-used { margin: 4px 0 0; font-size: 12px; color: #6b7280; }
-          @page { margin: 15mm; size: A4; }
-        </style>
-
-        <div class="profile">
-          <div style="flex:1; min-width: 0;">
-            <h1>${employee.name}</h1>
-            <div style="color:#2563eb; font-weight:600;">${employee.position || "-"} • ${employee.department?.name || "-"} • ${employee.branch?.name || "-"}</div>
-            <div class="meta">
-              <div class="meta-item"><span class="label">NIK</span><span class="value">${employee.nik || "-"}</span></div>
-              <div class="meta-item"><span class="label">Gender</span><span class="value">${gender}</span></div>
-              <div class="meta-item"><span class="label">Email</span><span class="value">${employee.email || "-"}</span></div>
-              <div class="meta-item"><span class="label">Lahir</span><span class="value">${employee.birthPlace ? `${employee.birthPlace}, ` : ""}${employee.birthDate ? formatDate(employee.birthDate as string) : "-"}</span></div>
-              <div class="meta-item" style="grid-column: 1 / -1;"><span class="label">Alamat</span><span class="value">${employee.address || "-"}</span></div>
-            </div>
-          </div>
-        </div>
-
-        <h2>Rekap Kehadiran - ${MONTHS[month - 1]} ${year}</h2>
-        <div class="summary-cards">
-          <div class="summary-card" style="background:#f0fdf4;"><div class="label" style="color:#15803d">Hadir</div><div class="num" style="color:#15803d">${summary?.totalHadir || 0}</div></div>
-          <div class="summary-card" style="background:#fefce8;"><div class="label" style="color:#a16207">Telat</div><div class="num" style="color:#a16207">${summary?.totalTelat || 0}</div></div>
-          <div class="summary-card" style="background:#fef2f2;"><div class="label" style="color:#b91c1c">Alpha</div><div class="num" style="color:#b91c1c">${summary?.totalAlpha || 0}</div></div>
-          <div class="summary-card" style="background:#eff6ff;"><div class="label" style="color:#1d4ed8">Izin/Cuti</div><div class="num" style="color:#1d4ed8">${summary?.totalIzin || 0}</div></div>
-        </div>
-
-        <table>
-          <thead>
-            <tr><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Status</th><th>Jam Kerja</th><th>Catatan</th></tr>
-          </thead>
-          <tbody>
-            ${attRows || '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">Tidak ada data kehadiran</td></tr>'}
-          </tbody>
-        </table>
-
-        <h2>Pengajuan Ketidakhadiran - Tahun ${year}</h2>
-        ${quotaCards ? `<div class="quota-cards">${quotaCards}</div>` : '<p>Tidak ada kuota cuti.</p>'}
-        <table>
-          <thead>
-            <tr><th>Jenis</th><th>Mulai</th><th>Selesai</th><th>Alasan</th><th>Status</th><th>Diajukan</th></tr>
-          </thead>
-          <tbody>
-            ${subRows || '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">Tidak ada pengajuan</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-    `;
+  const handlePrint = async () => {
+    if (!data) return;
 
     const printDiv = document.createElement("div");
     printDiv.id = "temp-print-area";
-    printDiv.innerHTML = printHtml;
+    printDiv.innerHTML = buildEmployeeRecapPrintHtml([
+      {
+        employee,
+        recap: data,
+        brand: {
+          companyName: tenantConfig?.companyName || employee.tenant?.companyName,
+          logoUrl: tenantConfig?.logoUrl || employee.tenant?.logoUrl,
+        },
+      },
+    ]);
     document.body.appendChild(printDiv);
 
     const style = document.createElement("style");
     style.id = "temp-print-style";
-    style.innerHTML = `
-      @media print {
-        body > *:not(#temp-print-area) { display: none !important; }
-        #temp-print-area {
-          display: block !important;
-          position: absolute !important;
-          inset: 0 !important;
-          width: 100% !important;
-          background: white !important;
-          z-index: 99999 !important;
-        }
-        #temp-print-area * { visibility: visible !important; }
-        body, html { height: auto !important; overflow: visible !important; background: white !important; }
-        @page { margin: 15mm; size: A4; }
-      }
-    `;
+    style.innerHTML = `@media print {
+      body > *:not(#temp-print-area) { display: none !important; }
+      #temp-print-area { display: block !important; position: absolute !important; inset: 0 !important; width: 100% !important; background: white !important; z-index: 99999 !important; }
+      #temp-print-area * { visibility: visible !important; }
+      body, html { height: auto !important; overflow: visible !important; background: white !important; }
+    }`;
     document.head.appendChild(style);
 
-    setTimeout(() => window.print(), 250);
+    await waitForEmployeeRecapImages(printDiv);
 
     const cleanup = () => {
-      if (document.body.contains(printDiv)) document.body.removeChild(printDiv);
-      if (document.head.contains(style)) document.head.removeChild(style);
+      printDiv.remove();
+      style.remove();
       window.removeEventListener("afterprint", cleanup);
     };
     window.addEventListener("afterprint", cleanup);
+    window.print();
     setTimeout(cleanup, 60000);
   };
 

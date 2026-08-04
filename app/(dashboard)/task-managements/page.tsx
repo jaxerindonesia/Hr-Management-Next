@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   addDays,
@@ -39,6 +40,8 @@ type DepartmentCard = {
   id: string;
   name: string;
   tenantId?: string | null;
+  branchId?: string | null;
+  branch?: { id: string; name: string; code?: string | null } | null;
   users: { id: string; name: string }[];
   tasks?: {
     id: string;
@@ -94,6 +97,8 @@ type BoardData = {
     id: string;
     name: string;
     tenantId?: string | null;
+    branchId?: string | null;
+    branch?: { id: string; name: string; code?: string | null } | null;
     users: Member[];
   };
   lists: TaskList[];
@@ -209,6 +214,7 @@ export default function TaskManagementPage() {
   const [selectedDepartmentId, setSelectedDepartmentId] = useState(routeDepartmentId);
   const [board, setBoard] = useState<BoardData | null>(null);
   const [departmentSearch, setDepartmentSearch] = useState("");
+  const [departmentBranchFilter, setDepartmentBranchFilter] = useState("all");
   const [departmentView, setDepartmentView] = useState<"grid" | "list">("grid");
   const [boardView, setBoardView] = useState<"board" | "gantt" | "calendar">("board");
   const [timelineMonth, setTimelineMonth] = useState(() => {
@@ -341,11 +347,23 @@ export default function TaskManagementPage() {
 
   const filteredDepartments = useMemo(() => {
     const query = departmentSearch.trim().toLowerCase();
-    if (!query) return departments;
-    return departments.filter((department) =>
-      department.name.toLowerCase().includes(query),
-    );
-  }, [departmentSearch, departments]);
+    return departments.filter((department) => {
+      const matchesBranch = departmentBranchFilter === "all"
+        || (departmentBranchFilter === "none" ? !department.branchId : department.branchId === departmentBranchFilter);
+      const matchesSearch = !query
+        || department.name.toLowerCase().includes(query)
+        || department.branch?.name.toLowerCase().includes(query);
+      return matchesBranch && matchesSearch;
+    });
+  }, [departmentBranchFilter, departmentSearch, departments]);
+
+  const departmentBranchOptions = useMemo(() => {
+    const uniqueBranches = new Map<string, { id: string; name: string }>();
+    departments.forEach((department) => {
+      if (department.branch) uniqueBranches.set(department.branch.id, department.branch);
+    });
+    return Array.from(uniqueBranches.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [departments]);
 
   const fetchDepartments = useCallback(async () => {
     try {
@@ -997,6 +1015,7 @@ export default function TaskManagementPage() {
       const rows = board.lists.flatMap((list) =>
         list.tasks.map((task) => ({
           Department: board.department.name || "-",
+          Cabang: board.department.branch?.name || "-",
           "Task Name": task.title || "-",
           Description: task.description || "-",
           "Start Date": task.startDate
@@ -1159,6 +1178,18 @@ export default function TaskManagementPage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Select value={departmentBranchFilter} onValueChange={setDepartmentBranchFilter}>
+              <SelectTrigger className="h-10 w-full sm:w-56">
+                <SelectValue placeholder="Semua Cabang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Cabang</SelectItem>
+                <SelectItem value="none">Tanpa Cabang</SelectItem>
+                {departmentBranchOptions.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
@@ -1265,7 +1296,7 @@ export default function TaskManagementPage() {
                           {department.name}
                         </h3>
                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                          {department.name} Department
+                          {department.branch?.name || "Tanpa cabang"} • {department.name} Department
                         </p>
                       </div>
                       <div className="flex -space-x-2">
@@ -1373,7 +1404,7 @@ export default function TaskManagementPage() {
                 {board?.department.name || selectedDepartment?.name || "Department"}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {board?.department.users.length || 0} anggota department
+                {board?.department.branch?.name || "Tanpa cabang"} • {board?.department.users.length || 0} anggota department
               </p>
             </div>
           </div>

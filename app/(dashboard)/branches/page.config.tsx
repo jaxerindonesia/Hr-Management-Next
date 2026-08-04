@@ -40,7 +40,7 @@ export const columnFormats: DefaultColumnFormat<BranchDto>[] = [
   { key: "name", title: "Nama Cabang", textClassName: "font-medium text-slate-900 dark:text-slate-100", formatter: (value) => String(value || "-") },
   { key: "code", title: "Kode", formatter: (value) => String(value || "-") },
   { key: "attendanceRadiusMeters", title: "Radius", formatter: (value) => `${Number(value || 0)} m` },
-  { key: "officeStartTime", title: "Jam Kerja", formatter: (_value, row) => row.customWorkingHoursEnabled ? `${row.officeStartTime} - ${row.officeEndTime}` : "Mengikuti tenant" },
+  { key: "scheduleType", title: "Jadwal", formatter: (value) => value === "SHIFT" ? "Shifting" : "Reguler" },
   {
     key: "locationLockEnabled",
     title: "Kunci Lokasi",

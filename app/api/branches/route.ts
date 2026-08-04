@@ -17,9 +17,11 @@ function parseBranch(body: Record<string, unknown>) {
     attendanceRadiusMeters: Number(body.attendanceRadiusMeters),
     locationLockEnabled: Boolean(body.locationLockEnabled),
     customWorkingHoursEnabled: Boolean(body.customWorkingHoursEnabled),
+    scheduleType: body.scheduleType === "SHIFT" ? "SHIFT" : "REGULAR",
     officeStartTime: String(body.officeStartTime || "").trim(),
     officeEndTime: String(body.officeEndTime || "").trim(),
     isActive: body.isActive !== false,
+    workingSchedules: Array.isArray(body.workingSchedules) ? body.workingSchedules : [],
   };
 }
 
@@ -29,7 +31,10 @@ function validateBranch(data: ReturnType<typeof parseBranch>) {
   if (!Number.isFinite(data.longitude) || data.longitude < -180 || data.longitude > 180) return "Longitude tidak valid";
   if (!Number.isInteger(data.attendanceRadiusMeters) || data.attendanceRadiusMeters < 1) return "Radius absensi minimal 1 meter";
   const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-  if (data.customWorkingHoursEnabled && (!timeRegex.test(data.officeStartTime) || !timeRegex.test(data.officeEndTime))) return "Format jam khusus cabang harus HH:mm";
+  if (data.scheduleType === "REGULAR" && data.workingSchedules.some((schedule) => {
+    const row = schedule as Record<string, unknown>;
+    return Boolean(row.isWorkDay) && (!timeRegex.test(String(row.startTime || "")) || !timeRegex.test(String(row.endTime || "")));
+  })) return "Jam kerja reguler harus menggunakan format HH:mm";
   return null;
 }
 
@@ -49,7 +54,7 @@ export async function GET(req: NextRequest) {
     ...(search ? { OR: [{ name: { contains: search, mode: "insensitive" } }, { code: { contains: search, mode: "insensitive" } }] } : {}),
   };
   const [data, total] = await Promise.all([
-    prisma.branch.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { name: "asc" }, include: { tenant: { select: { id: true, companyName: true } } } }),
+    prisma.branch.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { name: "asc" }, include: { tenant: { select: { id: true, companyName: true } }, workingSchedules: { orderBy: { dayOfWeek: "asc" } } } }),
     prisma.branch.count({ where }),
   ]);
   return NextResponse.json({ message: "OK", data, total, page, limit });
@@ -71,7 +76,27 @@ export async function POST(req: NextRequest) {
       const existing = await prisma.branch.findFirst({ where: { tenantId, code: candidate }, select: { id: true } });
       return Boolean(existing);
     });
-    const branch = await prisma.branch.create({ data: { ...data, code, tenantId } });
+    const { workingSchedules, ...branchData } = data;
+    const branch = await prisma.branch.create({
+      data: {
+        ...branchData,
+        customWorkingHoursEnabled: true,
+        code,
+        tenantId,
+        workingSchedules: {
+          create: workingSchedules.map((schedule) => {
+            const row = schedule as Record<string, unknown>;
+            return {
+              dayOfWeek: String(row.dayOfWeek || ""),
+              isWorkDay: Boolean(row.isWorkDay),
+              startTime: Boolean(row.isWorkDay) ? String(row.startTime || "") : null,
+              endTime: Boolean(row.isWorkDay) ? String(row.endTime || "") : null,
+            };
+          }),
+        },
+      },
+      include: { workingSchedules: true },
+    });
     return NextResponse.json({ message: "Cabang berhasil ditambahkan", data: branch }, { status: 201 });
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") return NextResponse.json({ message: "Nama atau kode cabang sudah digunakan" }, { status: 409 });

@@ -9,7 +9,7 @@ export interface UserDto {
   branch?: { id: string; name: string } | null;
   department?: { id: string; name: string } | null;
   role?: { id: string; name: string } | null;
-  tenant?: { id: string; companyName: string } | null;
+  tenant?: { id: string; companyName: string; logoUrl?: string | null } | null;
   email: string;
   name: string;
   nik?: string | null;

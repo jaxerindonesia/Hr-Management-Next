@@ -3,13 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { getDateAtTime, getJakartaDayRange } from "@/lib/helper/date";
-
-const DEFAULT_CONFIG = {
-  officeStartTime: "09:00",
-  officeEndTime: "17:00",
-  lateToleranceMinutes: 15,
-};
+import { getJakartaDayRange } from "@/lib/helper/date";
 
 function isAuthorizedCron(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -29,11 +23,8 @@ export async function GET(req: NextRequest) {
 
     const openAttendances = await prisma.attendance.findMany({
       where: {
-        date: {
-          gte: startUtc,
-          lte: endUtc,
-        },
         checkOut: null,
+        scheduledEndAt: { lte: jobRunTime },
       },
       select: {
         id: true,
@@ -41,34 +32,9 @@ export async function GET(req: NextRequest) {
         tenantId: true,
         status: true,
         checkIn: true,
+        scheduledEndAt: true,
       },
     });
-
-    const tenantIds = [
-      ...new Set(openAttendances.map((attendance) => attendance.tenantId).filter(Boolean)),
-    ] as string[];
-    const configs = await prisma.attendanceConfig.findMany({
-      where: {
-        OR: [{ tenantId: { in: tenantIds } }, { tenantId: null }],
-      },
-      orderBy: { updatedAt: "desc" },
-      select: { tenantId: true, officeEndTime: true },
-    });
-
-    const configByTenant = new Map<string, { officeEndTime: string }>();
-    let globalConfig: { officeEndTime: string } | null = null;
-    for (const cfg of configs) {
-      const normalized = {
-        officeEndTime: cfg.officeEndTime || DEFAULT_CONFIG.officeEndTime,
-      };
-      if (cfg.tenantId) {
-        if (!configByTenant.has(cfg.tenantId)) {
-          configByTenant.set(cfg.tenantId, normalized);
-        }
-      } else if (!globalConfig) {
-        globalConfig = normalized;
-      }
-    }
 
     if (openAttendances.length === 0) {
       return NextResponse.json({
@@ -82,11 +48,7 @@ export async function GET(req: NextRequest) {
     await prisma.$transaction(
       openAttendances.map((attendance) =>
         {
-          const cfg =
-            (attendance.tenantId
-              ? configByTenant.get(attendance.tenantId)
-              : null) || globalConfig || DEFAULT_CONFIG;
-          const officeEnd = getDateAtTime(jobRunTime, cfg.officeEndTime);
+          const officeEnd = attendance.scheduledEndAt ?? jobRunTime;
           const effectiveCheckoutTime = attendance.checkIn
             ? new Date(Math.max(new Date(attendance.checkIn).getTime(), officeEnd.getTime()))
             : officeEnd;
@@ -121,7 +83,7 @@ export async function GET(req: NextRequest) {
                     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
                   })()
                 : "00:00",
-              notes: "Auto checkout by cron at 23:59",
+              notes: "Auto checkout at scheduled shift end",
               status,
             },
           });

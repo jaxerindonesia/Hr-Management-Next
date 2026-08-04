@@ -10,19 +10,23 @@ import type { BranchDto } from "@/lib/dto/branch";
 import DynamicPage from "@/components/dynamic-page";
 import { formatDateId } from "@/lib/helper/date";
 import { parseApiError } from "@/lib/helper/response-api";
+import type { EmployeeRecapDto } from "@/lib/dto/employee-recap";
 import {
-  buildBulkRecapHtml,
+  buildEmployeeRecapPrintHtml,
+  waitForEmployeeRecapImages,
+} from "@/lib/helper/employee-recap-print";
+import {
   columnFormats,
   type DepartmentOption,
   headerToolbar,
   ITEMS_PER_PAGE,
-  RecapData,
   renderActions,
   TenantOption,
 } from "./page.config";
 import DepartmentModal from "./components/department-modal";
 import ImportModal from "./components/import-modal";
 import RecapModal from "./components/recap-modal";
+import BulkRecapPeriodDialog from "./components/bulk-recap-period-dialog";
 
 export default function EmployeesPage() {
   const { checkRole, permissions } = usePermission();
@@ -43,6 +47,7 @@ export default function EmployeesPage() {
   const [branches, setBranches] = useState<BranchDto[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
+  const [showBulkRecapPeriod, setShowBulkRecapPeriod] = useState(false);
 
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -255,7 +260,7 @@ export default function EmployeesPage() {
     }
   }, [debouncedSearchTerm, filterBranch, filterDepartment, filterStatus, filterCompany, isSuperAdmin, isAdmin]);
 
-  const onBulkDownload = useCallback(async () => {
+  const onBulkDownload = useCallback(async (month: number, year: number) => {
     try {
       setIsBulkDownloading(true);
 
@@ -284,10 +289,6 @@ export default function EmployeesPage() {
         return;
       }
 
-      const now = new Date();
-      const month = now.getMonth() + 1;
-      const year = now.getFullYear();
-
       const recapResults = await Promise.all(
         allData.map(async (employee) => {
           if (!employee.id) return null;
@@ -298,13 +299,13 @@ export default function EmployeesPage() {
           const recapJson = await recapRes.json();
           return {
             employee,
-            recap: recapJson.data as RecapData,
+            recap: recapJson.data as EmployeeRecapDto,
           };
         }),
       );
 
       const printableRows = recapResults.filter(
-        (row): row is { employee: UserDto; recap: RecapData } => Boolean(row),
+        (row): row is { employee: UserDto; recap: EmployeeRecapDto } => Boolean(row),
       );
 
       if (printableRows.length === 0) {
@@ -314,7 +315,16 @@ export default function EmployeesPage() {
 
       const printDiv = document.createElement("div");
       printDiv.id = "temp-bulk-recap-print-area";
-      printDiv.innerHTML = buildBulkRecapHtml(printableRows, month, year);
+      printDiv.innerHTML = buildEmployeeRecapPrintHtml(
+        printableRows.map(({ employee, recap }) => ({
+          employee,
+          recap,
+          brand: {
+            companyName: employee.tenant?.companyName,
+            logoUrl: employee.tenant?.logoUrl,
+          },
+        })),
+      );
       document.body.appendChild(printDiv);
 
       const style = document.createElement("style");
@@ -332,10 +342,10 @@ export default function EmployeesPage() {
           }
           #temp-bulk-recap-print-area * { visibility: visible !important; }
           body, html { height: auto !important; overflow: visible !important; background: white !important; }
-          @page { margin: 15mm; size: A4; }
         }
       `;
       document.head.appendChild(style);
+      await waitForEmployeeRecapImages(printDiv);
 
       const oldTitle = document.title;
       document.title = `rekap-karyawan-${year}-${String(month).padStart(2, "0")}`;
@@ -348,7 +358,7 @@ export default function EmployeesPage() {
       };
 
       window.addEventListener("afterprint", cleanup);
-      setTimeout(() => window.print(), 250);
+      window.print();
       setTimeout(cleanup, 60000);
 
       const failedCount = allData.length - printableRows.length;
@@ -357,6 +367,7 @@ export default function EmployeesPage() {
           ? `Menyiapkan ${printableRows.length} rekap. ${failedCount} gagal dimuat.`
           : `Menyiapkan ${printableRows.length} rekap karyawan`,
       );
+      setShowBulkRecapPeriod(false);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -375,7 +386,7 @@ export default function EmployeesPage() {
           onAdd,
           onExport,
           onImport: () => setShowImportModal(true),
-          onBulkDownload,
+          onBulkDownload: () => setShowBulkRecapPeriod(true),
           onOpenDepartment: () => setShowDepartmentModal(true),
           checkRole,
           isExporting,
@@ -407,7 +418,6 @@ export default function EmployeesPage() {
     [
       onAdd,
       onExport,
-      onBulkDownload,
       checkRole,
       isExporting,
       isBulkDownloading,
@@ -601,6 +611,7 @@ export default function EmployeesPage() {
         isOpen={showDepartmentModal}
         onClose={() => setShowDepartmentModal(false)}
         departments={departments}
+        branches={branches}
         onRefresh={fetchDepartments}
       />
 
@@ -609,6 +620,13 @@ export default function EmployeesPage() {
         isSuperAdmin={isSuperAdmin}
         onClose={() => setShowImportModal(false)}
         onSuccess={fetchData}
+      />
+
+      <BulkRecapPeriodDialog
+        open={showBulkRecapPeriod}
+        loading={isBulkDownloading}
+        onOpenChange={setShowBulkRecapPeriod}
+        onConfirm={onBulkDownload}
       />
 
       {/* Recap Modal */}

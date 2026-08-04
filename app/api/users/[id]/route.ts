@@ -9,6 +9,7 @@ import { deleteFromMinio } from "@/lib/minio";
 import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
 import { writeAuditLog } from "@/lib/security/audit-log";
+import { validateUserAssignment } from "@/lib/helper/user-assignment-validation";
 
 // Helper: hapus file avatar lama dari MinIO
 async function deleteOldAvatar(avatarUrl: string | null) {
@@ -63,7 +64,7 @@ export async function PUT(req: Request, { params }: Params) {
     const { id } = await params;
     const targetUser = await prisma.user.findFirst({
       where: { id, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
-      select: { id: true, tenantId: true },
+      select: { id: true, tenantId: true, roleId: true, departmentId: true, branchId: true },
     });
     if (!targetUser) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
@@ -81,10 +82,28 @@ export async function PUT(req: Request, { params }: Params) {
 
     const updateData: Prisma.UserUncheckedUpdateInput = {};
 
+    const nextRoleId = body.roleId || targetUser.roleId;
+    const nextDepartmentId = body.departmentId === undefined
+      ? targetUser.departmentId
+      : body.departmentId || null;
+    const nextBranchId = body.branchId === undefined
+      ? targetUser.branchId
+      : body.branchId || null;
+    const assignmentError = await validateUserAssignment({
+      actorRoleName: auth.user.roleName,
+      tenantId: targetUser.tenantId,
+      roleId: nextRoleId,
+      departmentId: nextDepartmentId,
+      branchId: nextBranchId,
+    });
+    if (assignmentError) {
+      return NextResponse.json({ message: assignmentError }, { status: 400 });
+    }
+
     if (body.email) updateData.email = body.email;
     if (body.name) updateData.name = body.name;
     if (body.roleId) updateData.roleId = body.roleId;
-    if (body.departmentId) updateData.departmentId = body.departmentId;
+    if (body.departmentId !== undefined) updateData.departmentId = body.departmentId || null;
     if (body.branchId !== undefined) {
       if (body.branchId) {
         if (!targetUser.tenantId) return NextResponse.json({ message: "User tidak memiliki tenant" }, { status: 400 });

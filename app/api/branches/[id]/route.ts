@@ -11,8 +11,10 @@ function parseBranch(body: Record<string, unknown>) {
     name: String(body.name || "").trim(), code: String(body.code || "").trim().toUpperCase() || null,
     address: String(body.address || "").trim() || null, latitude: Number(body.latitude),
     longitude: Number(body.longitude), attendanceRadiusMeters: Number(body.attendanceRadiusMeters),
-    locationLockEnabled: Boolean(body.locationLockEnabled), customWorkingHoursEnabled: Boolean(body.customWorkingHoursEnabled), officeStartTime: String(body.officeStartTime || "").trim(),
-    officeEndTime: String(body.officeEndTime || "").trim(), isActive: body.isActive !== false,
+    locationLockEnabled: Boolean(body.locationLockEnabled), customWorkingHoursEnabled: true,
+    scheduleType: body.scheduleType === "SHIFT" ? "SHIFT" : "REGULAR",
+    officeStartTime: String(body.officeStartTime || "").trim(), officeEndTime: String(body.officeEndTime || "").trim(), isActive: body.isActive !== false,
+    workingSchedules: Array.isArray(body.workingSchedules) ? body.workingSchedules : [],
   };
 }
 function validateBranch(data: ReturnType<typeof parseBranch>) {
@@ -20,7 +22,11 @@ function validateBranch(data: ReturnType<typeof parseBranch>) {
   if (!Number.isFinite(data.latitude) || data.latitude < -90 || data.latitude > 90) return "Latitude tidak valid";
   if (!Number.isFinite(data.longitude) || data.longitude < -180 || data.longitude > 180) return "Longitude tidak valid";
   if (!Number.isInteger(data.attendanceRadiusMeters) || data.attendanceRadiusMeters < 1) return "Radius absensi minimal 1 meter";
-  if (data.customWorkingHoursEnabled && (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(data.officeStartTime) || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(data.officeEndTime))) return "Format jam khusus cabang harus HH:mm";
+  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+  if (data.scheduleType === "REGULAR" && data.workingSchedules.some((schedule) => {
+    const row = schedule as Record<string, unknown>;
+    return Boolean(row.isWorkDay) && (!timeRegex.test(String(row.startTime || "")) || !timeRegex.test(String(row.endTime || "")));
+  })) return "Jam kerja reguler harus menggunakan format HH:mm";
   return null;
 }
 
@@ -47,7 +53,29 @@ export async function PUT(req: Request, { params }: Params) {
       });
       return Boolean(duplicate);
     });
-    const branch = await prisma.branch.update({ where: { id }, data: { ...data, code } });
+    const { workingSchedules, ...branchData } = data;
+    const branch = await prisma.$transaction(async (tx) => {
+      await tx.branchWorkingSchedule.deleteMany({ where: { branchId: id } });
+      return tx.branch.update({
+        where: { id },
+        data: {
+          ...branchData,
+          code,
+          workingSchedules: {
+            create: workingSchedules.map((schedule) => {
+              const row = schedule as Record<string, unknown>;
+              return {
+                dayOfWeek: String(row.dayOfWeek || ""),
+                isWorkDay: Boolean(row.isWorkDay),
+                startTime: Boolean(row.isWorkDay) ? String(row.startTime || "") : null,
+                endTime: Boolean(row.isWorkDay) ? String(row.endTime || "") : null,
+              };
+            }),
+          },
+        },
+        include: { workingSchedules: true },
+      });
+    });
     return NextResponse.json({ message: "Cabang berhasil diperbarui", data: branch });
   } catch (updateError) {
     if ((updateError as { code?: string }).code === "P2002") return NextResponse.json({ message: "Nama atau kode cabang sudah digunakan" }, { status: 409 });

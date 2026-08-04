@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DepartmentDto } from "@/lib/dto/department";
+import type { BranchDto } from "@/lib/dto/branch";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -11,19 +12,24 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { parseApiError } from "@/lib/helper/response-api";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function DepartmentModal({
   isOpen,
   onClose,
   departments,
+  branches,
   onRefresh,
 }: {
   isOpen: boolean;
   onClose: () => void;
   departments: DepartmentDto[];
+  branches: BranchDto[];
   onRefresh: () => void;
 }) {
   const [newType, setNewType] = useState("");
+  const [branchId, setBranchId] = useState("none");
   const [loading, setLoading] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
@@ -43,7 +49,13 @@ export default function DepartmentModal({
       const res = await fetch("/api/departments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newType.trim() }),
+        body: JSON.stringify({
+          name: newType.trim(),
+          branchId: branchId === "none" ? null : branchId,
+          tenantId: branchId === "none"
+            ? null
+            : branches.find((branch) => branch.id === branchId)?.tenantId,
+        }),
       });
 
       if (!res.ok) {
@@ -54,6 +66,7 @@ export default function DepartmentModal({
 
       toast.success("Departemen berhasil ditambahkan");
       setNewType("");
+      setBranchId("none");
       onRefresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
@@ -108,6 +121,22 @@ export default function DepartmentModal({
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleAddType} className="space-y-4">
+          <div className="grid gap-2">
+            <Label>Cabang (opsional) <p className="text-xs text-muted-foreground">Kosongkan jika departemen berlaku umum.</p></Label>
+            <Select value={branchId} onValueChange={setBranchId}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Pilih Cabang" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Tanpa cabang</SelectItem>
+                {branches.filter((branch) => branch.isActive).map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id || ""}>
+                    {isSuperAdmin && branch.tenant?.companyName
+                      ? `${branch.name} - ${branch.tenant.companyName}`
+                      : branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex gap-2">
             <Input
               value={newType}
@@ -125,7 +154,10 @@ export default function DepartmentModal({
                 key={dept.id}
                 className="flex items-center justify-between p-2 border rounded-md"
               >
-                <span>{getDepartmentLabel(dept)}</span>
+                <div>
+                  <p className="text-sm">{getDepartmentLabel(dept)}</p>
+                  <p className="text-xs text-muted-foreground">{dept.branch?.name || "Tanpa cabang"}</p>
+                </div>
 
                 <Button
                   type="button"

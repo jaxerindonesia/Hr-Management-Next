@@ -21,6 +21,8 @@ export async function GET() {
         id: true,
         name: true,
         tenantId: true,
+        branchId: true,
+        branch: { select: { id: true, name: true, code: true } },
         users: {
           where: { deletedAt: null, status: "active" },
           select: { id: true, name: true },

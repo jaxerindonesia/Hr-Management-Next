@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { requireSessionUser, ensureTenantScope } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
+import { validateUserAssignment } from "@/lib/helper/user-assignment-validation";
 
 export async function GET(req: NextRequest) {
   try {
@@ -99,6 +100,7 @@ export async function GET(req: NextRequest) {
             select: {
               id: true,
               companyName: true,
+              logoUrl: true,
             },
           },
         },
@@ -178,6 +180,17 @@ export async function POST(req: NextRequest) {
     if (branchId) {
       const branch = await prisma.branch.findFirst({ where: { id: branchId, tenantId: finalTenantId } });
       if (!branch) return NextResponse.json({ message: "Cabang tidak valid" }, { status: 400 });
+    }
+
+    const assignmentError = await validateUserAssignment({
+      actorRoleName: auth.user.roleName,
+      tenantId: finalTenantId,
+      roleId,
+      departmentId: departmentId || null,
+      branchId: branchId || null,
+    });
+    if (assignmentError) {
+      return NextResponse.json({ message: assignmentError }, { status: 400 });
     }
 
     if (existing) {

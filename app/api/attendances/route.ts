@@ -98,6 +98,21 @@ export async function POST(req: NextRequest) {
     const scopedTenantId = ensureTenantScope(auth.user);
     const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
 
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        ...(finalTenantId ? { tenantId: finalTenantId } : { tenantId: null }),
+        deletedAt: null,
+      },
+      select: { id: true, branchId: true },
+    });
+    if (!targetUser) {
+      return NextResponse.json(
+        { message: "User tidak valid untuk tenant ini" },
+        { status: 400 },
+      );
+    }
+
     const existing = await prisma.attendance.findFirst({
       where: {
         userId,
@@ -116,6 +131,7 @@ export async function POST(req: NextRequest) {
     const attendance = await prisma.attendance.create({
       data: {
         tenantId: finalTenantId,
+        branchId: targetUser.branchId,
         userId,
         date: new Date(date),
         attendanceDay,

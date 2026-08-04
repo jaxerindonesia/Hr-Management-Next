@@ -20,6 +20,7 @@ export async function GET() {
         id: true,
         name: true,
         tenantId: true,
+        branchId: true,
         createdAt: true,
         updatedAt: true,
         deletedAt: true,
@@ -29,6 +30,7 @@ export async function GET() {
             companyName: true,
           },
         },
+        branch: { select: { id: true, name: true, code: true } },
       },
     });
 
@@ -65,10 +67,27 @@ export async function POST(req: NextRequest) {
     }
 
     const scopedTenantId = ensureTenantScope(auth.user);
-    const finalTenantId = scopedTenantId ?? body.tenantId ?? null;
+    const branchId = String(body.branchId || "").trim() || null;
+    const selectedBranch = branchId
+      ? await prisma.branch.findFirst({
+          where: { id: branchId, ...(scopedTenantId ? { tenantId: scopedTenantId } : {}) },
+          select: { id: true, tenantId: true, isActive: true },
+        })
+      : null;
+    if (branchId && !selectedBranch) {
+      return NextResponse.json({ message: "Cabang tidak ditemukan" }, { status: 400 });
+    }
+    if (selectedBranch && !selectedBranch.isActive) {
+      return NextResponse.json({ message: "Cabang yang dipilih sedang nonaktif" }, { status: 400 });
+    }
+    const finalTenantId = scopedTenantId ?? body.tenantId ?? selectedBranch?.tenantId ?? null;
+    if (selectedBranch && selectedBranch.tenantId !== finalTenantId) {
+      return NextResponse.json({ message: "Cabang tidak sesuai dengan tenant departemen" }, { status: 400 });
+    }
     const existingDepartment = await prisma.department.findFirst({
       where: {
         ...(finalTenantId ? { tenantId: finalTenantId } : { tenantId: null }),
+        branchId,
         name: { equals: rawName, mode: "insensitive" },
       },
       select: { id: true },
@@ -76,13 +95,13 @@ export async function POST(req: NextRequest) {
 
     if (existingDepartment) {
       return NextResponse.json(
-        { message: "Nama departemen sudah digunakan pada tenant ini" },
+        { message: "Nama departemen sudah digunakan pada cabang ini" },
         { status: 409 },
       );
     }
 
     const department = await prisma.department.create({
-      data: { name: rawName, tenantId: finalTenantId },
+      data: { name: rawName, tenantId: finalTenantId, branchId },
     });
 
     return NextResponse.json(
@@ -94,6 +113,12 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("CREATE DEPARTMENT ERROR:", error);
+    if ((error as { code?: string }).code === "P2002") {
+      return NextResponse.json(
+        { message: "Nama departemen sudah digunakan pada cabang ini" },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { message: "Failed to create department" },
       { status: 500 },
