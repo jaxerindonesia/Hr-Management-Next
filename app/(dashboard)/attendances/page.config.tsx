@@ -122,6 +122,12 @@ interface HeaderToolbarProps {
       breakEnabled: boolean;
       officeEndTime: string;
       officeStartTime: string;
+      effectiveWorkSchedule?: {
+        source: "REGULAR" | "SHIFT";
+        startTime: string;
+        endTime: string;
+        shiftName: string | null;
+      } | null;
     };
     currentDateLabel: string;
     currentTime: string;
@@ -304,15 +310,37 @@ export const headerToolbar = ({ actions, attendance, filters, isAdmin }: HeaderT
             {attendance.currentTime}
           </div>
           <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-600">
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                {attendance.attendanceConfig.officeStartTime}
+            {attendance.attendanceConfig.effectiveWorkSchedule ? (
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="mr-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-300">
+                  {attendance.attendanceConfig.effectiveWorkSchedule.source === "SHIFT"
+                    ? attendance.attendanceConfig.effectiveWorkSchedule.shiftName || "Shift"
+                    : "Reguler"}
+                </span>
+                <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                  {attendance.attendanceConfig.effectiveWorkSchedule.startTime}
+                </span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">-</span>
+                <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                  {attendance.attendanceConfig.effectiveWorkSchedule.endTime}
+                </span>
+              </div>
+            ) : isAdmin ? (
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="mr-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-300">Default tenant</span>
+                <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-600 dark:text-slate-100">
+                  {attendance.attendanceConfig.officeStartTime}
+                </span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">-</span>
+                <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-600 dark:text-slate-100">
+                  {attendance.attendanceConfig.officeEndTime}
+                </span>
+              </div>
+            ) : (
+              <span className="mt-1 inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                Tidak ada jadwal hari ini
               </span>
-              <span className="text-xs text-slate-400 dark:text-slate-500">-</span>
-              <span className="inline-flex items-center rounded-md bg-blue-100 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                {attendance.attendanceConfig.officeEndTime}
-              </span>
-            </div>
+            )}
           </div>
         </div>
 
