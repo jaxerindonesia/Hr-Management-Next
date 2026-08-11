@@ -8,6 +8,7 @@ import prisma from "@/lib/prisma";
 import { requireSessionUser, ensureTenantScope } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
 import { validateUserAssignment } from "@/lib/helper/user-assignment-validation";
+import { parseFaceDescriptor } from "@/lib/helper/face-descriptor";
 
 export async function GET(req: NextRequest) {
   try {
@@ -83,6 +84,7 @@ export async function GET(req: NextRequest) {
           birthDate: true,
           birthPlace: true,
           avatarUrl: true,
+          faceDescriptor: true,
           department: {
             select: {
               id: true,
@@ -150,6 +152,7 @@ export async function POST(req: NextRequest) {
       birthDate,
       birthPlace,
       avatarUrl,
+      faceDescriptor,
       tenantId,
     } = body;
 
@@ -202,6 +205,13 @@ export async function POST(req: NextRequest) {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+    const parsedFaceDescriptor = parseFaceDescriptor(faceDescriptor);
+    if (avatarUrl && !parsedFaceDescriptor) {
+      return NextResponse.json(
+        { message: "Descriptor foto wajah tidak valid. Silakan ambil ulang foto." },
+        { status: 400 },
+      );
+    }
 
     const user = await prisma.user.create({
       data: {
@@ -223,6 +233,7 @@ export async function POST(req: NextRequest) {
         birthDate: birthDate ? new Date(birthDate) : null,
         birthPlace: birthPlace || null,
         avatarUrl: avatarUrl || null,
+        faceDescriptor: parsedFaceDescriptor ?? undefined,
         currentToken: "",
         tenantId: finalTenantId,
       },

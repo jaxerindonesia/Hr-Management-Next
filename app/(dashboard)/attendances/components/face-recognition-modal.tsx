@@ -5,11 +5,18 @@ import * as faceapi from "face-api.js";
 import { X, Camera, CheckCircle, XCircle, Loader2, ScanFace } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ensureFaceModelLoaded } from "@/lib/helper/face-models";
+import { parseFaceDescriptor } from "@/lib/helper/face-descriptor";
+import {
+  getCachedFaceDescriptor,
+  loadAndCacheFaceDescriptor,
+} from "@/lib/helper/face-reference-cache";
+import { reportFacePerformance } from "@/lib/helper/face-performance";
 
 interface FaceRecognitionModalProps {
   isOpen: boolean;
   mode: "check-in" | "check-out" | "break-in" | "break-out";
   referenceImageUrl: string | null;
+  referenceDescriptor: number[] | null;
   onSuccess: (captureDataUrl: string) => void;
   onClose: () => void;
 }
@@ -31,6 +38,7 @@ export default function FaceRecognitionModal({
   isOpen,
   mode,
   referenceImageUrl,
+  referenceDescriptor,
   onSuccess,
   onClose,
 }: FaceRecognitionModalProps) {
@@ -39,7 +47,9 @@ export default function FaceRecognitionModal({
   const streamRef = useRef<MediaStream | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const referenceDescriptorRef = useRef<Float32Array | null>(null);
+  const referenceKeyRef = useRef<string | null>(null);
   const successCalledRef = useRef(false);
+  const modalOpenedAtRef = useRef(0);
 
   // Head-turn liveness state
   const turnedLeftFramesRef = useRef(0);
@@ -87,7 +97,6 @@ export default function FaceRecognitionModal({
   const cleanup = useCallback(() => {
     stopCamera();
     successCalledRef.current = false;
-    referenceDescriptorRef.current = null;
     turnedLeftFramesRef.current = 0;
     turnedRightFramesRef.current = 0;
     turnedLeftDoneRef.current = false;
@@ -99,6 +108,7 @@ export default function FaceRecognitionModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    modalOpenedAtRef.current = performance.now();
 
     const timers = splashTimersRef.current;
 
@@ -161,48 +171,96 @@ export default function FaceRecognitionModal({
     let cancelled = false;
 
     const run = async () => {
-      if (!referenceImageUrl) {
-        setStatus("scanning");
-      } else {
-        setStatus("loading-reference");
-        try {
-          const img = await faceapi.fetchImage(referenceImageUrl);
-          const detection = await faceapi
-            .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-
-          referenceDescriptorRef.current = detection ? detection.descriptor : null;
-        } catch {
-          referenceDescriptorRef.current = null;
-        }
+      const referenceKey = referenceImageUrl ?? "stored-descriptor";
+      if (referenceKeyRef.current !== referenceKey) {
+        referenceDescriptorRef.current = null;
+        referenceKeyRef.current = referenceKey;
       }
+      const storedDescriptor = parseFaceDescriptor(referenceDescriptor);
+      const cachedDescriptor = referenceImageUrl
+        ? getCachedFaceDescriptor(referenceImageUrl)
+        : null;
 
-      if (cancelled) return;
+      if (storedDescriptor) {
+        referenceDescriptorRef.current = new Float32Array(storedDescriptor);
+      } else if (cachedDescriptor) {
+        referenceDescriptorRef.current = cachedDescriptor;
+      }
+      const descriptorSource = storedDescriptor
+        ? "database" as const
+        : cachedDescriptor
+          ? "cache" as const
+          : "image" as const;
 
-      if (!referenceImageUrl || !referenceDescriptorRef.current) {
+      if (!referenceDescriptorRef.current && !referenceImageUrl) {
         setStatus("no-reference");
         return;
       }
 
-      setStatus("scanning");
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: 640, height: 480 },
+      const loadReference = async () => {
+        if (referenceDescriptorRef.current || !referenceImageUrl) return;
+        setStatus("loading-reference");
+        try {
+          referenceDescriptorRef.current = await loadAndCacheFaceDescriptor(referenceImageUrl);
+        } catch {
+          referenceDescriptorRef.current = null;
+        }
+      };
+
+      const startCamera = async () => {
+        const startedAt = performance.now();
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user", width: 640, height: 480 },
+          });
+          if (cancelled) {
+            stream.getTracks().forEach((t) => t.stop());
+            return null;
+          }
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            await videoRef.current.play();
+          }
+          return performance.now() - startedAt;
+        } catch {
+          if (!cancelled) setStatus("no-camera");
+          return null;
+        }
+      };
+
+      if (referenceDescriptorRef.current) setStatus("scanning");
+      const referenceStartedAt = performance.now();
+      const [, cameraMs] = await Promise.all([loadReference(), startCamera()]);
+      const referenceMs = performance.now() - referenceStartedAt;
+
+      if (cancelled) return;
+
+      if (!referenceDescriptorRef.current) {
+        setStatus("no-reference");
+        stopCamera();
+        reportFacePerformance({
+          event: "failure",
+          mode,
+          descriptorSource,
+          totalMs: performance.now() - modalOpenedAtRef.current,
+          referenceMs,
+          cameraMs: cameraMs ?? undefined,
+          reason: "no-reference",
         });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
-      } catch {
-        if (!cancelled) setStatus("no-camera");
         return;
       }
+
+      if (cameraMs === null) return;
+      setStatus("scanning");
+      reportFacePerformance({
+        event: "ready",
+        mode,
+        descriptorSource,
+        totalMs: performance.now() - modalOpenedAtRef.current,
+        referenceMs,
+        cameraMs,
+      });
 
       const detectFrame = async () => {
         if (!videoRef.current || cancelled || successCalledRef.current) return;
@@ -291,6 +349,12 @@ export default function FaceRecognitionModal({
           if (!cancelled && !successCalledRef.current) {
             successCalledRef.current = true;
             setStatus("match");
+            reportFacePerformance({
+              event: "match",
+              mode,
+              descriptorSource,
+              totalMs: performance.now() - modalOpenedAtRef.current,
+            });
             const captureDataUrl = getCaptureDataUrl();
             stopCamera();
             setTimeout(() => {
@@ -319,7 +383,7 @@ export default function FaceRecognitionModal({
       cancelled = true;
       cleanup();
     };
-  }, [isOpen, modelsLoaded, referenceImageUrl, onSuccess, cleanup, getCaptureDataUrl, stopCamera]);
+  }, [isOpen, mode, modelsLoaded, referenceDescriptor, referenceImageUrl, onSuccess, cleanup, getCaptureDataUrl, stopCamera]);
 
   if (!isOpen) return null;
 

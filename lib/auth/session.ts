@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/security/audit-log";
+import { parseFaceDescriptor } from "@/lib/helper/face-descriptor";
 
 type JwtPayload = {
   sub?: string;
@@ -30,6 +31,7 @@ export type SessionUser = {
   tenantLogoUrl: string | null;
   departmentId: string | null;
   avatarUrl: string;
+  faceDescriptor: number[] | null;
   permissions: Array<{
     model: string;
     action: string;
@@ -171,6 +173,7 @@ export async function getSessionUser(): Promise<SessionValidationResult> {
         tenantLogoUrl: user.tenant?.logoUrl ?? null,
         departmentId: user.departmentId ?? null,
         avatarUrl: user.avatarUrl ?? "",
+        faceDescriptor: parseFaceDescriptor(user.faceDescriptor),
         permissions: Array.isArray(user.role.permission)
           ? (user.role.permission as Array<{ model: string; action: string }>)
           : [],

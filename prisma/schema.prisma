@@ -136,6 +136,7 @@ model User {
   salary                      Float?
   salaryType                  String                       @default("monthly") @map("salary_type")
   avatarUrl                   String?                      @map("avatar_url")
+  faceDescriptor              Json?                        @map("face_descriptor")
   password                    String
   currentToken                String?                      @map("current_token")
   salt                        String

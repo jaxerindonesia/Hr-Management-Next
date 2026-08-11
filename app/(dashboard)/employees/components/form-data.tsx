@@ -126,6 +126,9 @@ export default function FormData({
   const [faceDataUrl, setFaceDataUrl] = useState<string | null>(
     initialData?.avatarUrl || null,
   );
+  const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(
+    initialData?.faceDescriptor || null,
+  );
   const [formData, setFormData] = useState<UserDto>(
     initialData || INITIAL_FORM_DATA,
   );
@@ -240,7 +243,12 @@ export default function FormData({
         return;
       }
 
-      const payload = { ...formData, avatarUrl, tenantId: finalTenantId };
+      const payload = {
+        ...formData,
+        avatarUrl,
+        faceDescriptor,
+        tenantId: finalTenantId,
+      };
       if (formData.id && !changePassword) {
         delete payload.password;
       }
@@ -314,6 +322,7 @@ export default function FormData({
       setShowConfirmPassword(false);
       setRePassword("");
       setFaceDataUrl(initialData?.avatarUrl || null);
+      setFaceDescriptor(initialData?.faceDescriptor || null);
       setFormData(initialData || INITIAL_FORM_DATA);
       return;
     }
@@ -323,6 +332,7 @@ export default function FormData({
     setShowConfirmPassword(false);
     setRePassword("");
     setFaceDataUrl(initialData?.avatarUrl || null);
+    setFaceDescriptor(initialData?.faceDescriptor || null);
     setFormData(initialData || INITIAL_FORM_DATA);
   }, [initialData, isOpen]);
 
@@ -674,7 +684,13 @@ export default function FormData({
 
           <div className="grid gap-2">
             <Label>Foto Wajah (untuk absensi)</Label>
-            <FaceCapture value={faceDataUrl} onChange={setFaceDataUrl} />
+            <FaceCapture
+              value={faceDataUrl}
+              onChange={(dataUrl, descriptor) => {
+                setFaceDataUrl(dataUrl);
+                setFaceDescriptor(descriptor);
+              }}
+            />
           </div>
 
           {!formData.id ? (

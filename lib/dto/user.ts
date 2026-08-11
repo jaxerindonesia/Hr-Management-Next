@@ -23,6 +23,7 @@ export interface UserDto {
   birthDate?: string | null;
   birthPlace?: string | null;
   avatarUrl?: string | null;
+  faceDescriptor?: number[] | null;
   password?: string;
   currentToken?: string | null;
   salt?: string | null;

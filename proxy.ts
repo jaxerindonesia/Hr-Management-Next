@@ -27,6 +27,12 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value || bearerToken;
   const { pathname } = request.nextUrl;
 
+  if (pathname.startsWith("/models/")) {
+    const response = NextResponse.next();
+    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    return response;
+  }
+
   if (pathname.startsWith("/api/cron")) {
     const response = NextResponse.next({
       request: {
@@ -106,6 +112,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|webp|ico)).*)",
+    "/((?!_next/static|_next/image|models/|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|webp|ico)).*)",
   ],
 };

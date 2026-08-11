@@ -52,6 +52,7 @@ export default function Page() {
   const [draftApproverUserIds, setDraftApproverUserIds] = useState<string[]>([]);
   const [userId, setUserId] = useState("");
   const [userAvatarUrl, setUserAvatarUrl] = useState("");
+  const [userFaceDescriptor, setUserFaceDescriptor] = useState<number[] | null>(null);
   const [currentOvertime, setCurrentOvertime] = useState<OvertimeDto | null>(null);
   const [approvingItem, setApprovingItem] = useState<OvertimeDto | null>(null);
   const [approvePayMethod, setApprovePayMethod] = useState<"PER_HOUR" | "PER_DAY">("PER_HOUR");
@@ -523,6 +524,9 @@ export default function Page() {
     const userData = JSON.parse(localStorage.getItem("hr_user_data") || "{}");
     setUserId(userData.id || "");
     setUserAvatarUrl(userData.avatarUrl || userData.avatar_url || "");
+    setUserFaceDescriptor(
+      Array.isArray(userData.faceDescriptor) ? userData.faceDescriptor : null,
+    );
     if (userData.id) {
       fetchCurrentOvertime(userData.id);
     }
@@ -678,6 +682,7 @@ export default function Page() {
         isOpen={isFaceModalOpen}
         mode={faceModalMode}
         referenceImageUrl={userAvatarUrl || null}
+        referenceDescriptor={userFaceDescriptor}
         onSuccess={handleFaceModalSuccess}
         onClose={() => {
           setIsFaceModalOpen(false);
