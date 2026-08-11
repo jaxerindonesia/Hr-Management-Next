@@ -1,21 +1,76 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Camera, RefreshCw, CheckCircle, X, ScanFace, Loader2, AlertCircle } from "lucide-react";
+import { Camera, RefreshCw, CheckCircle, X, ScanFace, Loader2, AlertCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as faceapi from "face-api.js";
 import { ensureFaceModelLoaded } from "@/lib/helper/face-models";
 
 interface FaceCaptureProps {
   value: string | null; // base64 data URL or existing avatarUrl
-  onChange: (dataUrl: string | null) => void;
+  onChange: (dataUrl: string | null, descriptor: number[] | null) => void;
 }
 
 type CaptureState = "idle" | "camera" | "validating" | "captured" | "invalid";
 
+function loadFaceCaptureModels() {
+  return ensureFaceModelLoaded("face-capture-v3", [
+    async () => {
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+      } catch (error) {
+        throw new Error(`Tiny Face Detector gagal: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    async () => {
+      try {
+        await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
+      } catch (error) {
+        throw new Error(`Face Landmark gagal: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    async () => {
+      try {
+        await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
+      } catch (error) {
+        throw new Error(`Face Recognition gagal: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+  ]);
+}
+
+function describeFaceProcessingError(error: unknown) {
+  const detail = error instanceof Error ? error.message : String(error || "");
+  const normalized = detail.toLowerCase();
+
+  if (normalized.includes("load model before inference") || normalized.includes("not loaded")) {
+    return "Model AI belum termuat lengkap. Muat ulang halaman lalu coba kembali.";
+  }
+  if (normalized.includes("failed to fetch") || normalized.includes("network")) {
+    return `File model AI gagal dimuat browser: ${detail.slice(0, 180)}`;
+  }
+  if (normalized.includes("canvas") || normalized.includes("image")) {
+    return "Browser gagal membaca data gambar. Simpan ulang foto sebagai JPG lalu coba kembali.";
+  }
+
+  return detail
+    ? `Proses AI gagal: ${detail.slice(0, 180)}`
+    : "Proses AI gagal tanpa detail error dari browser.";
+}
+
+function loadLocalImage(dataUrl: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Browser gagal membaca Data URL foto"));
+    image.src = dataUrl;
+  });
+}
+
 export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const [state, setState] = useState<CaptureState>(value ? "captured" : "idle");
@@ -28,13 +83,9 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
   useEffect(() => {
     const load = async () => {
       try {
-        await ensureFaceModelLoaded("face-capture", [
-          () => faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
-          () => faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
-        ]);
+        await loadFaceCaptureModels();
         setModelsLoaded(true);
       } catch {
-        // models gagal load, tapi tetap bisa capture tanpa validasi
         setModelsLoaded(false);
       }
     };
@@ -67,6 +118,108 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
     }
   };
 
+  const validateAndStoreFace = async (dataUrl: string) => {
+    if (!modelsLoaded) {
+      setValidationError("Model pengenalan wajah belum siap. Tunggu sebentar lalu coba kembali.");
+      setState("invalid");
+      return;
+    }
+
+    setState("validating");
+    setValidationError("");
+    try {
+      await loadFaceCaptureModels();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const img = await loadLocalImage(dataUrl);
+      const detections = await faceapi
+        .detectAllFaces(
+          img,
+          new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.2 }),
+        )
+        .withFaceLandmarks()
+        .withFaceDescriptors();
+
+      if (detections.length === 0) {
+        setValidationError("Tidak ada wajah terdeteksi di foto. Pastikan wajah terlihat jelas, pencahayaan cukup, dan tidak tertutup masker/topi.");
+        setState("invalid");
+        return;
+      }
+
+      if (detections.length > 1) {
+        setValidationError("Terdeteksi lebih dari satu wajah. Pastikan foto hanya berisi satu orang.");
+        setState("invalid");
+        return;
+      }
+
+      onChange(dataUrl, Array.from(detections[0].descriptor));
+      setState("captured");
+    } catch (error) {
+      console.error("Face upload validation failed", error);
+      setValidationError(describeFaceProcessingError(error));
+      setState("invalid");
+    }
+  };
+
+  const normalizeUploadedImage = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+
+      image.onload = () => {
+        const maxDimension = 640;
+        const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error("Canvas tidak tersedia"));
+          return;
+        }
+        context.drawImage(image, 0, 0, width, height);
+        URL.revokeObjectURL(objectUrl);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Gambar tidak dapat dibaca"));
+      };
+      image.src = objectUrl;
+    });
+
+  const handleFileUpload = async (file: File | undefined) => {
+    if (!file) return;
+    if (!accessoryConfirmed) {
+      setValidationError("Konfirmasi bahwa foto tidak menggunakan kacamata atau topi.");
+      setState("invalid");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setValidationError("Format foto harus JPG, PNG, atau WebP.");
+      setState("invalid");
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      setValidationError("Ukuran foto maksimal 3 MB.");
+      setState("invalid");
+      return;
+    }
+
+    setState("validating");
+    try {
+      const dataUrl = await normalizeUploadedImage(file);
+      await validateAndStoreFace(dataUrl);
+    } catch {
+      setValidationError("Foto tidak dapat dibaca. Silakan gunakan foto lain.");
+      setState("invalid");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const capture = async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
@@ -90,59 +243,23 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     stopCamera();
 
-    // Jika model belum siap, langsung simpan tanpa validasi
-    if (!modelsLoaded) {
-      onChange(dataUrl);
-      setState("captured");
-      return;
-    }
-
-    // Validasi wajah di foto
-    setState("validating");
-    setValidationError("");
-    try {
-      const img = await faceapi.fetchImage(dataUrl);
-      const detections = await faceapi
-        .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 }))
-        .withFaceLandmarks();
-
-      if (detections.length === 0) {
-        setValidationError("Tidak ada wajah terdeteksi di foto. Pastikan wajah terlihat jelas, pencahayaan cukup, dan tidak tertutup masker/topi.");
-        setState("invalid");
-        return;
-      }
-
-      if (detections.length > 1) {
-        setValidationError("Terdeteksi lebih dari satu wajah. Pastikan hanya ada satu orang di depan kamera.");
-        setState("invalid");
-        return;
-      }
-
-      // Validasi lulus — simpan foto
-      onChange(dataUrl);
-      setState("captured");
-    } catch {
-      // Jika ada error saat validasi, tetap simpan foto
-      onChange(dataUrl);
-      setState("captured");
-    }
+    await validateAndStoreFace(dataUrl);
   };
 
   const retake = () => {
-    onChange(null);
+    onChange(null, null);
     setValidationError("");
     setAccessoryConfirmed(false);
     stopCamera();
     setState("idle");
   };
 
-  const retakeAndReopen = () => {
-    onChange(null);
+  const resetInvalid = () => {
+    onChange(null, null);
     setValidationError("");
     setAccessoryConfirmed(false);
     stopCamera();
     setState("idle");
-    setTimeout(() => { void startCamera(); }, 50);
   };
 
   const displayImage = value;
@@ -177,7 +294,7 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
           </div>
           <p className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
             <CheckCircle className="w-3.5 h-3.5" />
-            Foto wajah berhasil diambil
+            Foto wajah berhasil diverifikasi
           </p>
           <Button
             type="button"
@@ -187,7 +304,7 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
             className="flex items-center gap-2 text-sm"
           >
             <RefreshCw className="w-4 h-4" />
-            Ambil Ulang
+            Ganti Foto
           </Button>
         </div>
       )}
@@ -214,14 +331,14 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
             Posisikan wajah di dalam lingkaran, lalu klik Ambil Foto
           </p>
-          <label className="flex items-start gap-2 max-w-xs text-xs text-gray-600 dark:text-gray-300">
+          <label className="flex items-center gap-2 whitespace-nowrap text-xs text-gray-600 dark:text-gray-300">
             <input
               type="checkbox"
               checked={accessoryConfirmed}
               onChange={(e) => setAccessoryConfirmed(e.target.checked)}
               className="mt-0.5 h-4 w-4 accent-indigo-600"
             />
-            <span>Saya sudah melepas kacamata dan topi.</span>
+            <span>Foto wajah tidak menggunakan kacamata dan topi.</span>
           </label>
           <div className="flex gap-2">
             <Button
@@ -278,23 +395,23 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
             </p>
           </div>
           {/* Tampilkan ulang checklist agar user ingat syaratnya */}
-          <label className="flex items-start gap-2 max-w-xs text-xs text-gray-600 dark:text-gray-300">
+          <label className="flex items-center gap-2 whitespace-nowrap text-xs text-gray-600 dark:text-gray-300">
             <input
               type="checkbox"
               checked={accessoryConfirmed}
               onChange={(e) => setAccessoryConfirmed(e.target.checked)}
               className="mt-0.5 h-4 w-4 accent-indigo-600"
             />
-            <span>Saya sudah melepas kacamata dan topi.</span>
+            <span>Foto wajah tidak menggunakan kacamata dan topi.</span>
           </label>
           <Button
             type="button"
             variant="outline"
-            onClick={retakeAndReopen}
+            onClick={resetInvalid}
             className="flex items-center gap-2 border-red-400 text-red-600 hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-900/20"
           >
             <RefreshCw className="w-4 h-4" />
-            Ambil Ulang
+            Pilih Ulang
           </Button>
         </div>
       )}
@@ -317,25 +434,47 @@ export default function FaceCapture({ value, onChange }: FaceCaptureProps) {
             <p className="text-xs text-red-500 text-center px-4">{cameraError}</p>
           )}
           {/* Checklist wajib sebelum buka kamera */}
-          <label className="flex items-start gap-2 max-w-xs text-xs text-gray-600 dark:text-gray-300 cursor-pointer px-2">
+          <label className="flex items-center gap-2 whitespace-nowrap text-xs text-gray-600 dark:text-gray-300 cursor-pointer px-2">
             <input
               type="checkbox"
               checked={accessoryConfirmed}
               onChange={(e) => setAccessoryConfirmed(e.target.checked)}
               className="mt-0.5 h-4 w-4 accent-indigo-600 cursor-pointer"
             />
-            <span>Saya sudah melepas kacamata dan topi.</span>
+            <span>Foto wajah tidak menggunakan kacamata dan topi.</span>
           </label>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={startCamera}
-            disabled={!accessoryConfirmed}
-            className="flex items-center gap-2 border-indigo-500 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Camera className="w-4 h-4" />
-            Buka Kamera
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={startCamera}
+              disabled={!accessoryConfirmed || !modelsLoaded}
+              className="flex items-center gap-2 border-indigo-500 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Camera className="w-4 h-4" />
+              Buka Kamera
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(event) => void handleFileUpload(event.target.files?.[0])}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!accessoryConfirmed || !modelsLoaded}
+              className="flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Foto
+            </Button>
+          </div>
+          {!modelsLoaded && (
+            <p className="text-xs text-indigo-500">Menyiapkan model wajah...</p>
+          )}
         </div>
       )}
     </div>

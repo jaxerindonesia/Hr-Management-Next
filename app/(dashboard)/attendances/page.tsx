@@ -10,6 +10,7 @@ import { parseApiError } from "@/lib/helper/response-api";
 import { getJakartaDayKey } from "@/lib/helper/date";
 import { ensureFaceModelLoaded } from "@/lib/helper/face-models";
 import FaceRecognitionModal from "./components/face-recognition-modal";
+import { loadAndCacheFaceDescriptor } from "@/lib/helper/face-reference-cache";
 import ModalAttendanceConfig from "./components/modal-attendance-config";
 import DynamicPage from "@/components/dynamic-page";
 import { getColumnFormats, headerToolbar, ITEMS_PER_PAGE, renderActions, STATUS_LABEL } from "./page.config";
@@ -68,7 +69,12 @@ export default function Page() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [detailItem, setDetailItem] = useState<AttendanceDto | undefined>(undefined);
-  const [userData, setUserData] = useState({ id: "", role: "", avatarUrl: "" });
+  const [userData, setUserData] = useState<{
+    id: string;
+    role: string;
+    avatarUrl: string;
+    faceDescriptor: number[] | null;
+  }>({ id: "", role: "", avatarUrl: "", faceDescriptor: null });
   const [todayAttendance, setTodayAttendance] = useState<AttendanceDto | null>(null);
 
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -871,8 +877,34 @@ export default function Page() {
       id: data.id || "",
       role: data.role || "",
       avatarUrl: data.avatarUrl || data.avatar_url || "",
+      faceDescriptor: Array.isArray(data.faceDescriptor) ? data.faceDescriptor : null,
     });
   }, []);
+
+  useEffect(() => {
+    if (!userData.avatarUrl || userData.faceDescriptor) return;
+
+    const warmLegacyReference = async () => {
+      try {
+        await ensureFaceModelLoaded("attendance-recognition", [
+          () => import("face-api.js").then((faceapi) =>
+            faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
+          ),
+          () => import("face-api.js").then((faceapi) =>
+            faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
+          ),
+          () => import("face-api.js").then((faceapi) =>
+            faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
+          ),
+        ]);
+        await loadAndCacheFaceDescriptor(userData.avatarUrl);
+      } catch {
+        // Modal tetap memiliki fallback dan pesan error jika pemanasan gagal.
+      }
+    };
+
+    void warmLegacyReference();
+  }, [userData.avatarUrl, userData.faceDescriptor]);
 
   useEffect(() => {
     refreshLocationReadiness();
@@ -969,6 +1001,7 @@ export default function Page() {
         isOpen={isFaceModalOpen}
         mode={faceModalMode}
         referenceImageUrl={userData.avatarUrl || null}
+        referenceDescriptor={userData.faceDescriptor}
         onSuccess={handleFaceSuccess}
         onClose={() => setIsFaceModalOpen(false)}
       />

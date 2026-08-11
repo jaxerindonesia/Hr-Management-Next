@@ -9,6 +9,7 @@ import { getAuthCookieOptions } from "@/lib/auth/cookie";
 import { writeAuditLog } from "@/lib/security/audit-log";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { getRequestIp } from "@/lib/security/request";
+import { parseFaceDescriptor } from "@/lib/helper/face-descriptor";
 
 export async function POST(req: NextRequest) {
   try {
@@ -195,6 +196,7 @@ export async function POST(req: NextRequest) {
         role: user.role.name,
         permissions: user.role.permission,
         avatarUrl: user.avatarUrl ?? "",
+        faceDescriptor: parseFaceDescriptor(user.faceDescriptor),
         tenantId: user.tenantId ?? null,
         tenantName: user.tenant?.companyName ?? null,
         tenantLogoUrl: user.tenant?.logoUrl ?? null,

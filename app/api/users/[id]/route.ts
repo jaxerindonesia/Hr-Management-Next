@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 import { deleteFromMinio } from "@/lib/minio";
@@ -10,6 +10,7 @@ import { ensureTenantScope, requireSessionUser } from "@/lib/auth/tenant";
 import { requirePermission } from "@/lib/auth/permission";
 import { writeAuditLog } from "@/lib/security/audit-log";
 import { validateUserAssignment } from "@/lib/helper/user-assignment-validation";
+import { parseFaceDescriptor } from "@/lib/helper/face-descriptor";
 
 // Helper: hapus file avatar lama dari MinIO
 async function deleteOldAvatar(avatarUrl: string | null) {
@@ -127,10 +128,26 @@ export async function PUT(req: Request, { params }: Params) {
     }
     if (body.status) updateData.status = body.status;
 
+    if (body.faceDescriptor !== undefined) {
+      if (body.faceDescriptor === null) {
+        updateData.faceDescriptor = Prisma.JsonNull;
+      } else {
+        const parsedFaceDescriptor = parseFaceDescriptor(body.faceDescriptor);
+        if (!parsedFaceDescriptor) {
+          return NextResponse.json(
+            { message: "Descriptor foto wajah tidak valid. Silakan ambil ulang foto." },
+            { status: 400 },
+          );
+        }
+        updateData.faceDescriptor = parsedFaceDescriptor;
+      }
+    }
+
     // Jika avatarUrl diupdate → hapus file lama dari disk terlebih dahulu
     if (body.avatarUrl !== undefined) {
       const newAvatarUrl = body.avatarUrl || null;
       updateData.avatarUrl = newAvatarUrl;
+      if (!newAvatarUrl) updateData.faceDescriptor = Prisma.JsonNull;
 
       // Ambil avatarUrl lama dari DB
       const existingUser = await prisma.user.findUnique({

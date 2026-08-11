@@ -1,4 +1,4 @@
-import { Client } from "minio";
+import { Client, CopyDestinationOptions, CopySourceOptions } from "minio";
 
 // ── MinIO Client (singleton) ─────────────────────────────────────────────────
 const minioClient = new Client({
@@ -56,6 +56,7 @@ export async function uploadBase64ToMinio(
 
   await minioClient.putObject(bucket, objectName, buffer, buffer.length, {
     "Content-Type": contentType,
+    "Cache-Control": "public, max-age=31536000, immutable",
   });
 
   return `${PUBLIC_URL}/${bucket}/${objectName}`;
@@ -70,6 +71,7 @@ export async function uploadBufferToMinio(
 ): Promise<string> {
   await minioClient.putObject(bucket, objectName, buffer, buffer.length, {
     "Content-Type": contentType,
+    "Cache-Control": "public, max-age=31536000, immutable",
   });
 
   return `${PUBLIC_URL}/${bucket}/${objectName}`;
@@ -97,6 +99,32 @@ export async function deleteFromMinio(objectUrlOrKey: string): Promise<void> {
   } catch {
     // File tidak ada atau URL tidak valid → abaikan
   }
+}
+
+export async function refreshMinioObjectCacheControl(objectUrl: string) {
+  const url = new URL(objectUrl);
+  if (url.origin !== new URL(PUBLIC_URL).origin) return false;
+
+  const [bucket, ...objectParts] = url.pathname.replace(/^\//, "").split("/");
+  const objectName = objectParts.join("/");
+  if (!bucket || !objectName) return false;
+
+  const stat = await minioClient.statObject(bucket, objectName);
+  if (stat.metaData?.["cache-control"] === "public, max-age=31536000, immutable") {
+    return false;
+  }
+  const source = new CopySourceOptions({ Bucket: bucket, Object: objectName });
+  const destination = new CopyDestinationOptions({
+    Bucket: bucket,
+    Object: objectName,
+    MetadataDirective: "REPLACE",
+    UserMetadata: {
+      "Content-Type": stat.metaData?.["content-type"] || "image/jpeg",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+  await minioClient.copyObject(source, destination);
+  return true;
 }
 
 export default minioClient;

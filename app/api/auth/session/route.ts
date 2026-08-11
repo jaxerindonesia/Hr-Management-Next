@@ -21,6 +21,7 @@ export async function GET() {
       tenantLogoUrl: auth.user.tenantLogoUrl,
       departmentId: auth.user.departmentId,
       avatarUrl: auth.user.avatarUrl,
+      faceDescriptor: auth.user.faceDescriptor,
       permissions: auth.user.permissions,
     },
   });
