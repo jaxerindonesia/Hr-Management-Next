@@ -211,15 +211,54 @@ export default function FaceRecognitionModal({
         const startedAt = performance.now();
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: 640, height: 480 },
+            video: {
+              facingMode: { ideal: "user" },
+              width: { ideal: 1280 },
+              height: { ideal: 960 },
+              aspectRatio: { ideal: 4 / 3 },
+            },
           });
           if (cancelled) {
             stream.getTracks().forEach((t) => t.stop());
             return null;
           }
+
+          const videoTrack = stream.getVideoTracks()[0];
+          if (videoTrack) {
+            const capabilities = videoTrack.getCapabilities() as MediaTrackCapabilities & {
+              focusMode?: string[];
+              zoom?: { min: number; max: number; step: number };
+            };
+            const advancedConstraints: Record<string, string | number> = {};
+
+            if (capabilities.focusMode?.includes("continuous")) {
+              advancedConstraints.focusMode = "continuous";
+            }
+            if (capabilities.zoom) {
+              advancedConstraints.zoom = capabilities.zoom.min;
+            }
+
+            if (Object.keys(advancedConstraints).length > 0) {
+              try {
+                await videoTrack.applyConstraints({
+                  advanced: [advancedConstraints as MediaTrackConstraintSet],
+                });
+              } catch {
+                // Some mobile browsers expose capabilities they cannot apply.
+              }
+            }
+          }
+
           streamRef.current = stream;
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
+            if (videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA) {
+              await new Promise<void>((resolve) => {
+                videoRef.current?.addEventListener("loadedmetadata", () => resolve(), {
+                  once: true,
+                });
+              });
+            }
             await videoRef.current.play();
           }
           return performance.now() - startedAt;
@@ -476,10 +515,10 @@ export default function FaceRecognitionModal({
           </button>
         </div>
 
-        <div className="relative bg-black aspect-[4/5] sm:aspect-[4/3] md:aspect-video overflow-hidden">
+        <div className="relative bg-black aspect-[4/3] overflow-hidden">
           <video
             ref={videoRef}
-            className="h-full w-full object-cover object-center -scale-x-100"
+            className="h-full w-full object-contain object-center -scale-x-100"
             muted
             playsInline
           />
@@ -507,7 +546,7 @@ export default function FaceRecognitionModal({
           {!shouldSuppressStatusUi && (status === "scanning" || status === "no-face" || status === "no-match" || status === "head-turn-required") && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div
-                className={`h-[70%] w-[66%] max-w-[18rem] rounded-full border-4 transition-colors duration-500 sm:h-[78%] sm:w-48 ${
+                className={`h-[78%] w-[48%] max-w-48 rounded-full border-4 transition-colors duration-500 ${
                   status === "no-match"
                     ? "border-red-400"
                     : status === "no-face"
