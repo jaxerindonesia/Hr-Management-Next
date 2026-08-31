@@ -501,7 +501,7 @@ export default function FaceRecognitionModal({
           </button>
         </div>
 
-        <div className="relative bg-black aspect-[4/3] overflow-hidden">
+        <div className="relative aspect-[4/5] overflow-hidden bg-black sm:aspect-[4/3]">
           <video
             ref={videoRef}
             className="h-full w-full object-contain object-center -scale-x-100"
