@@ -504,13 +504,13 @@ export default function FaceRecognitionModal({
         <div className="relative aspect-[4/5] overflow-hidden bg-black sm:aspect-[4/3]">
           <video
             ref={videoRef}
-            className="h-full w-full object-contain object-center -scale-x-100"
+            className="absolute inset-x-0 top-1/2 aspect-[4/3] w-full -translate-y-1/2 -scale-x-100 object-contain object-center"
             muted
             playsInline
           />
           <canvas
             ref={canvasRef}
-            className="absolute inset-0 w-full h-full -scale-x-100"
+            className="absolute inset-x-0 top-1/2 aspect-[4/3] w-full -translate-y-1/2 -scale-x-100"
           />
 
           {showStartupSplash && (
@@ -532,7 +532,7 @@ export default function FaceRecognitionModal({
           {!shouldSuppressStatusUi && (status === "scanning" || status === "no-face" || status === "no-match" || status === "head-turn-required") && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div
-                className={`h-[78%] w-[48%] max-w-48 rounded-full border-4 transition-colors duration-500 ${
+                className={`aspect-[3/4] w-[58%] max-w-56 rounded-full border-4 transition-colors duration-500 sm:w-48 ${
                   status === "no-match"
                     ? "border-red-400"
                     : status === "no-face"
