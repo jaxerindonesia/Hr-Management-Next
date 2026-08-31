@@ -211,13 +211,38 @@ export default function FaceRecognitionModal({
         const startedAt = performance.now();
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: 640, height: 480 },
+            video: {
+              facingMode: { ideal: "user" },
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              aspectRatio: { ideal: 4 / 3 },
+            },
           });
           if (cancelled) {
             stream.getTracks().forEach((t) => t.stop());
             return null;
           }
+
           streamRef.current = stream;
+
+          const videoTrack = stream.getVideoTracks()[0];
+          if (videoTrack && typeof videoTrack.getCapabilities === "function") {
+            const capabilities = videoTrack.getCapabilities() as MediaTrackCapabilities & {
+              zoom?: { min: number; max: number; step: number };
+            };
+            const minimumZoom = capabilities.zoom?.min;
+
+            if (typeof minimumZoom === "number" && Number.isFinite(minimumZoom)) {
+              try {
+                await videoTrack.applyConstraints({
+                  advanced: [{ zoom: minimumZoom } as MediaTrackConstraintSet],
+                });
+              } catch {
+                // Keep the camera's default zoom when the device rejects the constraint.
+              }
+            }
+          }
+
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
             await videoRef.current.play();
@@ -476,16 +501,16 @@ export default function FaceRecognitionModal({
           </button>
         </div>
 
-        <div className="relative bg-black aspect-[4/5] sm:aspect-[4/3] md:aspect-video overflow-hidden">
+        <div className="relative aspect-[4/5] overflow-hidden bg-black sm:aspect-[4/3]">
           <video
             ref={videoRef}
-            className="h-full w-full object-cover object-center -scale-x-100"
+            className="h-full w-full -scale-x-100 object-contain object-center"
             muted
             playsInline
           />
           <canvas
             ref={canvasRef}
-            className="absolute inset-0 w-full h-full -scale-x-100"
+            className="absolute inset-0 h-full w-full -scale-x-100 object-contain object-center"
           />
 
           {showStartupSplash && (
@@ -507,7 +532,7 @@ export default function FaceRecognitionModal({
           {!shouldSuppressStatusUi && (status === "scanning" || status === "no-face" || status === "no-match" || status === "head-turn-required") && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div
-                className={`h-[70%] w-[66%] max-w-[18rem] rounded-full border-4 transition-colors duration-500 sm:h-[78%] sm:w-48 ${
+                className={`aspect-[3/4] w-[58%] max-w-56 rounded-full border-4 transition-colors duration-500 sm:w-48 ${
                   status === "no-match"
                     ? "border-red-400"
                     : status === "no-face"
