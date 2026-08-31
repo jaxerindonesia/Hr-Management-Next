@@ -213,8 +213,8 @@ export default function FaceRecognitionModal({
           const stream = await navigator.mediaDevices.getUserMedia({
             video: {
               facingMode: { ideal: "user" },
-              width: { ideal: 1280 },
-              height: { ideal: 960 },
+              width: { ideal: 640 },
+              height: { ideal: 480 },
               aspectRatio: { ideal: 4 / 3 },
             },
           });
@@ -223,42 +223,28 @@ export default function FaceRecognitionModal({
             return null;
           }
 
+          streamRef.current = stream;
+
           const videoTrack = stream.getVideoTracks()[0];
-          if (videoTrack) {
+          if (videoTrack && typeof videoTrack.getCapabilities === "function") {
             const capabilities = videoTrack.getCapabilities() as MediaTrackCapabilities & {
-              focusMode?: string[];
               zoom?: { min: number; max: number; step: number };
             };
-            const advancedConstraints: Record<string, string | number> = {};
+            const minimumZoom = capabilities.zoom?.min;
 
-            if (capabilities.focusMode?.includes("continuous")) {
-              advancedConstraints.focusMode = "continuous";
-            }
-            if (capabilities.zoom) {
-              advancedConstraints.zoom = capabilities.zoom.min;
-            }
-
-            if (Object.keys(advancedConstraints).length > 0) {
+            if (typeof minimumZoom === "number" && Number.isFinite(minimumZoom)) {
               try {
                 await videoTrack.applyConstraints({
-                  advanced: [advancedConstraints as MediaTrackConstraintSet],
+                  advanced: [{ zoom: minimumZoom } as MediaTrackConstraintSet],
                 });
               } catch {
-                // Some mobile browsers expose capabilities they cannot apply.
+                // Keep the camera's default zoom when the device rejects the constraint.
               }
             }
           }
 
-          streamRef.current = stream;
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            if (videoRef.current.readyState < HTMLMediaElement.HAVE_METADATA) {
-              await new Promise<void>((resolve) => {
-                videoRef.current?.addEventListener("loadedmetadata", () => resolve(), {
-                  once: true,
-                });
-              });
-            }
             await videoRef.current.play();
           }
           return performance.now() - startedAt;
