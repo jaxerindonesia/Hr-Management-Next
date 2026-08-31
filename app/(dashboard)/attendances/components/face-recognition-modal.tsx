@@ -504,13 +504,13 @@ export default function FaceRecognitionModal({
         <div className="relative aspect-[4/5] overflow-hidden bg-black sm:aspect-[4/3]">
           <video
             ref={videoRef}
-            className="absolute inset-x-0 top-1/2 aspect-[4/3] w-full -translate-y-1/2 -scale-x-100 object-contain object-center"
+            className="h-full w-full -scale-x-100 object-contain object-center"
             muted
             playsInline
           />
           <canvas
             ref={canvasRef}
-            className="absolute inset-x-0 top-1/2 aspect-[4/3] w-full -translate-y-1/2 -scale-x-100"
+            className="absolute inset-0 h-full w-full -scale-x-100 object-contain object-center"
           />
 
           {showStartupSplash && (
